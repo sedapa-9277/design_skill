@@ -413,6 +413,30 @@ table.rank { width: 100%; border-collapse: collapse; font-size: .9rem; }
   * { transition: none !important; }
 }
 
+/* ---- 팀 선택 ---- */
+.teams { display: flex; gap: 6px; flex-wrap: wrap; }
+.teams button {
+  border: 2px solid #ffffff66;
+  background: #ffffff14;
+  color: #fff;
+  border-radius: 10px;
+  padding: 7px 16px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: .02em;
+}
+.teams button:hover { background: #ffffff2b; }
+.teams button[aria-pressed="true"] { background: #fff; color: #174f2b; border-color: #fff; }
+.mlist .team-sel {
+  font: inherit;
+  font-size: .82rem;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 4px;
+}
+
 /* ---- PIN 잠금 ---- */
 .lockbar {
   display: flex;

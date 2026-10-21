@@ -3,6 +3,11 @@
   const SUPABASE_URL = "https://ldektmvedvhumdvrdbxj.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZWt0bXZlZHZodW1kdnJkYnhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1NTQ0NTEsImV4cCI6MjEwODEzMDQ1MX0.2ZazwLYXhTwTF1bs9NSFhoSjQlZmvaSRuAEi3FkUyDQ";
   const PIN_KEY = "soccer-attendance-pin";
+  const TEAM_KEY = "soccer-attendance-team";
+
+  // [팀 이름, 주소 뒤 # 링크]
+  const TEAMS = [["믿음", "faith"], ["소망", "hope"], ["사랑", "love"]];
+  const teamFromHash = () => TEAMS.find(([, h]) => "#" + h === location.hash)?.[0] || null;
 
   const GAMES = [1, 2, 3, 4, 5, 6];
   const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -26,10 +31,11 @@
     sb: null,
     mode: "loading",          // loading | live | offline
     pin: null,                // 잠금 해제된 PIN (이 브라우저 탭에서만 기억)
-    members: new Map(),       // id -> {name, active}
-    days: new Map(),          // "YYYY-MM-DD" -> {att: {memberId: {g1:true,...}}, lineup: {g1: {formation, pos: {s0: memberId}}}}
+    team: "믿음",
+    members: new Map(),       // id -> {name, active, team}
+    days: new Map(),          // "YYYY-MM-DD" -> {att: {memberId: {g1:true,...}}, lineup: {팀: {g1: {formation, pos: {s0: memberId}}}}}
     pending: new Map(),       // "date|mid|gN" -> bool (낙관적 반영)
-    pendingLineup: new Map(), // "date|gN|sI" -> memberId|null, "date|gN|form" -> 포메이션
+    pendingLineup: new Map(), // "date|팀|gN|sI" -> memberId|null, "date|팀|gN|form" -> 포메이션
     lineupGame: 1,
     pickSlot: null,
     date: ymd(new Date()),
@@ -38,6 +44,7 @@
     confirmPurge: null,
     editId: null,
     editDraft: null,
+    editTeam: null,
   };
 
   function ymd(d) {
@@ -56,10 +63,16 @@
     if (S.pending.has(k)) return S.pending.get(k);
     return S.days.get(date)?.att?.[mid]?.[`g${g}`] === true;
   }
-  function activeMembers() {
+  // 지금 고른 팀의 회원만 (명단에서 뺀 회원 포함 여부 선택)
+  function teamMembers(includeInactive) {
     return [...S.members.entries()]
-      .filter(([, m]) => m.active !== false)
+      .filter(([, m]) => m.team === S.team && (includeInactive || m.active !== false))
       .sort((a, b) => a[1].name.localeCompare(b[1].name, "ko"));
+  }
+  function activeMembers() { return teamMembers(false); }
+  function nameTakenBy(name, exceptId) {
+    for (const [id, m] of S.members) if (id !== exceptId && m.active && m.name === name) return m;
+    return null;
   }
   function memberName(id) { return S.members.get(id)?.name || "(삭제된 회원)"; }
 
@@ -96,20 +109,21 @@
     const seq = ++loadSeq;
     try {
       const [members, att, lineups, slots] = await Promise.all([
-        fetchAll("members", "id,name,active", ["created_at", "id"]),
+        fetchAll("members", "id,name,active,team", ["created_at", "id"]),
         fetchAll("attendance", "day,member_id,game", ["day", "member_id", "game"]),
-        fetchAll("lineups", "day,game,formation", ["day", "game"]),
-        fetchAll("lineup_slots", "day,game,slot,member_id", ["day", "game", "slot"]),
+        fetchAll("lineups", "day,team,game,formation", ["day", "team", "game"]),
+        fetchAll("lineup_slots", "day,team,game,slot,member_id", ["day", "team", "game", "slot"]),
       ]);
       if (seq !== loadSeq) return;
-      S.members = new Map(members.map((m) => [m.id, { name: m.name, active: m.active }]));
+      S.members = new Map(members.map((m) => [m.id, { name: m.name, active: m.active, team: m.team }]));
       const days = new Map();
       for (const r of att) {
         const d = dayOf(days, r.day);
         (d.att[r.member_id] ||= {})[`g${r.game}`] = true;
       }
-      for (const r of lineups) (dayOf(days, r.day).lineup[`g${r.game}`] ||= { pos: {} }).formation = r.formation;
-      for (const r of slots) (dayOf(days, r.day).lineup[`g${r.game}`] ||= { pos: {} }).pos[`s${r.slot}`] = r.member_id;
+      const lu = (r) => ((dayOf(days, r.day).lineup[r.team] ||= {})[`g${r.game}`] ||= { pos: {} });
+      for (const r of lineups) lu(r).formation = r.formation;
+      for (const r of slots) lu(r).pos[`s${r.slot}`] = r.member_id;
       S.days = days;
       if (S.mode !== "live") showNotice("");
       S.mode = "live";
@@ -148,6 +162,8 @@
       toast("PIN이 바뀌었거나 맞지 않습니다. 다시 입력해 주세요.");
     } else if (msg.includes("duplicate_name")) {
       toast("같은 이름의 회원이 이미 명단에 있습니다.");
+    } else if (msg.includes("wrong_team")) {
+      toast("다른 팀 회원은 이 팀 포지션에 넣을 수 없습니다.");
     } else if (msg.includes("empty_name")) {
       toast("이름을 입력해 주세요.");
     } else {
@@ -193,7 +209,7 @@
     if (!on) {
       for (const g of games) {
         lineupOf(date, g).slots.forEach((v, i) => {
-          if (v === mid) { pend.push([S.pendingLineup, `${date}|g${g}|s${i}`, null]); fromLineup = true; }
+          if (v === mid) { pend.push([S.pendingLineup, `${date}|${S.team}|g${g}|s${i}`, null]); fromLineup = true; }
         });
       }
     }
@@ -207,25 +223,26 @@
 
   // ---------- 포지션 배치 ----------
   function lineupOf(date, g) {
-    const base = S.days.get(date)?.lineup?.[`g${g}`] || {};
-    const fk = `${date}|g${g}|form`;
+    const t = S.team;
+    const base = S.days.get(date)?.lineup?.[t]?.[`g${g}`] || {};
+    const fk = `${date}|${t}|g${g}|form`;
     let formation = S.pendingLineup.has(fk) ? S.pendingLineup.get(fk) : base.formation;
     if (!FORMATIONS[formation]) formation = DEFAULT_FORMATION;
     const slots = FORMATIONS[formation].map((_, i) => {
-      const k = `${date}|g${g}|s${i}`;
+      const k = `${date}|${t}|g${g}|s${i}`;
       const v = S.pendingLineup.has(k) ? S.pendingLineup.get(k) : base.pos?.[`s${i}`];
-      return v && S.members.has(v) ? v : null;
+      return v && S.members.get(v)?.team === t ? v : null;
     });
     return { formation, slots };
   }
 
   function placeMember(slotIdx, mid) {
     if (needPin()) return;
-    const date = S.date, g = S.lineupGame;
+    const date = S.date, g = S.lineupGame, t = S.team;
     const lu = lineupOf(date, g);
-    const pend = [[S.pendingLineup, `${date}|g${g}|s${slotIdx}`, mid]];
+    const pend = [[S.pendingLineup, `${date}|${t}|g${g}|s${slotIdx}`, mid]];
     if (mid) {
-      lu.slots.forEach((v, i) => { if (v === mid && i !== slotIdx) pend.push([S.pendingLineup, `${date}|g${g}|s${i}`, null]); });
+      lu.slots.forEach((v, i) => { if (v === mid && i !== slotIdx) pend.push([S.pendingLineup, `${date}|${t}|g${g}|s${i}`, null]); });
       pend.push([S.pending, `${date}|${mid}|g${g}`, true]);
     }
     const pos = FORMATIONS[lu.formation][slotIdx][0];
@@ -233,7 +250,7 @@
                     : `${pos} 자리를 비웠습니다. 출석은 출석판에서 해제할 수 있습니다.`;
     S.pickSlot = mid ? nextEmptySlot(lu.slots, slotIdx, mid) : slotIdx;
     write(date, pend, () => rpc("place_member", {
-      p_day: date, p_game: g, p_slot: slotIdx, p_member: mid || null, p_formation: lu.formation,
+      p_day: date, p_team: t, p_game: g, p_slot: slotIdx, p_member: mid || null, p_formation: lu.formation,
     }), msg);
   }
 
@@ -247,19 +264,30 @@
   }
 
   function setFormation(f) {
-    const date = S.date, g = S.lineupGame;
-    write(date, [[S.pendingLineup, `${date}|g${g}|form`, f]],
-      () => rpc("set_formation", { p_day: date, p_game: g, p_formation: f }));
+    const date = S.date, g = S.lineupGame, t = S.team;
+    write(date, [[S.pendingLineup, `${date}|${t}|g${g}|form`, f]],
+      () => rpc("set_formation", { p_day: date, p_team: t, p_game: g, p_formation: f }));
   }
 
   // ---------- 회원 ----------
   function addMembers(names) {
-    const existing = new Set(activeMembers().map(([, m]) => m.name));
-    const fresh = names.filter((n) => !existing.has(n));
-    if (!fresh.length) { toast("이미 등록된 이름입니다."); return; }
-    const dup = names.length - fresh.length;
-    write("members", [], () => rpc("add_members", { p_names: fresh }),
-      (n) => `${n ?? fresh.length}명을 추가했습니다${dup ? ` (중복 ${dup}명 제외)` : ""}.`);
+    const taken = names.map((n) => [n, nameTakenBy(n)]).filter(([, m]) => m);
+    const fresh = names.filter((n) => !nameTakenBy(n));
+    if (taken.length) {
+      const [n, m] = taken[0];
+      toast(m.team === S.team ? `${n} 님은 이미 ${m.team}팀에 있습니다.` : `${n} 님은 ${m.team}팀 회원입니다. 회원 관리에서 팀을 옮길 수 있습니다.`);
+    }
+    if (!fresh.length) return;
+    const team = S.team;
+    write("members", [], () => rpc("add_members", { p_team: team, p_names: fresh }),
+      (n) => `${team}팀에 ${n ?? fresh.length}명을 추가했습니다${taken.length ? ` (이미 있는 ${taken.length}명 제외)` : ""}.`);
+  }
+
+  async function moveMember(id, team) {
+    const m = S.members.get(id);
+    if (!m || m.team === team) return true;
+    return write("members", [], () => rpc("set_member_team", { p_id: id, p_team: team }),
+      `${m.name} 님을 ${team}팀으로 옮겼습니다.`);
   }
 
   function removeMember(id) {
@@ -271,7 +299,8 @@
   function restoreMember(id) {
     const m = S.members.get(id);
     if (!m) return;
-    if (activeMembers().some(([, x]) => x.name === m.name)) { toast(`같은 이름(${m.name})의 회원이 이미 명단에 있습니다.`); return; }
+    const other = nameTakenBy(m.name, id);
+    if (other) { toast(`같은 이름(${m.name})의 회원이 이미 ${other.team}팀 명단에 있습니다.`); return; }
     write("members", [], () => rpc("set_member_active", { p_id: id, p_active: true }),
       `${m.name} 님을 명단에 다시 넣었습니다.`);
   }
@@ -282,19 +311,50 @@
       `${name} 님의 회원 정보와 모든 출석·포지션 기록을 완전히 삭제했습니다.`);
   }
 
-  async function renameMember(id, raw) {
+  // 이름 수정과 팀 이동을 함께 저장
+  async function saveMember(id, raw, team) {
     const m = S.members.get(id);
     const name = String(raw || "").trim().slice(0, 40);
     if (!m) return;
     if (!name) { toast("이름을 입력해 주세요."); return; }
-    if (name === m.name) { S.editId = null; S.editDraft = null; renderMembers(); return; }
-    if (activeMembers().some(([oid, x]) => oid !== id && x.name === name)) {
-      toast(`같은 이름(${name})의 회원이 이미 있습니다.`);
-      return;
+    if (name !== m.name) {
+      const other = nameTakenBy(name, id);
+      if (other) { toast(`같은 이름(${name})의 회원이 이미 ${other.team}팀에 있습니다.`); return; }
+      const ok = await write("members", [], () => rpc("rename_member", { p_id: id, p_name: name }),
+        `${m.name} → ${name}(으)로 이름을 바꿨습니다.`);
+      if (!ok) return;
     }
-    const ok = await write("members", [], () => rpc("rename_member", { p_id: id, p_name: name }),
-      `${m.name} → ${name}(으)로 이름을 바꿨습니다.`);
-    if (ok) { S.editId = null; S.editDraft = null; renderMembers(); }
+    if (team !== m.team && !(await moveMember(id, team))) return;
+    S.editId = null;
+    S.editDraft = null;
+    S.editTeam = null;
+    renderMembers();
+  }
+
+  function setTeam(team, fromHash) {
+    if (!TEAMS.some(([t]) => t === team)) return;
+    S.team = team;
+    S.pickSlot = null;
+    S.editId = null;
+    S.confirmDel = null;
+    S.confirmPurge = null;
+    try { localStorage.setItem(TEAM_KEY, team); } catch (e) { /* 저장 불가 시 무시 */ }
+    const hash = "#" + TEAMS.find(([t]) => t === team)[1];
+    if (!fromHash && location.hash !== hash) history.replaceState(null, "", hash);
+    renderAll();
+  }
+
+  function renderTeams() {
+    const box = $("teamTabs");
+    box.replaceChildren();
+    for (const [t] of TEAMS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = `${t}팀`;
+      b.setAttribute("aria-pressed", t === S.team);
+      b.addEventListener("click", () => setTeam(t));
+      box.append(b);
+    }
   }
 
   // ---------- PIN 잠금 ----------
@@ -351,9 +411,11 @@
   }
 
   // ---------- 렌더 ----------
+  // 그날 이 팀 회원 중 출석이 하나라도 있는지
   function hasAny(date) {
     const att = S.days.get(date)?.att || {};
-    return Object.values(att).some((gs) => Object.values(gs).some((v) => v === true));
+    return Object.entries(att).some(([mid, gs]) =>
+      S.members.get(mid)?.team === S.team && Object.values(gs).some((v) => v === true));
   }
 
   function renderHeader() {
@@ -372,7 +434,7 @@
       const b = document.createElement("button");
       b.textContent = label(d, true);
       b.setAttribute("aria-pressed", d === S.date);
-      b.addEventListener("click", () => { S.date = d; renderAll(); });
+      b.addEventListener("click", () => setDate(d));
       box.append(b);
     }
   }
@@ -427,7 +489,7 @@
     picker.replaceChildren();
     const sum = document.createElement("div");
     sum.className = "lineup-sum";
-    sum.innerHTML = `${g}경기 · ${formation} · 배치 <b>${slots.filter(Boolean).length}</b>/11명`;
+    sum.innerHTML = `${S.team}팀 · ${g}경기 · ${formation} · 배치 <b>${slots.filter(Boolean).length}</b>/11명`;
 
     if (S.pickSlot === null || S.pickSlot >= spots.length) {
       S.pickSlot = null;
@@ -509,8 +571,8 @@
     }
     if (!list.length) {
       empty.hidden = false;
-      $("emptyTitle").textContent = "아직 등록된 회원이 없습니다";
-      $("emptyText").textContent = "PIN으로 잠금을 해제한 뒤 위 입력칸에 회원 이름을 넣으면 1~6경기 출석판이 생깁니다.";
+      $("emptyTitle").textContent = `${S.team}팀에 등록된 회원이 없습니다`;
+      $("emptyText").textContent = "PIN으로 잠금을 해제한 뒤 위 입력칸에 회원 이름을 넣으면 이 팀의 1~6경기 출석판이 생깁니다.";
       return;
     }
     empty.hidden = true;
@@ -555,7 +617,7 @@
   }
 
   function dayRoster(date) {
-    const ids = [...S.members.keys()];
+    const ids = teamMembers(true).map(([id]) => id);
     const games = GAMES.map((g) => ({
       g,
       people: ids.filter((id) => attended(date, id, g)).map(memberName).sort((a, b) => a.localeCompare(b, "ko")),
@@ -588,7 +650,7 @@
 
   function rosterText() {
     const { games, people } = dayRoster(S.date);
-    const lines = [`[${label(S.date, true)} 출석]`];
+    const lines = [`[${label(S.date, true)} ${S.team}팀 출석]`];
     for (const { g, people: p } of games) if (p.length) lines.push(`${g}경기 (${p.length}명): ${p.join(", ")}`);
     lines.push(`총 참석 ${people.size}명`);
     return lines.join("\n");
@@ -607,7 +669,7 @@
   function renderStats() {
     const dates = [...S.days.keys()].filter((d) => inPeriod(d) && hasAny(d)).sort();
     const ids = activeMembers().map(([id]) => id);
-    const allIds = [...S.members.keys()];
+    const allIds = teamMembers(true).map(([id]) => id);
 
     let playedGames = 0, totalSlots = 0;
     const stat = new Map(ids.map((id) => [id, { games: 0, days: 0 }]));
@@ -702,14 +764,21 @@
         input.className = "edit-input";
         input.setAttribute("aria-label", `${m.name} 새 이름`);
         input.addEventListener("input", () => { S.editDraft = input.value; });
+        const sel = document.createElement("select");
+        sel.className = "team-sel";
+        sel.id = "editTeam-" + id;
+        sel.setAttribute("aria-label", `${m.name} 소속 팀`);
+        TEAMS.forEach(([t]) => sel.add(new Option(`${t}팀`, t)));
+        sel.value = S.editTeam ?? m.team;
+        sel.addEventListener("change", () => { S.editTeam = sel.value; });
         const save = document.createElement("button");
         save.className = "row-btn";
         save.textContent = "저장";
         const cancel = document.createElement("button");
         cancel.className = "row-btn";
         cancel.textContent = "취소";
-        const doSave = () => renameMember(id, input.value);
-        const doCancel = () => { S.editId = null; S.editDraft = null; renderMembers(); };
+        const doSave = () => saveMember(id, input.value, sel.value);
+        const doCancel = () => { S.editId = null; S.editDraft = null; S.editTeam = null; renderMembers(); };
         save.addEventListener("click", doSave);
         cancel.addEventListener("click", doCancel);
         input.addEventListener("keydown", (e) => {
@@ -718,7 +787,7 @@
         });
         const btns = document.createElement("div");
         btns.className = "row-actions";
-        btns.append(save, cancel);
+        btns.append(sel, save, cancel);
         li.append(input, btns);
         list.append(li);
         setTimeout(() => {
@@ -737,7 +806,7 @@
       edit.setAttribute("aria-label", `${m.name} 이름 수정`);
       edit.addEventListener("click", () => {
         if (needPin()) return;
-        S.editId = id; S.editDraft = null; S.confirmDel = null;
+        S.editId = id; S.editDraft = null; S.editTeam = null; S.confirmDel = null;
         renderMembers();
       });
       const del = confirmButton("삭제", "정말 삭제할까요?", "confirmDel", id, () => removeMember(id));
@@ -772,6 +841,7 @@
   }
 
   function renderAll() {
+    renderTeams();
     renderHeader();
     renderLineup();
     renderGrid();
@@ -781,9 +851,17 @@
   }
 
   // ---------- 이벤트 ----------
-  $("prevDay").addEventListener("click", () => { S.date = shiftDate(S.date, -1); renderAll(); });
-  $("nextDay").addEventListener("click", () => { S.date = shiftDate(S.date, 1); renderAll(); });
-  $("datePick").addEventListener("change", (e) => { if (e.target.value) { S.date = e.target.value; renderAll(); } });
+  // 날짜를 바꾸면 바로 다시 그리고, DB에서 최신 기록도 다시 받아 이날 요약을 갱신한다
+  function setDate(d) {
+    S.date = d;
+    S.pickSlot = null;
+    renderAll();
+    if (S.sb) scheduleReload();
+  }
+  $("prevDay").addEventListener("click", () => setDate(shiftDate(S.date, -1)));
+  $("nextDay").addEventListener("click", () => setDate(shiftDate(S.date, 1)));
+  $("datePick").addEventListener("change", (e) => { if (e.target.value) setDate(e.target.value); });
+  window.addEventListener("hashchange", () => { const t = teamFromHash(); if (t && t !== S.team) setTeam(t, true); });
 
   $("formationSel").addEventListener("change", (e) => {
     if (needPin()) { e.target.value = lineupOf(S.date, S.lineupGame).formation; return; }
@@ -833,6 +911,12 @@
 
   // ---------- 시작 ----------
   try { S.pin = sessionStorage.getItem(PIN_KEY); } catch (e) { S.pin = null; }
+  // 팀: 주소의 #faith/#hope/#love → 이 브라우저에서 마지막으로 고른 팀 → 믿음팀
+  let savedTeam = null;
+  try { savedTeam = localStorage.getItem(TEAM_KEY); } catch (e) { savedTeam = null; }
+  const startTeam = teamFromHash() || (TEAMS.some(([t]) => t === savedTeam) ? savedTeam : "믿음");
+  S.team = startTeam;
+  if (!teamFromHash()) history.replaceState(null, "", "#" + TEAMS.find(([t]) => t === startTeam)[1]);
   renderLock();
   renderAll();
 
