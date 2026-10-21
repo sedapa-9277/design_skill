@@ -643,3 +643,25 @@ html { -webkit-text-size-adjust: 100%; }
   .recent { align-items: center; }
   .recent .label { white-space: nowrap; flex: none; }
 }
+
+/* 포지션 고르는 중: 구장을 위로 올리고 줄여서 아래 회원 목록과 한 화면에 */
+@media (max-width: 860px) {
+  .picker.sheet { height: 40vh; height: 40dvh; max-height: none; }
+  body.picking { overflow: hidden; }
+  body.picking .board,
+  body.picking .lockbar,
+  body.picking .notice,
+  body.picking [data-view="lineup"] .panel-head,
+  body.picking .lineup-tools { display: none; }
+  body.picking .wrap { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  body.picking [data-view="lineup"].panel { padding: 0; border: 0; background: none; }
+  body.picking .field {
+    width: auto;
+    height: calc(100vh - 40vh - 76px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+    height: calc(100dvh - 40dvh - 76px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+    max-width: 100%;
+  }
+  body.picking .slot { width: 26%; }
+  body.picking .slot .dot { width: 30px; height: 30px; font-size: .6rem; }
+  body.picking .slot .nm { font-size: .64rem; padding: 0 3px; }
+}

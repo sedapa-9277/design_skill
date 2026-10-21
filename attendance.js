@@ -492,7 +492,12 @@
 
     const picker = $("picker");
     picker.replaceChildren();
-    picker.classList.toggle("sheet", S.pickSlot !== null && S.pickSlot < spots.length);
+    const picking = S.pickSlot !== null && S.pickSlot < spots.length;
+    picker.classList.toggle("sheet", picking);
+    // 휴대폰: 고르는 동안 구장을 맨 위로 올려 줄이고, 회원 목록과 한 화면에 보이게 한다
+    const wasPicking = document.body.classList.contains("picking");
+    document.body.classList.toggle("picking", picking);
+    if (picking && !wasPicking && window.matchMedia("(max-width: 860px)").matches) window.scrollTo(0, 0);
     const sum = document.createElement("div");
     sum.className = "lineup-sum";
     sum.innerHTML = `${S.team}팀 · ${g}경기 · ${formation} · 배치 <b>${slots.filter(Boolean).length}</b>/11명`;
