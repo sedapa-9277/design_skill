@@ -40,6 +40,7 @@
     pickSlot: null,
     date: ymd(new Date()),
     period: "month",
+    rankSort: "rate",         // rate | name
     confirmDel: null,
     confirmPurge: null,
     editId: null,
@@ -714,17 +715,32 @@
       body.append(tr);
       return;
     }
+    // 순위(#)는 항상 참석률 기준. 이름순일 때는 보여 주는 순서만 바꾼다
     let pos = 0, prev = null;
     rows.forEach((r, i) => {
       if (r.games !== prev) { pos = i + 1; prev = r.games; }
+      r.pos = pos;
+    });
+    const shown = S.rankSort === "name"
+      ? [...rows].sort((a, b) => a.name.localeCompare(b.name, "ko"))
+      : rows;
+    for (const r of shown) {
       const pct = playedGames ? Math.round((r.games / playedGames) * 100) : 0;
       const tr = document.createElement("tr");
-      if (pos <= 3 && r.games > 0) tr.className = "top";
-      tr.innerHTML = `<td class="pos num">${pos}</td><td></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
+      if (r.pos <= 3 && r.games > 0) tr.className = "top";
+      tr.innerHTML = `<td class="pos num">${r.pos}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
         <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
       tr.children[1].textContent = r.name;
+      tr.children[1].title = r.name;
       body.append(tr);
-    });
+    }
+  }
+
+  function setRankSort(v) {
+    S.rankSort = v === "name" ? "name" : "rate";
+    document.querySelectorAll("#rankSort [data-sort]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sort === S.rankSort));
+    try { localStorage.setItem("soccer-attendance-sort", S.rankSort); } catch (e) { /* 저장 불가 시 무시 */ }
+    renderStats();
   }
 
   function confirmButton(text, confirmText, stateKey, id, onConfirm) {
@@ -913,6 +929,11 @@
     renderStats();
   });
 
+  $("rankSort").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-sort]");
+    if (b) setRankSort(b.dataset.sort);
+  });
+
   $("copyBtn").addEventListener("click", () => {
     const text = rosterText();
     const fb = $("copyFallback");
@@ -949,6 +970,9 @@
   let savedView = null;
   try { savedView = localStorage.getItem(VIEW_KEY); } catch (e) { savedView = null; }
   setView(savedView || "check", true);
+  let savedSort = null;
+  try { savedSort = localStorage.getItem("soccer-attendance-sort"); } catch (e) { savedSort = null; }
+  setRankSort(savedSort || "rate");
 
   if (!window.supabase?.createClient) {
     S.mode = "offline";

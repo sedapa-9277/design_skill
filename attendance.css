@@ -665,3 +665,34 @@ html { -webkit-text-size-adjust: 100%; }
   body.picking .slot .dot { width: 30px; height: 30px; font-size: .6rem; }
   body.picking .slot .nm { font-size: .64rem; padding: 0 3px; }
 }
+
+/* ---- 통계: 정렬 버튼, 이름 한 줄 ---- */
+.stats-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.stats-bar .summary-line { margin-bottom: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface-2); }
+.seg button {
+  border: 0;
+  background: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: .8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.seg button[aria-pressed="true"] { background: var(--pitch); color: var(--chalk); font-weight: 700; }
+.rank td.nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 10em; }
+.rank th { white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .summary-line { gap: 10px; font-size: .82rem; }
+  .summary-line b { font-size: 1.05rem; }
+  .seg { width: 100%; }
+  .seg button { flex: 1; padding: 8px 0; font-size: .85rem; }
+  table.rank { font-size: .85rem; table-layout: auto; }
+  .rank th, .rank td { padding: 8px 3px; }
+  .rank .pos { width: 1.8em; }
+  .rank td.nm { max-width: 6.5em; }
+  .rate { min-width: 0; gap: 5px; }
+  .rate .bar { min-width: 36px; }
+  .rate em { width: 2.6em; font-size: .8rem; }
+}
