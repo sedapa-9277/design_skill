@@ -1,94 +1,149 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>퀘스트 보드 — 할 일 사냥</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>축구회 경기 출석부</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="attendance.css">
 </head>
-<body>
-  <div class="bg-stars" aria-hidden="true"></div>
-
-  <main class="app">
-    <!-- 영웅 상태창 -->
-    <section class="hero-panel" id="heroPanel">
-      <div class="hero-avatar" id="heroAvatar">🧙</div>
-      <div class="hero-info">
-        <div class="hero-top">
-          <div>
-            <p class="hero-title" id="heroTitle">견습 모험가</p>
-            <h1 class="hero-name">Lv. <span id="heroLevel">1</span></h1>
-          </div>
-          <div class="hero-stats">
-            <div class="stat"><span class="stat-icon">⚔️</span><span id="statKills">0</span><small>처치</small></div>
-            <div class="stat"><span class="stat-icon">💰</span><span id="statGold">0</span><small>골드</small></div>
-            <div class="stat"><span class="stat-icon">🔥</span><span id="statStreak">0</span><small>연속일</small></div>
-          </div>
-        </div>
-        <div class="xp-bar" role="progressbar" aria-label="경험치" id="xpBar">
-          <div class="xp-fill" id="xpFill"></div>
-          <span class="xp-text" id="xpText">0 / 100 XP</span>
-        </div>
+<body class="locked">
+<div class="wrap">
+  <section class="board" aria-label="모임 날짜">
+    <div class="board-top">
+      <div>
+        <div class="eyebrow">경기 출석부</div>
+        <div class="date-big" id="dateBig">-</div>
       </div>
-    </section>
-
-    <!-- 몬스터 소환 폼 -->
-    <section class="summon">
-      <h2 class="section-title">📜 새 몬스터 출현</h2>
-      <form id="summonForm" class="summon-form" autocomplete="off">
-        <input id="taskInput" type="text" maxlength="60" placeholder="처리할 할 일을 입력하세요 (예: 보고서 작성)" required />
-        <div class="tier-picker" id="tierPicker" role="radiogroup" aria-label="난이도"></div>
-        <div class="summon-row">
-          <label class="due-label">
-            ⏳ 기한
-            <input id="dueInput" type="date" />
-          </label>
-          <button type="submit" class="btn btn-summon">소환하기</button>
-        </div>
-      </form>
-    </section>
-
-    <!-- 전장 -->
-    <section class="battlefield">
-      <div class="battle-head">
-        <h2 class="section-title">⚔️ 전장 <span class="count" id="monsterCount">0</span></h2>
-        <div class="filters" id="filters">
-          <button class="chip active" data-filter="all">전체</button>
-        </div>
+      <div class="date-nav">
+        <button id="prevDay" aria-label="이전 날짜">‹</button>
+        <input type="date" id="datePick" aria-label="모임 날짜 선택">
+        <button id="nextDay" aria-label="다음 날짜">›</button>
       </div>
-      <div class="monster-grid" id="monsterGrid"></div>
-      <div class="empty" id="emptyState" hidden>
-        <div class="empty-icon">🏞️</div>
-        <p>전장이 평화롭습니다.<br />새 몬스터(할 일)를 소환해 사냥을 시작하세요!</p>
-      </div>
-    </section>
-
-    <!-- 처치 기록 -->
-    <section class="log">
-      <div class="battle-head">
-        <h2 class="section-title">🏆 사냥 기록</h2>
-        <button class="btn-link" id="resetBtn">모험 초기화</button>
-      </div>
-      <ul class="log-list" id="logList"></ul>
-    </section>
-  </main>
-
-  <!-- 레벨업 연출 -->
-  <div class="levelup" id="levelUp" hidden>
-    <div class="levelup-card">
-      <div class="levelup-burst"></div>
-      <p class="levelup-label">LEVEL UP!</p>
-      <p class="levelup-level">Lv. <span id="luLevel">2</span></p>
-      <p class="levelup-title" id="luTitle"></p>
-      <button class="btn btn-summon" id="luClose">계속 사냥하기</button>
     </div>
+    <div class="recent" id="recent"></div>
+  </section>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="lockbar" id="lockbar" aria-label="수정 잠금">
+    <div class="state">
+      <span class="badge" id="lockBadge">보기 전용</span>
+      <span class="muted" id="lockText">출석을 체크하거나 회원을 고치려면 동호회 PIN 4자리를 입력하세요.</span>
+    </div>
+    <form class="pin-form" id="pinForm" autocomplete="off">
+      <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="PIN" aria-label="PIN 4자리">
+      <button class="btn" type="submit">잠금 해제</button>
+    </form>
+    <div class="pin-form" id="unlockedTools" hidden>
+      <form class="pin-form" id="changePinForm" autocomplete="off" hidden>
+        <input id="newPinInput" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="새 PIN" aria-label="새 PIN 4자리">
+        <button class="btn" type="submit">변경</button>
+        <button class="btn-ghost" type="button" id="cancelPinBtn">취소</button>
+      </form>
+      <button class="btn-ghost" type="button" id="changePinBtn">PIN 변경</button>
+      <button class="btn-ghost" type="button" id="lockBtn">잠그기</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="lineupTitle">
+    <div class="panel-head">
+      <h2 id="lineupTitle">포지션 배치</h2>
+      <span class="muted" style="font-size:.82rem">포지션에 넣은 회원은 그 경기 출석이 자동으로 체크됩니다</span>
+    </div>
+    <div class="lineup-tools">
+      <div class="game-tabs" id="gameTabs" role="group" aria-label="경기 선택"></div>
+      <label class="muted" style="font-size:.85rem">포메이션
+        <select id="formationSel" aria-label="포메이션"></select>
+      </label>
+    </div>
+    <div class="lineup">
+      <div class="field" id="field">
+        <div class="ln half"></div><div class="ln circle"></div>
+        <div class="ln box-top"></div><div class="ln six-top"></div>
+        <div class="ln box-bot"></div><div class="ln six-bot"></div>
+      </div>
+      <div class="picker" id="picker"></div>
+    </div>
+  </section>
+
+  <div class="main">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>경기별 출석 체크</h2>
+        <span class="muted" style="font-size:.82rem">동그라미를 누르면 해당 경기 참석으로 표시됩니다</span>
+      </div>
+      <form class="add-form" id="addForm" autocomplete="off">
+        <input id="addInput" type="text" maxlength="200" placeholder="회원 이름 (여러 명은 쉼표로: 김민수, 박지훈)" aria-label="추가할 회원 이름">
+        <button class="btn" type="submit">회원 추가</button>
+      </form>
+      <div class="table-scroll">
+        <table class="att" id="attTable">
+          <thead id="attHead"></thead>
+          <tbody id="attBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="attEmpty" hidden>
+        <strong id="emptyTitle">기록을 불러오는 중입니다</strong>
+        <span id="emptyText"></span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <div class="panel-head"><h2>이날 요약</h2></div>
+        <div class="tiles">
+          <div class="tile"><b class="num" id="tPeople">0</b><span>참석 인원</span></div>
+          <div class="tile"><b class="num" id="tGames">0</b><span>진행 경기</span></div>
+          <div class="tile"><b class="num" id="tSlots">0</b><span>총 출전</span></div>
+        </div>
+        <div class="roster" id="roster"></div>
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn-ghost" id="copyBtn">명단 텍스트 복사</button>
+        </div>
+        <textarea id="copyFallback" hidden readonly style="width:100%;margin-top:8px;min-height:120px;font:inherit;font-size:.82rem;background:var(--surface-2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px"></textarea>
+      </section>
+
+      <section class="panel" id="memberPanel">
+        <div class="panel-head">
+          <h2>회원 관리 <span class="muted num" id="memberCount" style="font-family:var(--font-body);font-size:.85rem"></span></h2>
+        </div>
+        <ul class="mlist" id="memberList"></ul>
+        <details class="inactive" id="inactiveBox" hidden>
+          <summary>명단에서 뺀 회원 <span class="num" id="inactiveCount"></span></summary>
+          <ul class="mlist" id="inactiveList"></ul>
+        </details>
+        <p class="hint muted">삭제해도 지난 출석 기록과 통계는 남고 복구할 수 있습니다. "명단에서 뺀 회원"에서 한 번 더 삭제하면 기록까지 완전히 지워지며 되돌릴 수 없습니다.</p>
+      </section>
+    </aside>
   </div>
 
-  <div class="toast-wrap" id="toastWrap"></div>
+  <section class="panel">
+    <div class="panel-head">
+      <h2>참석 통계</h2>
+      <div class="chips" id="periodChips">
+        <button class="chip" data-period="month" aria-pressed="true">이번 달</button>
+        <button class="chip" data-period="3m" aria-pressed="false">최근 3개월</button>
+        <button class="chip" data-period="year" aria-pressed="false">올해</button>
+        <button class="chip" data-period="all" aria-pressed="false">전체</button>
+      </div>
+    </div>
+    <div class="summary-line" id="periodSummary"></div>
+    <div style="overflow-x:auto">
+      <table class="rank">
+        <thead><tr><th class="pos">#</th><th>이름</th><th class="r">참석 경기</th><th class="r">참석일</th><th>참석률</th></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+    <p class="hint muted">참석률 = 참석한 경기 수 ÷ 기간 중 진행된 경기 수 (한 명이라도 체크된 경기만 진행으로 셉니다)</p>
+  </section>
+</div>
 
-  <script src="script.js"></script>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="attendance.js"></script>
 </body>
 </html>
