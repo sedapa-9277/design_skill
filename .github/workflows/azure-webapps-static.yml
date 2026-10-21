@@ -1,0 +1,105 @@
+# 정적 사이트(HTML/CSS/JS)를 Azure Web App에 배포하는 워크플로
+# main 브랜치에 푸시하거나 Actions 탭에서 직접 실행하면 동작합니다.
+#
+# Node.js 빌드 없이 저장소의 .html/.css/.js 파일을 그대로 올립니다.
+#
+# 배포 전 준비 (한 번만):
+#   1. Azure Portal에서 Web App을 만듭니다.
+#   2. 아래 env의 AZURE_WEBAPP_NAME을 그 Web App 이름으로 바꿉니다.
+#   3. Web App 개요 화면에서 "게시 프로필 다운로드"로 받은 파일 내용을
+#      GitHub 저장소 Settings > Secrets and variables > Actions에
+#      AZURE_WEBAPP_PUBLISH_PROFILE 이라는 이름으로 등록합니다.
+#
+# 게시 프로필이 등록되기 전에는 파일 점검과 패키징만 하고 배포는 건너뜁니다.
+
+name: Deploy static site to Azure Web App
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: your-app-name    # Azure Web App 이름으로 바꾸세요
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect site files
+        run: |
+          mkdir -p site
+          shopt -s nullglob
+          files=( *.html *.css *.js )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::배포할 HTML/CSS/JS 파일이 없습니다."
+            exit 1
+          fi
+          cp "${files[@]}" site/
+          if [ ! -f site/index.html ]; then
+            echo "::error::index.html이 없습니다. 사이트 첫 화면 파일이 필요합니다."
+            exit 1
+          fi
+          echo "패키징한 파일:"
+          ls -l site
+
+      - name: Check HTML files reference existing assets
+        run: |
+          status=0
+          for page in site/*.html; do
+            for ref in $(grep -oE '(href|src)="[^"#?:]+\.(css|js)"' "$page" | sed -E 's/^(href|src)="//; s/"$//'); do
+              if [ ! -f "site/$ref" ]; then
+                echo "::error file=${page#site/}::$ref 파일을 찾을 수 없습니다."
+                status=1
+              fi
+            done
+          done
+          exit $status
+
+      - name: Upload site for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-site
+          path: site
+
+  deploy:
+    permissions:
+      contents: none
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'Development'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    steps:
+      - name: Check deployment settings
+        id: check
+        env:
+          PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        run: |
+          if [ -z "$PUBLISH_PROFILE" ] || [ "$AZURE_WEBAPP_NAME" = "your-app-name" ]; then
+            echo "::notice::Azure 앱 이름 또는 게시 프로필이 설정되지 않아 배포를 건너뜁니다. 워크플로 파일 맨 위 안내를 참고하세요."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download site
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: static-site
+          path: site
+
+      - name: Deploy to Azure Web App
+        if: steps.check.outputs.ready == 'true'
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: site
