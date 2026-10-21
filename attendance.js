@@ -419,7 +419,12 @@
   }
 
   function renderHeader() {
-    $("dateBig").textContent = label(S.date);
+    // 휴대폰에서는 연도를 숨겨 한 줄에 들어가게 한다
+    const d = parseYmd(S.date);
+    const y = document.createElement("span");
+    y.className = "y";
+    y.textContent = `${d.getFullYear()}년 `;
+    $("dateBig").replaceChildren(y, `${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})`);
     $("datePick").value = S.date;
 
     const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, 8);
@@ -487,6 +492,7 @@
 
     const picker = $("picker");
     picker.replaceChildren();
+    picker.classList.toggle("sheet", S.pickSlot !== null && S.pickSlot < spots.length);
     const sum = document.createElement("div");
     sum.className = "lineup-sum";
     sum.innerHTML = `${S.team}팀 · ${g}경기 · ${formation} · 배치 <b>${slots.filter(Boolean).length}</b>/11명`;
@@ -499,7 +505,7 @@
         ? "포지션을 바꾸려면 위에서 PIN을 입력해 잠금을 해제하세요."
         : activeMembers().length
           ? "구장에서 포지션 동그라미를 누르면 여기서 회원을 고를 수 있습니다. 회원을 넣으면 다음 빈 자리로 자동으로 넘어갑니다."
-          : "먼저 아래 출석판에서 회원을 추가해 주세요.";
+          : "먼저 회원 관리에서 회원을 추가해 주세요.";
       picker.append(sum, p);
       return;
     }
@@ -548,7 +554,7 @@
     if (!members.length) {
       const p = document.createElement("div");
       p.className = "picker-empty";
-      p.textContent = "등록된 회원이 없습니다. 아래 출석판에서 회원을 추가해 주세요.";
+      p.textContent = "등록된 회원이 없습니다. 회원 관리에서 회원을 추가해 주세요.";
       list.append(p);
     }
     picker.append(sum, head, list);
@@ -558,7 +564,7 @@
     const list = activeMembers();
     const counts = GAMES.map((g) => list.filter(([id]) => attended(S.date, id, g)).length);
     $("attHead").innerHTML = `<tr><th class="name">이름</th>${GAMES.map((g, i) =>
-      `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}<th></th></tr>`;
+      `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}</tr>`;
 
     const body = $("attBody");
     body.replaceChildren();
@@ -572,7 +578,7 @@
     if (!list.length) {
       empty.hidden = false;
       $("emptyTitle").textContent = `${S.team}팀에 등록된 회원이 없습니다`;
-      $("emptyText").textContent = "PIN으로 잠금을 해제한 뒤 위 입력칸에 회원 이름을 넣으면 이 팀의 1~6경기 출석판이 생깁니다.";
+      $("emptyText").textContent = "PIN으로 잠금을 해제한 뒤 회원 관리에서 이름을 추가하면 이 팀의 1~6경기 출석판이 생깁니다.";
       return;
     }
     empty.hidden = true;
@@ -587,7 +593,12 @@
       const sub = document.createElement("span");
       sub.className = "sub";
       sub.textContent = n ? `${n}경기 출전` : "불참";
-      tdName.append(sub);
+      const all = document.createElement("button");
+      all.className = "row-btn";
+      const full = n === GAMES.length;
+      all.textContent = full ? "전체 해제" : "전 경기";
+      all.addEventListener("click", () => setGames(id, GAMES, !full));
+      tdName.append(sub, all);
       tr.append(tdName);
 
       for (const g of GAMES) {
@@ -603,15 +614,6 @@
         tr.append(td);
       }
 
-      const tdAct = document.createElement("td");
-      tdAct.style.whiteSpace = "nowrap";
-      const all = document.createElement("button");
-      all.className = "row-btn";
-      const full = n === GAMES.length;
-      all.textContent = full ? "전체 해제" : "전 경기";
-      all.addEventListener("click", () => setGames(id, GAMES, !full));
-      tdAct.append(all);
-      tr.append(tdAct);
       body.append(tr);
     }
   }
@@ -851,6 +853,26 @@
   }
 
   // ---------- 이벤트 ----------
+  // ---------- 하단 탭 (휴대폰 화면에서만 한 번에 한 화면) ----------
+  const VIEW_KEY = "soccer-attendance-view";
+  const VIEWS = ["check", "lineup", "summary", "stats", "members"];
+  function setView(v, keepScroll) {
+    if (!VIEWS.includes(v)) v = "check";
+    document.body.dataset.view = v;
+    document.querySelectorAll(".view").forEach((el) => el.classList.toggle("active", el.dataset.view === v));
+    document.querySelectorAll("#tabbar [data-tab]").forEach((b) => {
+      if (b.dataset.tab === v) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
+    if (v !== "lineup" && S.pickSlot !== null) { S.pickSlot = null; renderLineup(); }
+    try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* 저장 불가 시 무시 */ }
+    if (!keepScroll && window.matchMedia("(max-width: 860px)").matches) window.scrollTo(0, 0);
+  }
+  $("tabbar").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-tab]");
+    if (b) setView(b.dataset.tab);
+  });
+
   // 날짜를 바꾸면 바로 다시 그리고, DB에서 최신 기록도 다시 받아 이날 요약을 갱신한다
   function setDate(d) {
     S.date = d;
@@ -919,6 +941,9 @@
   if (!teamFromHash()) history.replaceState(null, "", "#" + TEAMS.find(([t]) => t === startTeam)[1]);
   renderLock();
   renderAll();
+  let savedView = null;
+  try { savedView = localStorage.getItem(VIEW_KEY); } catch (e) { savedView = null; }
+  setView(savedView || "check", true);
 
   if (!window.supabase?.createClient) {
     S.mode = "offline";

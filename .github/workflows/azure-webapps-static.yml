@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir -p site
           shopt -s nullglob
-          files=( *.html *.css *.js )
+          files=( *.html *.css *.js *.webmanifest *.png )
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::배포할 HTML/CSS/JS 파일이 없습니다."
             exit 1
