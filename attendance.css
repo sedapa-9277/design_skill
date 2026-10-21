@@ -696,3 +696,69 @@ html { -webkit-text-size-adjust: 100%; }
   .rate .bar { min-width: 36px; }
   .rate em { width: 2.6em; font-size: .8rem; }
 }
+
+/* ---- 달력 버튼: PC는 기본 날짜 입력칸, 휴대폰은 날짜가 보이는 달력 모양 ---- */
+.cal-btn { position: relative; display: inline-flex; }
+.cal-tile { display: none; }
+
+@media (max-width: 860px) {
+  .cal-btn { width: 44px; height: 44px; cursor: pointer; }
+  .cal-tile {
+    display: grid;
+    grid-template-rows: 15px 1fr;
+    width: 100%;
+    height: 100%;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 2px 0 #00000026;
+    text-align: center;
+  }
+  .cal-month {
+    display: grid;
+    place-items: center;
+    background: #174f2b;
+    color: #fff;
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+  .cal-day {
+    display: grid;
+    place-items: center;
+    color: #174f2b;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal-btn:active .cal-tile { transform: translateY(1px); box-shadow: none; }
+  /* 실제 입력칸은 투명하게 덮어 두어, 누르면 휴대폰 기본 날짜 선택 창이 열린다 */
+  .date-nav .cal-btn input[type="date"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    color: transparent;
+    background: transparent;
+    font-size: 16px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .date-nav .cal-btn input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .cal-btn:has(input:focus-visible) .cal-tile { outline: 3px solid #fff; outline-offset: 2px; }
+  .date-nav button { height: 44px; }
+}

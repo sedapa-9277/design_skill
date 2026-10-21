@@ -426,6 +426,8 @@
     y.className = "y";
     y.textContent = `${d.getFullYear()}년 `;
     $("dateBig").replaceChildren(y, `${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})`);
+    $("calMonth").textContent = `${d.getMonth() + 1}월`;
+    $("calDay").textContent = d.getDate();
     $("datePick").value = S.date;
 
     const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, 8);
