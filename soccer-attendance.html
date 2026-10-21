@@ -1,0 +1,1377 @@
+<title>축구회 경기 출석부</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 위에 날짜 스코어보드, 가운데 회원×1~6경기 출석판(왼쪽)과 당일 요약(오른쪽), 아래 기간 통계 */
+:root {
+  --bg: #eef2ec;
+  --surface: #ffffff;
+  --surface-2: #f6f8f4;
+  --fg: #16201a;
+  --muted: #5d6b61;
+  --line: #d6ddd3;
+  --pitch: #1d6e3a;
+  --pitch-soft: #dcebe0;
+  --chalk: #ffffff;
+  --warn: #b4441f;
+  --grass: #2f8a4a;
+  --grass-2: #2a7d43;
+  --chalk-line: #ffffffb3;
+  --keeper: #ffd23f;
+  --font-display: "Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --r: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1410; --surface: #161e18; --surface-2: #1c261f; --fg: #e5ede7; --muted: #94a398;
+    --line: #2a372e; --pitch: #47b56a; --pitch-soft: #1f3a27; --chalk: #0e1410; --warn: #ef8a62;
+    --grass: #1f5c32; --grass-2: #1b532d; --chalk-line: #ffffff99; --keeper: #f2c53a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1410; --surface: #161e18; --surface-2: #1c261f; --fg: #e5ede7; --muted: #94a398;
+  --line: #2a372e; --pitch: #47b56a; --pitch-soft: #1f3a27; --chalk: #0e1410; --warn: #ef8a62;
+  --grass: #1f5c32; --grass-2: #1b532d; --chalk-line: #ffffff99; --keeper: #f2c53a;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 18px;
+}
+h1, h2 { font-family: var(--font-display); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.15rem; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--pitch); outline-offset: 2px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px;
+  min-width: 0;
+}
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+
+/* ---- 상단: 날짜 스코어보드 ---- */
+.board {
+  background: var(--pitch);
+  color: #fff;
+  border-radius: var(--r);
+  padding: 18px 20px;
+  display: grid;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.board::before {
+  /* 하프라인과 센터서클 */
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 150px; height: 150px;
+  border: 2px solid #ffffff2e;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.board::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  border-left: 2px solid #ffffff2e;
+  pointer-events: none;
+}
+.board > * { position: relative; z-index: 1; }
+.board-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.board-top .eyebrow { font-size: .78rem; letter-spacing: .08em; opacity: .8; }
+.date-nav { display: flex; align-items: center; gap: 6px; }
+.date-nav button {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 1px solid #ffffff55;
+  background: #ffffff1a;
+  color: #fff;
+  font-size: 1rem;
+}
+.date-nav button:hover { background: #ffffff33; }
+.date-nav input[type="date"] {
+  font: inherit;
+  color: #fff;
+  background: #ffffff1a;
+  border: 1px solid #ffffff55;
+  border-radius: 8px;
+  padding: 6px 10px;
+  color-scheme: dark;
+}
+.date-big { font-family: var(--font-display); font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.1; }
+.recent { display: flex; gap: 6px; flex-wrap: wrap; }
+.recent button {
+  border: 1px solid #ffffff55;
+  background: transparent;
+  color: #fff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: .8rem;
+}
+.recent button[aria-pressed="true"] { background: #fff; color: #174f2b; border-color: #fff; }
+.recent .label { font-size: .78rem; opacity: .8; align-self: center; margin-right: 2px; }
+
+/* ---- 중단 ---- */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+
+.add-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.add-form input {
+  flex: 1 1 220px;
+  min-width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+.btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-weight: 700;
+  background: var(--pitch);
+  color: var(--chalk);
+}
+.btn:hover { filter: brightness(1.08); }
+.btn-ghost {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: .85rem;
+}
+.btn-ghost:hover { border-color: var(--pitch); }
+.hint { font-size: .8rem; margin: 6px 0 0; }
+
+.table-scroll { overflow-x: auto; margin-top: 14px; }
+table.att { width: 100%; border-collapse: separate; border-spacing: 0; }
+.att th, .att td { padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--line); }
+.att thead th { font-size: .78rem; font-weight: 700; color: var(--muted); position: sticky; top: 0; background: var(--surface); }
+.att thead th .cnt { display: block; font-family: var(--font-display); font-size: 1.05rem; color: var(--fg); font-weight: 400; }
+.att th.name, .att td.name { text-align: left; padding-left: 2px; }
+.att td.name { font-weight: 500; white-space: nowrap; max-width: 9em; overflow: hidden; text-overflow: ellipsis; }
+.att td.name .sub { display: block; font-size: .72rem; color: var(--muted); font-weight: 400; }
+.att tbody tr:hover td { background: var(--surface-2); }
+
+.cell {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 2px dashed var(--line);
+  background: transparent;
+  display: inline-grid;
+  place-items: center;
+  font-size: .8rem;
+  color: var(--muted);
+  transition: background .12s, border-color .12s, transform .08s;
+}
+.cell:hover { border-color: var(--pitch); }
+.cell:active { transform: scale(.92); }
+.cell[aria-pressed="true"] {
+  border: 2px solid var(--pitch);
+  background: var(--pitch);
+  color: var(--chalk);
+  font-weight: 700;
+}
+.row-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 6px;
+  font-size: .72rem;
+  padding: 4px 6px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.row-btn:hover { color: var(--fg); border-color: var(--pitch); }
+.row-btn.danger { color: var(--warn); border-color: var(--warn); }
+
+.empty { text-align: center; padding: 26px 8px; color: var(--muted); }
+.empty strong { display: block; color: var(--fg); margin-bottom: 4px; }
+
+/* 당일 요약 */
+.side { display: grid; gap: 18px; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile { background: var(--surface-2); border-radius: 10px; padding: 10px; text-align: center; }
+.tile b { display: block; font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; line-height: 1.1; }
+.tile span { font-size: .75rem; color: var(--muted); }
+
+.roster { display: grid; gap: 8px; margin-top: 12px; }
+.roster div { font-size: .88rem; }
+.roster .g { display: inline-block; min-width: 4.4em; font-weight: 700; color: var(--pitch); }
+.roster .none { color: var(--muted); }
+
+/* 회원 관리 */
+.mlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 320px; overflow-y: auto; }
+.mlist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.mlist li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mlist .row-actions { display: flex; gap: 4px; flex: none; }
+.mlist .edit-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: .9rem;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--pitch);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+.mlist .empty-row { color: var(--muted); justify-content: center; border: 0; }
+.inactive { margin-top: 12px; font-size: .85rem; }
+.inactive summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
+.inactive li span { color: var(--muted); }
+
+/* ---- 통계 ---- */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: .82rem;
+}
+.chip[aria-pressed="true"] { background: var(--pitch); color: var(--chalk); border-color: var(--pitch); }
+
+.stats-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; }
+.summary-line { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; font-size: .9rem; }
+.summary-line b { font-family: var(--font-display); font-weight: 400; font-size: 1.25rem; margin-right: 2px; }
+
+table.rank { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.rank th { font-size: .75rem; color: var(--muted); font-weight: 700; text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); }
+.rank td { padding: 7px 6px; border-bottom: 1px solid var(--line); }
+.rank td.r { text-align: right; }
+.rank th.r { text-align: right; }
+.rank .pos { width: 2.2em; color: var(--muted); }
+.rank tr.top .pos { color: var(--pitch); font-weight: 700; }
+.rate { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.rate .bar { flex: 1; height: 8px; background: var(--pitch-soft); border-radius: 999px; overflow: hidden; }
+.rate .bar i { display: block; height: 100%; background: var(--pitch); border-radius: 999px; }
+.rate em { font-style: normal; width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---- 포지션 배치 ---- */
+.lineup { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.lineup-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.game-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.game-tabs button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: .85rem;
+  font-variant-numeric: tabular-nums;
+}
+.game-tabs button[aria-pressed="true"] { background: var(--pitch); color: var(--chalk); border-color: var(--pitch); }
+.game-tabs button small { opacity: .75; margin-left: 3px; }
+.lineup-tools select {
+  font: inherit;
+  font-size: .85rem;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.field {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 68 / 100;
+  max-width: 440px;
+  margin-inline: auto;
+  border-radius: 10px;
+  overflow: hidden;
+  background: repeating-linear-gradient(180deg, var(--grass) 0 10%, var(--grass-2) 10% 20%);
+  box-shadow: inset 0 0 0 2px var(--chalk-line);
+}
+.field .ln { position: absolute; border: 2px solid var(--chalk-line); pointer-events: none; }
+.field .half { left: 0; right: 0; top: 50%; border-width: 2px 0 0; }
+.field .circle { left: 50%; top: 50%; width: 27%; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); }
+.field .box-top { left: 20%; right: 20%; top: -2px; height: 16%; }
+.field .box-bot { left: 20%; right: 20%; bottom: -2px; height: 16%; }
+.field .six-top { left: 37%; right: 37%; top: -2px; height: 6%; }
+.field .six-bot { left: 37%; right: 37%; bottom: -2px; height: 6%; }
+
+.slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 22%;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #fff;
+}
+.slot .dot {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  border: 2px dashed #ffffffcc;
+  background: #0000002e;
+  transition: transform .1s;
+}
+.slot:hover .dot { transform: scale(1.08); }
+.slot.filled .dot { border: 2px solid #fff; background: #fff; color: #174f2b; }
+.slot.gk.filled .dot { background: var(--keeper); border-color: var(--keeper); color: #2b2100; }
+.slot[aria-pressed="true"] .dot { box-shadow: 0 0 0 4px var(--keeper); }
+.slot .nm {
+  max-width: 100%;
+  font-size: .74rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #00000059;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slot:not(.filled) .nm { background: none; opacity: .85; font-weight: 500; }
+
+.picker { display: grid; gap: 12px; }
+.picker-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.picker-head b { font-size: 1rem; }
+.picker-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: .88rem;
+}
+.pick:hover { border-color: var(--pitch); }
+.pick.placed { background: var(--pitch-soft); border-color: var(--pitch-soft); }
+.pick.placed small { color: var(--pitch); font-weight: 700; margin-left: 4px; }
+.pick.current { background: var(--pitch); color: var(--chalk); border-color: var(--pitch); }
+.picker-empty { color: var(--muted); font-size: .9rem; padding: 10px 0; }
+.lineup-sum { font-size: .85rem; color: var(--muted); }
+.lineup-sum b { color: var(--fg); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .lineup { grid-template-columns: 1fr; } }
+@media (max-width: 420px) { .slot .dot { width: 34px; height: 34px; font-size: .62rem; } .slot .nm { font-size: .66rem; padding: 1px 3px; } }
+
+.notice {
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  background: var(--surface);
+  border-radius: var(--r);
+  padding: 10px 14px;
+  font-size: .88rem;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  background: var(--fg);
+  color: var(--bg);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: .88rem;
+  max-width: calc(100% - 32px);
+  z-index: 20;
+}
+
+@media (max-width: 860px) {
+  .main, .stats-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .cell { width: 32px; height: 32px; }
+  .att th, .att td { padding: 5px 2px; }
+  .tile b { font-size: 1.3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <section class="board" aria-label="모임 날짜">
+    <div class="board-top">
+      <div>
+        <div class="eyebrow">경기 출석부</div>
+        <div class="date-big" id="dateBig">-</div>
+      </div>
+      <div class="date-nav">
+        <button id="prevDay" aria-label="이전 날짜">‹</button>
+        <input type="date" id="datePick" aria-label="모임 날짜 선택">
+        <button id="nextDay" aria-label="다음 날짜">›</button>
+      </div>
+    </div>
+    <div class="recent" id="recent"></div>
+  </section>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <section class="panel" aria-labelledby="lineupTitle">
+    <div class="panel-head">
+      <h2 id="lineupTitle">포지션 배치</h2>
+      <span class="muted" style="font-size:.82rem">포지션에 넣은 회원은 그 경기 출석이 자동으로 체크됩니다</span>
+    </div>
+    <div class="lineup-tools">
+      <div class="game-tabs" id="gameTabs" role="group" aria-label="경기 선택"></div>
+      <label class="muted" style="font-size:.85rem">포메이션
+        <select id="formationSel" aria-label="포메이션"></select>
+      </label>
+    </div>
+    <div class="lineup">
+      <div class="field" id="field">
+        <div class="ln half"></div><div class="ln circle"></div>
+        <div class="ln box-top"></div><div class="ln six-top"></div>
+        <div class="ln box-bot"></div><div class="ln six-bot"></div>
+      </div>
+      <div class="picker" id="picker"></div>
+    </div>
+  </section>
+
+  <div class="main">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>경기별 출석 체크</h2>
+        <span class="muted" style="font-size:.82rem">동그라미를 누르면 해당 경기 참석으로 표시됩니다</span>
+      </div>
+      <form class="add-form" id="addForm" autocomplete="off">
+        <input id="addInput" type="text" maxlength="200" placeholder="회원 이름 (여러 명은 쉼표로: 김민수, 박지훈)" aria-label="추가할 회원 이름">
+        <button class="btn" type="submit">회원 추가</button>
+      </form>
+      <div class="table-scroll">
+        <table class="att" id="attTable">
+          <thead id="attHead"></thead>
+          <tbody id="attBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="attEmpty" hidden>
+        <strong id="emptyTitle">기록을 불러오는 중입니다</strong>
+        <span id="emptyText"></span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <div class="panel-head"><h2>이날 요약</h2></div>
+        <div class="tiles">
+          <div class="tile"><b class="num" id="tPeople">0</b><span>참석 인원</span></div>
+          <div class="tile"><b class="num" id="tGames">0</b><span>진행 경기</span></div>
+          <div class="tile"><b class="num" id="tSlots">0</b><span>총 출전</span></div>
+        </div>
+        <div class="roster" id="roster"></div>
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn-ghost" id="copyBtn">명단 텍스트 복사</button>
+        </div>
+        <textarea id="copyFallback" hidden readonly style="width:100%;margin-top:8px;min-height:120px;font:inherit;font-size:.82rem;background:var(--surface-2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px"></textarea>
+      </section>
+
+      <section class="panel" id="memberPanel">
+        <div class="panel-head">
+          <h2>회원 관리 <span class="muted num" id="memberCount" style="font-family:var(--font-body);font-size:.85rem"></span></h2>
+        </div>
+        <ul class="mlist" id="memberList"></ul>
+        <details class="inactive" id="inactiveBox" hidden>
+          <summary>명단에서 뺀 회원 <span class="num" id="inactiveCount"></span></summary>
+          <ul class="mlist" id="inactiveList"></ul>
+        </details>
+        <p class="hint muted">삭제해도 지난 출석 기록과 통계는 남고 복구할 수 있습니다. "명단에서 뺀 회원"에서 한 번 더 삭제하면 기록까지 완전히 지워지며 되돌릴 수 없습니다.</p>
+      </section>
+    </aside>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>참석 통계</h2>
+      <div class="chips" id="periodChips">
+        <button class="chip" data-period="month" aria-pressed="true">이번 달</button>
+        <button class="chip" data-period="3m" aria-pressed="false">최근 3개월</button>
+        <button class="chip" data-period="year" aria-pressed="false">올해</button>
+        <button class="chip" data-period="all" aria-pressed="false">전체</button>
+      </div>
+    </div>
+    <div class="summary-line" id="periodSummary"></div>
+    <div style="overflow-x:auto">
+      <table class="rank">
+        <thead><tr><th class="pos">#</th><th>이름</th><th class="r">참석 경기</th><th class="r">참석일</th><th>참석률</th></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+    <p class="hint muted">참석률 = 참석한 경기 수 ÷ 기간 중 진행된 경기 수 (한 명이라도 체크된 경기만 진행으로 셉니다)</p>
+  </section>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const GAMES = [1, 2, 3, 4, 5, 6];
+  const WD = ["일", "월", "화", "수", "목", "금", "토"];
+  const $ = (id) => document.getElementById(id);
+
+  // 포메이션: [포지션, x%, y%] — 위쪽이 상대 골문, 첫 번째는 항상 GK
+  const FORMATIONS = {
+    "4-4-2": [["GK", 50, 91], ["LB", 14, 72], ["CB", 38, 75], ["CB", 62, 75], ["RB", 86, 72],
+              ["LM", 14, 47], ["CM", 38, 51], ["CM", 62, 51], ["RM", 86, 47], ["ST", 37, 22], ["ST", 63, 22]],
+    "4-3-3": [["GK", 50, 91], ["LB", 14, 72], ["CB", 38, 75], ["CB", 62, 75], ["RB", 86, 72],
+              ["CM", 24, 50], ["CM", 50, 54], ["CM", 76, 50], ["LW", 16, 23], ["ST", 50, 18], ["RW", 84, 23]],
+    "4-2-3-1": [["GK", 50, 91], ["LB", 14, 73], ["CB", 38, 76], ["CB", 62, 76], ["RB", 86, 73],
+                ["DM", 36, 57], ["DM", 64, 57], ["LW", 15, 36], ["CAM", 50, 38], ["RW", 85, 36], ["ST", 50, 15]],
+    "3-5-2": [["GK", 50, 91], ["CB", 24, 74], ["CB", 50, 77], ["CB", 76, 74],
+              ["LWB", 11, 49], ["CM", 31, 53], ["CM", 50, 45], ["CM", 69, 53], ["RWB", 89, 49], ["ST", 37, 21], ["ST", 63, 21]],
+  };
+  const DEFAULT_FORMATION = "4-4-2";
+
+  // ---------- 상태 ----------
+  const S = {
+    db: null,
+    mode: "loading",          // loading | live | local
+    members: new Map(),       // id -> {name, active, createdAt}
+    days: new Map(),          // "YYYY-MM-DD" -> {att: {memberId: {g1:true,...}}}
+    pending: new Map(),       // "date|mid|gN" -> bool (낙관적 반영)
+    pendingLineup: new Map(), // "date|gN|sI" -> memberId|null, "date|gN|form" -> 포메이션
+    lineupGame: 1,
+    pickSlot: null,
+    date: ymd(new Date()),
+    period: "month",
+    confirmDel: null,
+    editId: null,
+    confirmPurge: null,
+    readOnly: false,
+  };
+
+  function ymd(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function parseYmd(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+  function label(s, short) {
+    const d = parseYmd(s);
+    return short ? `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`
+                 : `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})`;
+  }
+  function shiftDate(s, n) { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
+
+  function attended(date, mid, g) {
+    const k = `${date}|${mid}|g${g}`;
+    if (S.pending.has(k)) return S.pending.get(k);
+    return S.days.get(date)?.att?.[mid]?.[`g${g}`] === true;
+  }
+  function activeMembers() {
+    return [...S.members.entries()]
+      .filter(([, m]) => m.active !== false)
+      .sort((a, b) => a[1].name.localeCompare(b[1].name, "ko"));
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+  }
+
+  // ---------- 저장 ----------
+  const queues = new Map();
+  function enqueue(key, fn) {
+    const prev = queues.get(key) || Promise.resolve();
+    const next = prev.then(fn, fn);
+    queues.set(key, next.catch(() => {}));
+    return next;
+  }
+
+  function handleWriteError(e) {
+    if (e && e.code === "invalid_argument") {
+      S.readOnly = true;
+      showNotice("기록할 권한이 없어 보기 전용으로 표시합니다. 공유 설정에서 참여자(Contributor) 이상 권한이 필요합니다.");
+    } else if (e && e.code === "quota_exceeded") {
+      toast("저장 공간이 가득 찼습니다. 오래된 기록을 정리해 주세요.");
+    } else {
+      toast("저장하지 못했습니다. 잠시 후 다시 눌러 주세요.");
+    }
+  }
+
+  function deepMerge(target, src) {
+    for (const [k, v] of Object.entries(src)) {
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        target[k] = deepMerge(target[k] && typeof target[k] === "object" ? { ...target[k] } : {}, v);
+      } else target[k] = v;
+    }
+    return target;
+  }
+
+  // 날짜 문서 하나에 부분 병합 저장. pendKeys: [[map, key, value]] 낙관적 반영 목록
+  async function writeDay(date, patch, pendKeys) {
+    if (S.readOnly) { toast("보기 전용 상태입니다."); return; }
+    pendKeys.forEach(([m, k, v]) => m.set(k, v));
+    renderAll();
+    const clear = () => { pendKeys.forEach(([m, k]) => m.delete(k)); renderAll(); };
+
+    if (S.mode === "local") {
+      const day = S.days.get(date) || { att: {}, lineup: {} };
+      S.days.set(date, deepMerge({ ...day }, patch));
+      clear();
+      return;
+    }
+
+    await enqueue(date, async () => {
+      const ref = S.db.doc("days/" + date);
+      try {
+        try {
+          await ref.update(patch);
+        } catch (e) {
+          if (e && e.code === "invalid_argument") {
+            const snap = await ref.get();
+            if (snap.exists) throw e;
+            await ref.set({ date, ...patch });
+          } else if (e && e.code === "unavailable") {
+            await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
+            await ref.update(patch);
+          } else throw e;
+        }
+      } catch (e) {
+        handleWriteError(e);
+      } finally {
+        clear();
+      }
+    });
+  }
+
+  // 출석 해제 시 그 경기 포지션에서도 함께 뺀다
+  function toggleCell(mid, g) {
+    const date = S.date, gk = `g${g}`;
+    const on = !attended(date, mid, g);
+    const patch = { att: { [mid]: { [gk]: on } } };
+    const pend = [[S.pending, `${date}|${mid}|${gk}`, on]];
+    if (!on) {
+      const pos = {};
+      lineupOf(date, g).slots.forEach((v, i) => { if (v === mid) pos[`s${i}`] = null; });
+      if (Object.keys(pos).length) {
+        patch.lineup = { [gk]: { pos } };
+        Object.keys(pos).forEach((s) => pend.push([S.pendingLineup, `${date}|${gk}|${s}`, null]));
+        toast(`${S.members.get(mid).name} 님을 ${g}경기 포지션에서도 뺐습니다.`);
+      }
+    }
+    return writeDay(date, patch, pend);
+  }
+
+  // ---------- 포지션 배치 ----------
+  function lineupOf(date, g) {
+    const base = S.days.get(date)?.lineup?.[`g${g}`] || {};
+    const fk = `${date}|g${g}|form`;
+    let formation = S.pendingLineup.has(fk) ? S.pendingLineup.get(fk) : base.formation;
+    if (!FORMATIONS[formation]) formation = DEFAULT_FORMATION;
+    const slots = FORMATIONS[formation].map((_, i) => {
+      const k = `${date}|g${g}|s${i}`;
+      const v = S.pendingLineup.has(k) ? S.pendingLineup.get(k) : base.pos?.[`s${i}`];
+      return v && S.members.has(v) ? v : null;
+    });
+    return { formation, slots };
+  }
+
+  function placeMember(slotIdx, mid) {
+    const date = S.date, g = S.lineupGame, gk = `g${g}`;
+    const lu = lineupOf(date, g);
+    const pos = {};
+    if (mid) lu.slots.forEach((v, i) => { if (v === mid && i !== slotIdx) pos[`s${i}`] = null; });
+    pos[`s${slotIdx}`] = mid;
+    const patch = { lineup: { [gk]: { formation: lu.formation, pos } } };
+    const pend = Object.entries(pos).map(([s, v]) => [S.pendingLineup, `${date}|${gk}|${s}`, v]);
+    if (mid) {
+      patch.att = { [mid]: { [gk]: true } };
+      pend.push([S.pending, `${date}|${mid}|${gk}`, true]);
+    }
+    const label = FORMATIONS[lu.formation][slotIdx][0];
+    if (mid) toast(`${S.members.get(mid).name} → ${g}경기 ${label}, 출석 체크했습니다.`);
+    else toast(`${label} 자리를 비웠습니다. 출석은 출석판에서 해제할 수 있습니다.`);
+    S.pickSlot = mid ? nextEmptySlot(lu.slots, slotIdx, mid) : slotIdx;
+    writeDay(date, patch, pend);
+  }
+
+  function nextEmptySlot(slots, from, mid) {
+    const after = slots.map((v, i) => (i === from ? mid : v));
+    for (let k = 1; k <= after.length; k++) {
+      const i = (from + k) % after.length;
+      if (!after[i]) return i;
+    }
+    return null;
+  }
+
+  function setFormation(f) {
+    const date = S.date, gk = `g${S.lineupGame}`;
+    writeDay(date, { lineup: { [gk]: { formation: f } } }, [[S.pendingLineup, `${date}|${gk}|form`, f]]);
+  }
+
+  function renderLineup() {
+    const g = S.lineupGame;
+    const { formation, slots } = lineupOf(S.date, g);
+    const spots = FORMATIONS[formation];
+
+    const tabs = $("gameTabs");
+    tabs.replaceChildren();
+    for (const n of GAMES) {
+      const b = document.createElement("button");
+      const filled = lineupOf(S.date, n).slots.filter(Boolean).length;
+      b.setAttribute("aria-pressed", n === g);
+      b.textContent = `${n}경기`;
+      if (filled) { const s = document.createElement("small"); s.textContent = `${filled}/11`; b.append(s); }
+      b.addEventListener("click", () => { S.lineupGame = n; S.pickSlot = null; renderLineup(); });
+      tabs.append(b);
+    }
+
+    const sel = $("formationSel");
+    if (!sel.options.length) {
+      Object.keys(FORMATIONS).forEach((f) => sel.add(new Option(f, f)));
+    }
+    sel.value = formation;
+
+    const field = $("field");
+    field.querySelectorAll(".slot").forEach((el) => el.remove());
+    spots.forEach(([pos, x, y], i) => {
+      const mid = slots[i];
+      const b = document.createElement("button");
+      b.className = "slot" + (mid ? " filled" : "") + (i === 0 ? " gk" : "");
+      b.style.left = x + "%";
+      b.style.top = y + "%";
+      b.setAttribute("aria-pressed", S.pickSlot === i);
+      b.setAttribute("aria-label", `${pos} ${mid ? S.members.get(mid).name : "비어 있음"}`);
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.textContent = pos;
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = mid ? S.members.get(mid).name : "선택";
+      b.append(dot, nm);
+      b.addEventListener("click", () => { S.pickSlot = S.pickSlot === i ? null : i; renderLineup(); });
+      field.append(b);
+    });
+
+    const picker = $("picker");
+    picker.replaceChildren();
+    const filled = slots.filter(Boolean).length;
+    const sum = document.createElement("div");
+    sum.className = "lineup-sum";
+    sum.innerHTML = `${g}경기 · ${formation} · 배치 <b>${filled}</b>/11명`;
+
+    if (S.pickSlot === null || S.pickSlot >= spots.length) {
+      S.pickSlot = null;
+      const p = document.createElement("div");
+      p.className = "picker-empty";
+      p.textContent = activeMembers().length
+        ? "구장에서 포지션 동그라미를 누르면 여기서 회원을 고를 수 있습니다. 회원을 넣으면 다음 빈 자리로 자동으로 넘어갑니다."
+        : "먼저 아래 출석판에서 회원을 추가해 주세요.";
+      picker.append(sum, p);
+      return;
+    }
+
+    const i = S.pickSlot;
+    const cur = slots[i];
+    const head = document.createElement("div");
+    head.className = "picker-head";
+    const title = document.createElement("b");
+    title.textContent = `${spots[i][0]} 자리에 넣을 회원`;
+    const actions = document.createElement("div");
+    actions.style.display = "flex";
+    actions.style.gap = "6px";
+    if (cur) {
+      const clr = document.createElement("button");
+      clr.className = "btn-ghost";
+      clr.textContent = "자리 비우기";
+      clr.addEventListener("click", () => placeMember(i, null));
+      actions.append(clr);
+    }
+    const close = document.createElement("button");
+    close.className = "btn-ghost";
+    close.textContent = "닫기";
+    close.addEventListener("click", () => { S.pickSlot = null; renderLineup(); });
+    actions.append(close);
+    head.append(title, actions);
+
+    const list = document.createElement("div");
+    list.className = "picker-list";
+    const placedAt = new Map(slots.map((v, k) => [v, k]).filter(([v]) => v));
+    const members = activeMembers().sort((a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko"));
+    for (const [id, m] of members) {
+      const b = document.createElement("button");
+      const at = placedAt.get(id);
+      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "");
+      b.textContent = m.name;
+      if (at !== undefined && id !== cur) {
+        const s = document.createElement("small");
+        s.textContent = spots[at][0];
+        b.append(s);
+        b.title = `${spots[at][0]}에서 이 자리로 옮깁니다`;
+      }
+      b.addEventListener("click", () => { if (id !== cur) placeMember(i, id); });
+      list.append(b);
+    }
+    if (!members.length) {
+      const p = document.createElement("div");
+      p.className = "picker-empty";
+      p.textContent = "등록된 회원이 없습니다. 아래 출석판에서 회원을 추가해 주세요.";
+      list.append(p);
+    }
+    picker.append(sum, head, list);
+  }
+
+  async function addMembers(names) {
+    const existing = new Set(activeMembers().map(([, m]) => m.name));
+    const fresh = names.filter((n) => !existing.has(n));
+    const dup = names.length - fresh.length;
+    if (!fresh.length) { toast("이미 등록된 이름입니다."); return; }
+    if (S.mode === "local") {
+      fresh.forEach((name, i) => S.members.set("local" + Date.now() + i, { name, active: true, createdAt: Date.now() }));
+      renderAll();
+    } else {
+      for (const name of fresh) {
+        try { await S.db.collection("members").add({ name, active: true, createdAt: Date.now() }); }
+        catch (e) { handleWriteError(e); return; }
+      }
+    }
+    toast(`${fresh.length}명을 추가했습니다${dup ? ` (중복 ${dup}명 제외)` : ""}.`);
+  }
+
+  async function removeMember(id) {
+    const m = S.members.get(id);
+    if (!m) return;
+    if (S.readOnly) { toast("보기 전용 상태입니다."); return; }
+    if (S.mode === "local") {
+      S.members.set(id, { ...m, active: false });
+      renderAll();
+    } else {
+      try { await S.db.doc("members/" + id).update({ active: false }); }
+      catch (e) { handleWriteError(e); return; }
+    }
+    toast(`${m.name} 님을 명단에서 뺐습니다. 지난 기록은 남아 있습니다.`);
+  }
+
+  // ---------- 렌더 ----------
+  function renderHeader() {
+    $("dateBig").textContent = label(S.date);
+    $("datePick").value = S.date;
+
+    const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, 8);
+    const box = $("recent");
+    box.replaceChildren();
+    if (!dates.length) return;
+    const lab = document.createElement("span");
+    lab.className = "label";
+    lab.textContent = "최근 모임";
+    box.append(lab);
+    for (const d of dates) {
+      const b = document.createElement("button");
+      b.textContent = label(d, true);
+      b.setAttribute("aria-pressed", d === S.date);
+      b.addEventListener("click", () => { S.date = d; renderAll(); });
+      box.append(b);
+    }
+  }
+
+  function hasAny(date) {
+    const att = S.days.get(date)?.att || {};
+    return Object.values(att).some((gs) => Object.values(gs).some((v) => v === true));
+  }
+
+  function renderGrid() {
+    const list = activeMembers();
+    const head = $("attHead");
+    const body = $("attBody");
+
+    const counts = GAMES.map((g) => list.filter(([id]) => attended(S.date, id, g)).length);
+    head.innerHTML = `<tr><th class="name">이름</th>${GAMES.map((g, i) =>
+      `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}<th></th></tr>`;
+
+    body.replaceChildren();
+    const empty = $("attEmpty");
+    if (S.mode === "loading") {
+      empty.hidden = false;
+      $("emptyTitle").textContent = "기록을 불러오는 중입니다";
+      $("emptyText").textContent = "";
+      return;
+    }
+    if (!list.length) {
+      empty.hidden = false;
+      $("emptyTitle").textContent = "아직 등록된 회원이 없습니다";
+      $("emptyText").textContent = "위 입력칸에 회원 이름을 넣고 '회원 추가'를 누르면 1~6경기 출석판이 생깁니다.";
+      return;
+    }
+    empty.hidden = true;
+
+    for (const [id, m] of list) {
+      const tr = document.createElement("tr");
+      const n = GAMES.filter((g) => attended(S.date, id, g)).length;
+
+      const tdName = document.createElement("td");
+      tdName.className = "name";
+      tdName.textContent = m.name;
+      const sub = document.createElement("span");
+      sub.className = "sub";
+      sub.textContent = n ? `${n}경기 출전` : "불참";
+      tdName.append(sub);
+      tr.append(tdName);
+
+      for (const g of GAMES) {
+        const td = document.createElement("td");
+        const b = document.createElement("button");
+        const on = attended(S.date, id, g);
+        b.className = "cell";
+        b.textContent = on ? "참" : g;
+        b.setAttribute("aria-pressed", on);
+        b.setAttribute("aria-label", `${m.name} ${g}경기 ${on ? "참석" : "미참석"}`);
+        b.addEventListener("click", () => toggleCell(id, g));
+        td.append(b);
+        tr.append(td);
+      }
+
+      const tdAct = document.createElement("td");
+      tdAct.style.whiteSpace = "nowrap";
+      const all = document.createElement("button");
+      all.className = "row-btn";
+      const full = n === GAMES.length;
+      all.textContent = full ? "전체 해제" : "전 경기";
+      all.addEventListener("click", () => {
+        const date = S.date;
+        const att = {};
+        const pend = [];
+        GAMES.forEach((g) => { att[`g${g}`] = !full; pend.push([S.pending, `${date}|${id}|g${g}`, !full]); });
+        const patch = { att: { [id]: att } };
+        if (full) {
+          const lineup = {};
+          GAMES.forEach((g) => {
+            const pos = {};
+            lineupOf(date, g).slots.forEach((v, i) => {
+              if (v === id) { pos[`s${i}`] = null; pend.push([S.pendingLineup, `${date}|g${g}|s${i}`, null]); }
+            });
+            if (Object.keys(pos).length) lineup[`g${g}`] = { pos };
+          });
+          if (Object.keys(lineup).length) patch.lineup = lineup;
+        }
+        writeDay(date, patch, pend);
+      });
+      tdAct.append(all);
+      tr.append(tdAct);
+      body.append(tr);
+    }
+  }
+
+  function dayRoster(date) {
+    const ids = [...S.members.keys()];
+    const names = (id) => S.members.get(id)?.name || "(삭제된 회원)";
+    const games = GAMES.map((g) => ({
+      g,
+      people: ids.filter((id) => attended(date, id, g)).map(names).sort((a, b) => a.localeCompare(b, "ko")),
+    }));
+    const people = new Set();
+    games.forEach(({ people: p }) => p.forEach((n) => people.add(n)));
+    return { games, people };
+  }
+
+  function renderSide() {
+    const { games, people } = dayRoster(S.date);
+    const played = games.filter((x) => x.people.length);
+    $("tPeople").textContent = people.size;
+    $("tGames").textContent = played.length;
+    $("tSlots").textContent = games.reduce((s, x) => s + x.people.length, 0);
+
+    const r = $("roster");
+    r.replaceChildren();
+    for (const { g, people: p } of games) {
+      const div = document.createElement("div");
+      const gs = document.createElement("span");
+      gs.className = "g";
+      gs.textContent = `${g}경기 ${p.length}명`;
+      div.append(gs);
+      const txt = document.createElement("span");
+      if (p.length) txt.textContent = p.join(", ");
+      else { txt.textContent = "기록 없음"; txt.className = "none"; }
+      div.append(" ", txt);
+      r.append(div);
+    }
+  }
+
+  function rosterText() {
+    const { games, people } = dayRoster(S.date);
+    const lines = [`[${label(S.date, true)} 출석]`];
+    for (const { g, people: p } of games) if (p.length) lines.push(`${g}경기 (${p.length}명): ${p.join(", ")}`);
+    lines.push(`총 참석 ${people.size}명`);
+    return lines.join("\n");
+  }
+
+  function inPeriod(date) {
+    const today = new Date();
+    const d = parseYmd(date);
+    if (S.period === "all") return true;
+    if (S.period === "year") return d.getFullYear() === today.getFullYear();
+    if (S.period === "month") return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
+    if (S.period === "3m") { const from = new Date(today.getFullYear(), today.getMonth() - 2, 1); return d >= from; }
+    return true;
+  }
+
+  function renderStats() {
+    const dates = [...S.days.keys()].filter((d) => inPeriod(d) && hasAny(d)).sort();
+    const ids = activeMembers().map(([id]) => id);
+    const allIds = [...S.members.keys()];
+
+    let playedGames = 0;
+    const perGame = GAMES.map(() => ({ sum: 0, n: 0 }));
+    const stat = new Map(ids.map((id) => [id, { games: 0, days: 0 }]));
+
+    for (const d of dates) {
+      GAMES.forEach((g, i) => {
+        const c = allIds.filter((id) => attended(d, id, g)).length;
+        if (c) { playedGames++; perGame[i].sum += c; perGame[i].n++; }
+      });
+      for (const id of ids) {
+        const n = GAMES.filter((g) => attended(d, id, g)).length;
+        const s = stat.get(id);
+        s.games += n;
+        if (n) s.days++;
+      }
+    }
+
+    const totalSlots = perGame.reduce((s, x) => s + x.sum, 0);
+    $("periodSummary").innerHTML =
+      `<span><b class="num">${dates.length}</b>일 모임</span>` +
+      `<span><b class="num">${playedGames}</b>경기 진행</span>` +
+      `<span>경기당 평균 <b class="num">${playedGames ? (totalSlots / playedGames).toFixed(1) : 0}</b>명</span>`;
+
+    const rows = ids.map((id) => ({ id, name: S.members.get(id).name, ...stat.get(id) }))
+      .sort((a, b) => b.games - a.games || b.days - a.days || a.name.localeCompare(b.name, "ko"));
+    const body = $("rankBody");
+    body.replaceChildren();
+    if (!rows.length || !dates.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 5;
+      td.className = "muted";
+      td.style.textAlign = "center";
+      td.style.padding = "18px 6px";
+      td.textContent = rows.length ? "이 기간에는 출석 기록이 없습니다." : "회원을 추가하고 출석을 체크하면 순위가 여기에 표시됩니다.";
+      tr.append(td);
+      body.append(tr);
+    } else {
+      let pos = 0, prev = null;
+      rows.forEach((r, i) => {
+        if (r.games !== prev) { pos = i + 1; prev = r.games; }
+        const pct = playedGames ? Math.round((r.games / playedGames) * 100) : 0;
+        const tr = document.createElement("tr");
+        if (pos <= 3 && r.games > 0) tr.className = "top";
+        tr.innerHTML = `<td class="pos num">${pos}</td><td></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
+          <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
+        tr.children[1].textContent = r.name;
+        body.append(tr);
+      });
+    }
+  }
+
+  function renderMembers() {
+    const active = activeMembers();
+    const inactive = [...S.members.entries()]
+      .filter(([, m]) => m.active === false)
+      .sort((a, b) => a[1].name.localeCompare(b[1].name, "ko"));
+    $("memberCount").textContent = `${active.length}명`;
+
+    const list = $("memberList");
+    list.replaceChildren();
+    if (!active.length) {
+      const li = document.createElement("li");
+      li.className = "empty-row";
+      li.textContent = S.mode === "loading" ? "불러오는 중" : "등록된 회원이 없습니다";
+      list.append(li);
+    }
+    for (const [id, m] of active) {
+      const li = document.createElement("li");
+
+      if (S.editId === id) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.id = "editName-" + id;
+        input.maxLength = 40;
+        const hadFocus = document.activeElement?.id === input.id;
+        const caret = hadFocus ? document.activeElement.selectionStart : null;
+        input.value = S.editDraft ?? m.name;
+        input.addEventListener("input", () => { S.editDraft = input.value; });
+        input.className = "edit-input";
+        input.setAttribute("aria-label", `${m.name} 새 이름`);
+        const save = document.createElement("button");
+        save.className = "row-btn";
+        save.textContent = "저장";
+        const cancel = document.createElement("button");
+        cancel.className = "row-btn";
+        cancel.textContent = "취소";
+        const doSave = () => renameMember(id, input.value);
+        const doCancel = () => { S.editId = null; S.editDraft = null; renderMembers(); };
+        save.addEventListener("click", doSave);
+        cancel.addEventListener("click", doCancel);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); doSave(); }
+          if (e.key === "Escape") doCancel();
+        });
+        const btns = document.createElement("div");
+        btns.className = "row-actions";
+        btns.append(save, cancel);
+        li.append(input, btns);
+        list.append(li);
+        setTimeout(() => {
+          input.focus();
+          if (caret !== null) input.setSelectionRange(caret, caret);
+          else if (S.editDraft === null || S.editDraft === undefined) input.select();
+        }, 0);
+        continue;
+      }
+
+      const name = document.createElement("span");
+      name.textContent = m.name;
+      const edit = document.createElement("button");
+      edit.className = "row-btn";
+      edit.textContent = "수정";
+      edit.setAttribute("aria-label", `${m.name} 이름 수정`);
+      edit.addEventListener("click", () => { S.editId = id; S.editDraft = null; S.confirmDel = null; renderMembers(); });
+      const del = document.createElement("button");
+      const confirming = S.confirmDel === id;
+      del.className = "row-btn" + (confirming ? " danger" : "");
+      del.textContent = confirming ? "정말 삭제할까요?" : "삭제";
+      del.setAttribute("aria-label", `${m.name} 삭제`);
+      del.addEventListener("click", () => {
+        if (S.confirmDel === id) { S.confirmDel = null; removeMember(id); }
+        else {
+          S.confirmDel = id;
+          renderMembers();
+          setTimeout(() => { if (S.confirmDel === id) { S.confirmDel = null; renderMembers(); } }, 3000);
+        }
+      });
+      const btns = document.createElement("div");
+      btns.className = "row-actions";
+      btns.append(edit, del);
+      li.append(name, btns);
+      list.append(li);
+    }
+
+    $("inactiveBox").hidden = !inactive.length;
+    $("inactiveCount").textContent = `${inactive.length}명`;
+    const il = $("inactiveList");
+    il.replaceChildren();
+    for (const [id, m] of inactive) {
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      name.textContent = m.name;
+      const btn = document.createElement("button");
+      btn.className = "row-btn";
+      btn.textContent = "복구";
+      btn.addEventListener("click", () => restoreMember(id));
+      const purge = document.createElement("button");
+      const confirming = S.confirmPurge === id;
+      purge.className = "row-btn danger";
+      purge.textContent = confirming ? "기록까지 지울까요?" : "완전 삭제";
+      purge.setAttribute("aria-label", `${m.name} 완전 삭제`);
+      purge.addEventListener("click", () => {
+        if (S.confirmPurge === id) { S.confirmPurge = null; purgeMember(id); }
+        else {
+          S.confirmPurge = id;
+          renderMembers();
+          setTimeout(() => { if (S.confirmPurge === id) { S.confirmPurge = null; renderMembers(); } }, 3000);
+        }
+      });
+      const btns = document.createElement("div");
+      btns.className = "row-actions";
+      btns.append(btn, purge);
+      li.append(name, btns);
+      il.append(li);
+    }
+  }
+
+  // 명단에서 뺀 회원을 회원 정보와 모든 출석·포지션 기록까지 지운다
+  async function purgeMember(id) {
+    const m = S.members.get(id);
+    if (!m) return;
+    if (S.readOnly) { toast("보기 전용 상태입니다."); return; }
+
+    const jobs = [];
+    for (const [date, day] of S.days) {
+      const patch = {};
+      if (day.att && day.att[id]) patch.att = { [id]: null };
+      const lineup = {};
+      for (const [gk, lu] of Object.entries(day.lineup || {})) {
+        const pos = {};
+        for (const [s, v] of Object.entries(lu?.pos || {})) if (v === id) pos[s] = null;
+        if (Object.keys(pos).length) lineup[gk] = { pos };
+      }
+      if (Object.keys(lineup).length) patch.lineup = lineup;
+      if (Object.keys(patch).length) jobs.push([date, patch]);
+    }
+
+    if (S.mode === "local") {
+      for (const [date, patch] of jobs) {
+        const day = deepMerge({ ...S.days.get(date) }, patch);
+        if (day.att) delete day.att[id];
+        S.days.set(date, day);
+      }
+      S.members.delete(id);
+      renderAll();
+    } else {
+      await Promise.all(jobs.map(([date, patch]) => writeDay(date, patch, [])));
+      if (S.readOnly) return;
+      try { await S.db.doc("members/" + id).delete(); }
+      catch (e) { handleWriteError(e); return; }
+    }
+    toast(`${m.name} 님의 회원 정보와 출석 기록 ${jobs.length}일치를 완전히 삭제했습니다.`);
+  }
+
+  async function renameMember(id, raw) {
+    const m = S.members.get(id);
+    const name = String(raw || "").trim().slice(0, 40);
+    if (!m) return;
+    if (S.readOnly) { toast("보기 전용 상태입니다."); return; }
+    if (!name) { toast("이름을 입력해 주세요."); return; }
+    if (name === m.name) { S.editId = null; S.editDraft = null; renderMembers(); return; }
+    if (activeMembers().some(([oid, x]) => oid !== id && x.name === name)) {
+      toast(`같은 이름(${name})의 회원이 이미 있습니다.`);
+      return;
+    }
+    S.editId = null;
+    S.editDraft = null;
+    if (S.mode === "local") {
+      S.members.set(id, { ...m, name });
+      renderAll();
+    } else {
+      S.members.set(id, { ...m, name });
+      renderAll();
+      try { await S.db.doc("members/" + id).update({ name }); }
+      catch (e) { S.members.set(id, m); renderAll(); handleWriteError(e); return; }
+    }
+    toast(`${m.name} → ${name}(으)로 이름을 바꿨습니다.`);
+  }
+
+  async function restoreMember(id) {
+    const m = S.members.get(id);
+    if (!m) return;
+    if (S.readOnly) { toast("보기 전용 상태입니다."); return; }
+    if (activeMembers().some(([, x]) => x.name === m.name)) { toast(`같은 이름(${m.name})의 회원이 이미 명단에 있습니다.`); return; }
+    if (S.mode === "local") {
+      S.members.set(id, { ...m, active: true });
+      renderAll();
+    } else {
+      try { await S.db.doc("members/" + id).update({ active: true }); }
+      catch (e) { handleWriteError(e); return; }
+    }
+    toast(`${m.name} 님을 명단에 다시 넣었습니다.`);
+  }
+
+  function renderAll() {
+    renderHeader();
+    renderLineup();
+    renderGrid();
+    renderSide();
+    renderMembers();
+    renderStats();
+  }
+
+  function showNotice(msg) { const n = $("notice"); n.textContent = msg; n.hidden = false; }
+
+  // ---------- 이벤트 ----------
+  $("prevDay").addEventListener("click", () => { S.date = shiftDate(S.date, -1); renderAll(); });
+  $("nextDay").addEventListener("click", () => { S.date = shiftDate(S.date, 1); renderAll(); });
+  $("datePick").addEventListener("change", (e) => { if (e.target.value) { S.date = e.target.value; renderAll(); } });
+
+  $("formationSel").addEventListener("change", (e) => setFormation(e.target.value));
+
+  $("addForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (S.mode === "loading") { toast("기록을 불러오는 중입니다. 잠시 후 다시 시도해 주세요."); return; }
+    if (S.readOnly) { toast("보기 전용 상태입니다."); return; }
+    const names = [...new Set($("addInput").value.split(/[,\n、·]+/).map((s) => s.trim()).filter(Boolean))].slice(0, 60);
+    if (!names.length) return;
+    $("addInput").value = "";
+    addMembers(names);
+  });
+
+  $("periodChips").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-period]");
+    if (!b) return;
+    S.period = b.dataset.period;
+    document.querySelectorAll("#periodChips .chip").forEach((c) => c.setAttribute("aria-pressed", c === b));
+    renderStats();
+  });
+
+  $("copyBtn").addEventListener("click", () => {
+    const text = rosterText();
+    const fb = $("copyFallback");
+    const fallback = () => { fb.value = text; fb.hidden = false; fb.focus(); fb.select(); toast("자동 복사가 막혀 있어요. 아래 글을 직접 복사해 주세요."); };
+    try {
+      navigator.clipboard.writeText(text).then(() => { fb.hidden = true; toast("명단을 복사했습니다. 단톡방에 붙여넣으세요."); }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  // ---------- 시작 ----------
+  renderAll();
+
+  async function connect() {
+    let db = null;
+    try { db = window.claude?.use ? await window.claude.use("db") : null; } catch (e) { db = null; }
+
+    if (!db) {
+      S.mode = "local";
+      showNotice("공유 저장소에 연결되지 않아 이 화면에서만 임시로 동작합니다. 새로고침하면 입력한 내용이 사라집니다. claude.ai에 로그인한 상태에서 열면 회원 모두가 같은 기록을 봅니다.");
+      renderAll();
+      return;
+    }
+    S.db = db;
+    let gotMembers = false, gotDays = false;
+    const ready = () => { if (gotMembers && gotDays && S.mode === "loading") S.mode = "live"; renderAll(); };
+    const onErr = (e) => {
+      if (e && e.code === "revoked") showNotice("이 페이지의 기록 접근 권한이 바뀌었습니다. 새로고침해 주세요.");
+      else showNotice("기록을 실시간으로 받지 못하고 있습니다. 새로고침해 주세요.");
+    };
+
+    db.collection("members").onSnapshot((snap) => {
+      S.members = new Map(snap.docs.map((d) => {
+        const v = d.data() || {};
+        return [d.id, { name: String(v.name || "이름 없음").slice(0, 40), active: v.active !== false, createdAt: v.createdAt || 0 }];
+      }));
+      gotMembers = true;
+      ready();
+    }, onErr);
+
+    db.collection("days").limit(1000).onSnapshot((snap) => {
+      S.days = new Map(snap.docs.map((d) => {
+        const v = d.data() || {};
+        return [d.id, {
+          att: (v.att && typeof v.att === "object") ? v.att : {},
+          lineup: (v.lineup && typeof v.lineup === "object") ? v.lineup : {},
+        }];
+      }));
+      gotDays = true;
+      ready();
+    }, onErr);
+  }
+  connect();
+})();
+</script>
