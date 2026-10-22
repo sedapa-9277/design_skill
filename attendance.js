@@ -272,6 +272,143 @@
       () => rpc("set_formation", { p_day: date, p_team: t, p_game: g, p_formation: f }));
   }
 
+  // ---------- 포지션 배치를 그림(PNG)으로 저장 ----------
+  async function drawLineupImage() {
+    const g = S.lineupGame;
+    const { formation, slots } = lineupOf(S.date, g);
+    const spots = FORMATIONS[formation];
+    const d = parseYmd(S.date);
+
+    const W = 1080, PAD = 40, HEAD = 190;
+    const PW = W - PAD * 2, PH = Math.round(PW * 100 / 68);
+    const H = HEAD + PH + PAD + 50;
+    const cv = document.createElement("canvas");
+    cv.width = W;
+    cv.height = H;
+    const c = cv.getContext("2d");
+    const DISPLAY = '"Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif';
+    const BODY = '"IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+    try { await Promise.all([document.fonts.load(`60px ${DISPLAY}`), document.fonts.load(`700 30px ${BODY}`)]); } catch (e) { /* 기본 글꼴로 그린다 */ }
+
+    const round = (x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
+
+    // 배경과 제목
+    c.fillStyle = "#0f1f15";
+    c.fillRect(0, 0, W, H);
+    c.fillStyle = "#ffffff";
+    c.textBaseline = "alphabetic";
+    c.font = `64px ${DISPLAY}`;
+    c.fillText(`${S.team}팀 · ${g}경기`, PAD, 92);
+    c.font = `500 32px ${BODY}`;
+    c.fillStyle = "#b9d7c2";
+    c.fillText(`${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11명`, PAD, 146);
+
+    // 구장: 잔디 줄무늬와 라인
+    const X = PAD, Y = HEAD;
+    round(X, Y, PW, PH, 22);
+    c.save();
+    c.clip();
+    for (let i = 0; i < 10; i++) {
+      c.fillStyle = i % 2 ? "#2a7d43" : "#2f8a4a";
+      c.fillRect(X, Y + (PH / 10) * i, PW, PH / 10 + 1);
+    }
+    c.strokeStyle = "rgba(255,255,255,.7)";
+    c.lineWidth = 4;
+    const line = (x1, y1, x2, y2) => { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+    line(X, Y + PH / 2, X + PW, Y + PH / 2);
+    c.beginPath();
+    c.arc(X + PW / 2, Y + PH / 2, PW * 0.135, 0, Math.PI * 2);
+    c.stroke();
+    c.strokeRect(X + PW * 0.2, Y - 2, PW * 0.6, PH * 0.16);
+    c.strokeRect(X + PW * 0.37, Y - 2, PW * 0.26, PH * 0.06);
+    c.strokeRect(X + PW * 0.2, Y + PH * 0.84 + 2, PW * 0.6, PH * 0.16);
+    c.strokeRect(X + PW * 0.37, Y + PH * 0.94 + 2, PW * 0.26, PH * 0.06);
+    c.restore();
+    round(X, Y, PW, PH, 22);
+    c.lineWidth = 5;
+    c.stroke();
+
+    // 선수
+    c.textAlign = "center";
+    spots.forEach(([pos, px, py], i) => {
+      const cx = X + (PW * px) / 100, cy = Y + (PH * py) / 100;
+      const mid = slots[i];
+      const R = 46;
+      c.beginPath();
+      c.arc(cx, cy, R, 0, Math.PI * 2);
+      if (mid) {
+        c.fillStyle = i === 0 ? "#ffd23f" : "#ffffff";
+        c.fill();
+        c.fillStyle = i === 0 ? "#2b2100" : "#174f2b";
+      } else {
+        c.fillStyle = "rgba(0,0,0,.22)";
+        c.fill();
+        c.setLineDash([8, 7]);
+        c.strokeStyle = "rgba(255,255,255,.85)";
+        c.lineWidth = 3;
+        c.stroke();
+        c.setLineDash([]);
+        c.fillStyle = "#ffffff";
+      }
+      c.font = `700 ${pos.length > 2 ? 24 : 28}px ${BODY}`;
+      c.textBaseline = "middle";
+      c.fillText(pos, cx, cy + 1);
+
+      const name = mid ? memberName(mid) : "-";
+      c.font = `700 30px ${BODY}`;
+      const tw = Math.min(c.measureText(name).width, 230);
+      const bw = tw + 28, bh = 46, by = cy + R + 10;
+      round(cx - bw / 2, by, bw, bh, 10);
+      c.fillStyle = mid ? "rgba(0,0,0,.55)" : "rgba(0,0,0,0)";
+      c.fill();
+      c.fillStyle = mid ? "#ffffff" : "rgba(255,255,255,.7)";
+      c.fillText(name, cx, by + bh / 2 + 1, 230);
+    });
+
+    // 바닥 글씨
+    c.textAlign = "right";
+    c.textBaseline = "alphabetic";
+    c.font = `500 24px ${BODY}`;
+    c.fillStyle = "#6f8f78";
+    c.fillText("축구회 경기 출석부", W - PAD, H - 30);
+
+    return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
+  }
+
+  async function saveLineupImage() {
+    const btn = $("saveLineupBtn");
+    btn.disabled = true;
+    try {
+      const blob = await drawLineupImage();
+      if (!blob) throw new Error("no blob");
+      const name = `${S.team}팀_${S.date}_${S.lineupGame}경기.png`;
+      const file = new File([blob], name, { type: "image/png" });
+      // 휴대폰: 공유 창(사진 저장, 카카오톡 등). 그 밖: 파일 다운로드
+      const touch = window.matchMedia("(pointer: coarse)").matches;
+      if (touch && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: name });
+          return;
+        } catch (e) {
+          if (e?.name === "AbortError") return;
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast("포지션 배치 그림을 저장했습니다.");
+    } catch (e) {
+      toast("그림을 만들지 못했습니다. 다시 눌러 주세요.");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   // ---------- 회원 ----------
   function addMembers(names) {
     const taken = names.map((n) => [n, nameTakenBy(n)]).filter(([, m]) => m);
@@ -1055,6 +1192,8 @@
     document.querySelectorAll("#periodChips .chip").forEach((c) => c.setAttribute("aria-pressed", c === b));
     renderStats();
   });
+
+  $("saveLineupBtn").addEventListener("click", saveLineupImage);
 
   $("rankSort").addEventListener("click", (e) => {
     const b = e.target.closest("[data-sort]");

@@ -847,3 +847,12 @@ html { -webkit-text-size-adjust: 100%; }
 .game-add.minus { border-color: var(--line); color: var(--muted); }
 .att th.add-col .game-add + .game-add { margin-left: 0; }
 @media (max-width: 860px) { .game-add { width: 34px; height: 34px; } .att th.add-col { padding-inline: 0; } }
+
+/* 포지션 배치: 그림 저장 버튼 */
+.save-img { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; white-space: nowrap; }
+.save-img svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.save-img:disabled { opacity: .6; cursor: progress; }
+@media (max-width: 860px) {
+  .formation-label { width: auto; flex: 1; }
+  .save-img { margin-left: 0; }
+}

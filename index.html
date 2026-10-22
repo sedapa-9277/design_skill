@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="attendance.css?v=10">
+  <link rel="stylesheet" href="attendance.css?v=11">
 </head>
 <body class="locked" data-view="check">
 <div class="wrap">
@@ -70,6 +70,10 @@
       <label class="muted formation-label">포메이션
         <select id="formationSel" aria-label="포메이션"></select>
       </label>
+      <button class="btn-ghost save-img" type="button" id="saveLineupBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        그림 저장
+      </button>
     </div>
     <div class="lineup">
       <div class="field" id="field">
@@ -185,6 +189,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="attendance.js?v=10"></script>
+<script src="attendance.js?v=11"></script>
 </body>
 </html>
