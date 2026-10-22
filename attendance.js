@@ -740,7 +740,7 @@
       btn.type = "button";
       btn.className = "name-btn";
       btn.textContent = r.name;
-      btn.title = `${r.name} 최근 10경기 보기`;
+      btn.title = `${r.name} 최근 모임 10번 보기`;
       btn.setAttribute("aria-expanded", open);
       btn.addEventListener("click", () => {
         S.rankOpen = S.rankOpen === r.id ? null : r.id;
@@ -752,21 +752,12 @@
     }
   }
 
-  // 이 팀에서 출석이 하나라도 있는 경기(날짜+경기 번호) 중 최근 n개, 오래된 순
+  // 이 팀의 최근 모임 날짜 n개 (팀에서 한 명이라도 출석한 날), 오래된 순
   function recentTeamGames(n) {
-    const ids = teamMembers(true).map(([id]) => id);
-    const out = [];
-    const dates = [...S.days.keys()].sort().reverse();
-    for (const d of dates) {
-      for (let g = GAMES.length; g >= 1 && out.length < n; g--) {
-        if (ids.some((id) => attended(d, id, g))) out.push({ d, g });
-      }
-      if (out.length >= n) break;
-    }
-    return out.reverse();
+    return [...S.days.keys()].filter(hasAny).sort().slice(-n);
   }
 
-  function recentRow(mid, games) {
+  function recentRow(mid, dates) {
     const tr = document.createElement("tr");
     tr.className = "recent-row";
     const td = document.createElement("td");
@@ -777,35 +768,40 @@
     strip.className = "strip";
     let hit = 0;
     for (let i = 0; i < 10; i++) {
-      const x = games[i];
+      const day = dates[i];
       const c = document.createElement("span");
-      if (!x) {
+      if (!day) {
         c.className = "c none";
-        c.title = "경기 기록 없음";
+        c.title = "모임 기록 없음";
       } else {
-        const on = attended(x.d, mid, x.g);
-        if (on) hit++;
-        c.className = "c " + (on ? "in" : "out");
-        c.textContent = x.g;
-        c.title = `${label(x.d, true)} ${x.g}경기 ${on ? "참석" : "불참"}`;
+        const played = GAMES.filter((g) => attended(day, mid, g)).length;
+        if (played) hit++;
+        const d = parseYmd(day);
+        c.className = "c " + (played ? "in" : "out");
+        const m = document.createElement("small");
+        m.textContent = `${d.getMonth() + 1}월`;
+        const dd = document.createElement("b");
+        dd.textContent = d.getDate();
+        c.append(m, dd);
+        c.title = `${label(day, true)} ${played ? `참석 (${played}경기)` : "불참"}`;
         c.setAttribute("aria-label", c.title);
       }
       strip.append(c);
     }
     const meta = document.createElement("div");
     meta.className = "meta";
-    if (games.length) {
+    if (dates.length) {
       const range = document.createElement("span");
-      range.textContent = `${label(games[0].d, true)} → ${label(games[games.length - 1].d, true)}`;
+      range.textContent = `${label(dates[0], true)} → ${label(dates[dates.length - 1], true)}`;
       const sum = document.createElement("b");
-      sum.textContent = `최근 ${games.length}경기 중 ${hit}경기 참석`;
+      sum.textContent = `최근 모임 ${dates.length}번 중 ${hit}번 참석`;
       meta.append(sum, range);
     } else {
-      meta.textContent = "아직 이 팀의 경기 기록이 없습니다.";
+      meta.textContent = "아직 이 팀의 모임 기록이 없습니다.";
     }
     const legend = document.createElement("div");
     legend.className = "legend";
-    legend.innerHTML = `<span><i class="c in"></i>참석</span><span><i class="c out"></i>불참</span><span>칸 안 숫자 = 그날의 경기 번호</span>`;
+    legend.innerHTML = `<span><i class="c in"></i>참석 (그날 1경기 이상)</span><span><i class="c out"></i>불참</span>`;
     wrap.append(meta, strip, legend);
     td.append(wrap);
     tr.append(td);
