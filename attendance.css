@@ -856,3 +856,49 @@ html { -webkit-text-size-adjust: 100%; }
   .formation-label { width: auto; flex: 1; }
   .save-img { margin-left: 0; }
 }
+
+/* ---- 그림 저장 미리보기 ---- */
+body.modal-open { overflow: hidden; }
+.img-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: #000000b3;
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+}
+.img-card {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  width: min(100%, 460px);
+  max-height: 100%;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 20px 50px #00000080;
+}
+.img-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.img-head b { font-size: .95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.img-tip {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--pitch-soft);
+  color: var(--fg);
+  font-size: .85rem;
+}
+.img-tip b { color: var(--pitch); }
+.img-wrap { min-height: 0; overflow: auto; display: grid; place-items: center; }
+.img-wrap img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  max-height: 60dvh;
+  border-radius: 10px;
+  -webkit-touch-callout: default;
+  user-select: auto;
+}
+.img-actions { display: flex; gap: 8px; }
+.img-actions > * { flex: 1; }

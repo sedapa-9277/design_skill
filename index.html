@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="attendance.css?v=11">
+  <link rel="stylesheet" href="attendance.css?v=12">
 </head>
 <body class="locked" data-view="check">
 <div class="wrap">
@@ -186,9 +186,24 @@
   </button>
 </nav>
 
+<div class="img-modal" id="imgModal" hidden role="dialog" aria-modal="true" aria-labelledby="imgModalTitle">
+  <div class="img-card">
+    <div class="img-head">
+      <b id="imgModalTitle">포지션 배치 그림</b>
+      <button type="button" class="btn-ghost" id="imgCloseBtn">닫기</button>
+    </div>
+    <p class="img-tip" id="imgTip">그림을 <b>길게 눌러</b> 사진에 저장하세요.</p>
+    <div class="img-wrap"><img id="imgPreview" alt="포지션 배치 그림"></div>
+    <div class="img-actions">
+      <button type="button" class="btn" id="imgDownloadBtn">파일로 저장</button>
+      <button type="button" class="btn-ghost" id="imgShareBtn" hidden>공유하기</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="attendance.js?v=11"></script>
+<script src="attendance.js?v=12"></script>
 </body>
 </html>

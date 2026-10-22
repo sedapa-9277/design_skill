@@ -375,6 +375,8 @@
     return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
   }
 
+  // 그림을 화면에 띄운다. 휴대폰은 그림을 길게 눌러 사진에 저장하는 것이 가장 확실하다
+  let shot = null; // {blob, name, dataUrl}
   async function saveLineupImage() {
     const btn = $("saveLineupBtn");
     btn.disabled = true;
@@ -382,30 +384,60 @@
       const blob = await drawLineupImage();
       if (!blob) throw new Error("no blob");
       const name = `${S.team}팀_${S.date}_${S.lineupGame}경기.png`;
-      const file = new File([blob], name, { type: "image/png" });
-      // 휴대폰: 공유 창(사진 저장, 카카오톡 등). 그 밖: 파일 다운로드
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+      shot = { blob, name, dataUrl };
       const touch = window.matchMedia("(pointer: coarse)").matches;
-      if (touch && navigator.canShare?.({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: name });
-          return;
-        } catch (e) {
-          if (e?.name === "AbortError") return;
-        }
-      }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = name;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-      toast("포지션 배치 그림을 저장했습니다.");
+      const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      $("imgPreview").src = dataUrl;
+      $("imgModalTitle").textContent = name.replace(".png", "").replaceAll("_", " · ");
+      $("imgTip").innerHTML = !touch
+        ? "<b>파일로 저장</b>을 누르면 PNG 파일로 내려받습니다."
+        : ios
+          ? "그림을 <b>길게 눌러</b> <b>'사진 앱에 저장'</b>을 고르세요."
+          : "그림을 <b>길게 눌러</b> <b>'이미지 다운로드'</b>를 고르면 갤러리에 저장됩니다.";
+      const file = new File([blob], name, { type: "image/png" });
+      $("imgShareBtn").hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
+      $("imgModal").hidden = false;
+      document.body.classList.add("modal-open");
+      $("imgCloseBtn").focus();
     } catch (e) {
       toast("그림을 만들지 못했습니다. 다시 눌러 주세요.");
     } finally {
       btn.disabled = false;
+    }
+  }
+
+  function closeImageModal() {
+    $("imgModal").hidden = true;
+    document.body.classList.remove("modal-open");
+    $("imgPreview").removeAttribute("src");
+    shot = null;
+  }
+
+  function downloadShot() {
+    if (!shot) return;
+    const url = URL.createObjectURL(shot.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = shot.name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast("파일로 저장했습니다. 휴대폰은 '다운로드' 또는 '파일' 앱에서 찾을 수 있습니다.");
+  }
+
+  async function shareShot() {
+    if (!shot) return;
+    try {
+      await navigator.share({ files: [new File([shot.blob], shot.name, { type: "image/png" })], title: shot.name });
+    } catch (e) {
+      if (e?.name !== "AbortError") toast("공유하지 못했습니다. 그림을 길게 눌러 저장해 주세요.");
     }
   }
 
@@ -1194,6 +1226,11 @@
   });
 
   $("saveLineupBtn").addEventListener("click", saveLineupImage);
+  $("imgCloseBtn").addEventListener("click", closeImageModal);
+  $("imgDownloadBtn").addEventListener("click", downloadShot);
+  $("imgShareBtn").addEventListener("click", shareShot);
+  $("imgModal").addEventListener("click", (e) => { if (e.target === $("imgModal")) closeImageModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("imgModal").hidden) closeImageModal(); });
 
   $("rankSort").addEventListener("click", (e) => {
     const b = e.target.closest("[data-sort]");
