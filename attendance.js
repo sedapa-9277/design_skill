@@ -903,7 +903,6 @@
     const { games, people } = dayRoster(S.date);
     $("tPeople").textContent = people.size;
     $("tGames").textContent = games.filter((x) => x.people.length).length;
-    $("tSlots").textContent = games.reduce((s, x) => s + x.people.length, 0);
     renderDeleteDay(people.size);
 
     const r = $("roster");

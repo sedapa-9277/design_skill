@@ -958,3 +958,17 @@ body.modal-open { overflow: hidden; }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--warn) 10%, transparent); }
 .btn-danger.confirm { background: var(--warn); color: #fff; }
 .btn-danger:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
+
+/* 이날 요약: 칸 2개 (참석 인원, 진행 경기) */
+.tiles { grid-template-columns: repeat(2, 1fr); }
+
+/* 삭제 버튼: 어느 테마에서나 잘 보이는 빨강 */
+:root { --danger: #c62828; --danger-bg: #fdecea; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --danger: #ff8a80; --danger-bg: #3a1a17; }
+}
+:root[data-theme="dark"] { --danger: #ff8a80; --danger-bg: #3a1a17; }
+.btn-danger { border: 1.5px solid var(--danger); color: var(--danger); background: var(--danger-bg); }
+.btn-danger:hover:not(:disabled) { background: var(--danger-bg); filter: brightness(1.08); }
+.btn-danger.confirm { background: #c62828; border-color: #c62828; color: #ffffff; }
+.btn-danger:disabled { background: transparent; border-color: var(--line); color: var(--muted); }
