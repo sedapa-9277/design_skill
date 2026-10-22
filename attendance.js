@@ -1057,7 +1057,7 @@
       body.append(tr);
       return;
     }
-    // 순위(#)는 항상 참석률 기준. 이름순일 때는 보여 주는 순서만 바꾼다
+    // 참석률순: # 는 참석률 순위(동점은 같은 순위). 이름순: # 는 1번부터 차례대로
     let pos = 0, prev = null;
     rows.forEach((r, i) => {
       if (r.games !== prev) { pos = i + 1; prev = r.games; }
@@ -1067,12 +1067,14 @@
       ? [...rows].sort((a, b) => a.name.localeCompare(b.name, "ko"))
       : rows;
     const recent = S.rankOpen ? recentTeamGames(10) : [];
-    for (const r of shown) {
+    const byName = S.rankSort === "name";
+    shown.forEach((r, idx) => {
       const pct = playedGames ? Math.round((r.games / playedGames) * 100) : 0;
       const open = S.rankOpen === r.id;
       const tr = document.createElement("tr");
-      tr.className = (r.pos <= 3 && r.games > 0 ? "top " : "") + (open ? "open" : "");
-      tr.innerHTML = `<td class="pos num">${r.pos}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
+      const no = byName ? idx + 1 : r.pos;
+      tr.className = (!byName && r.pos <= 3 && r.games > 0 ? "top " : "") + (open ? "open" : "");
+      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
         <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
       const btn = document.createElement("button");
       btn.type = "button";
@@ -1084,7 +1086,7 @@
       tr.children[1].append(btn);
       body.append(tr);
       if (open) body.append(recentRow(r.id, recent));
-    }
+    });
   }
 
   // 표를 다시 그리지 않고 누른 줄 아래만 펼치거나 닫는다.
