@@ -984,3 +984,30 @@ body.modal-open { overflow: hidden; }
 
 /* 참석 통계: 요약 줄을 없앤 뒤 정렬 버튼만 오른쪽에 */
 .stats-bar { justify-content: flex-end; }
+
+/* 출석판: 한 사람당 줄 높이를 줄여 한 화면에 더 많이 */
+.att td.name { white-space: nowrap; }
+.att td.name .nm-main { display: block; overflow: hidden; text-overflow: ellipsis; font-weight: 700; line-height: 1.25; }
+.att td.name .sub { display: block; margin-top: 1px; font-size: .72rem; line-height: 1.3; }
+.att td.name .all-link {
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  margin: -2px 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--pitch);
+  cursor: pointer;
+}
+.att td.name .all-link:hover { text-decoration: underline; }
+.att td { padding-top: 4px; padding-bottom: 4px; }
+@media (max-width: 860px) {
+  .att th, .att td { padding: 3px 2px; }
+  .att td.name { max-width: 7.5em; padding-right: 4px; }
+  .cell { width: 36px; height: 36px; font-size: .8rem; }
+  .att thead th { padding-bottom: 6px; }
+}
+@media (max-width: 380px) {
+  .cell { width: 33px; height: 33px; }
+  .att td.name { max-width: 6em; }
+}

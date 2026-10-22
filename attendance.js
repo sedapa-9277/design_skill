@@ -855,19 +855,25 @@
       const tr = document.createElement("tr");
       const n = GAMES.filter((g) => attended(S.date, id, g)).length;
 
+      // 이름 한 줄 + 아래 작은 줄("3경기 · 전 경기")로 줄 높이를 줄인다
       const tdName = document.createElement("td");
       tdName.className = "name";
-      tdName.textContent = m.name;
+      const nm = document.createElement("span");
+      nm.className = "nm-main";
+      nm.textContent = m.name;
+      nm.title = m.name;
       const sub = document.createElement("span");
       sub.className = "sub";
-      sub.textContent = n ? `${n}경기 출전` : "불참";
+      sub.textContent = n ? `${n}경기` : "불참";
       // "전 경기"는 지금 보이는 경기만 체크/해제한다
       const all = document.createElement("button");
-      all.className = "row-btn";
+      all.className = "all-link";
       const full = games.every((g) => attended(S.date, id, g));
       all.textContent = full ? "전체 해제" : "전 경기";
+      all.setAttribute("aria-label", `${m.name} ${full ? "보이는 경기 모두 해제" : "보이는 경기 모두 참석"}`);
       all.addEventListener("click", () => setGames(id, games, !full));
-      tdName.append(sub, all);
+      sub.append(" · ", all);
+      tdName.append(nm, sub);
       tr.append(tdName);
 
       for (const g of games) {
