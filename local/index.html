@@ -3,26 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>축구회 경기 출석부 (내 폰)</title>
+  <title>Soccer line-up (내 폰)</title>
   <meta name="theme-color" content="#1d6e3a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="출석부 (내 폰)">
+  <meta name="apple-mobile-web-app-title" content="Soccer (내 폰)">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="../icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="../icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="local.css?v=1">
+  <link rel="stylesheet" href="local.css?v=2">
 </head>
 <body data-view="check">
 <div class="wrap">
   <header class="board" aria-label="모임 날짜">
     <div class="board-top">
       <div class="board-title">
-        <div class="eyebrow">경기 출석부 · 내 폰 저장</div>
+        <div class="eyebrow">Soccer line-up · 내 폰 저장</div>
         <div class="date-big" id="dateBig">-</div>
       </div>
       <div class="date-nav">
@@ -114,6 +114,7 @@
         <div class="panel-head">
           <h2>회원 관리 <span class="muted num member-count" id="memberCount"></span></h2>
         </div>
+        <div class="team-name-row" id="teamNameRow"></div>
         <form class="add-form" id="addForm" autocomplete="off">
           <input id="addInput" type="text" maxlength="200" placeholder="이름 (여러 명은 쉼표로: 김민수, 박지훈)" aria-label="추가할 회원 이름">
           <button class="btn" type="submit">추가</button>
@@ -137,7 +138,7 @@
           <div><dt>저장 공간</dt><dd id="persistState">확인 중</dd></div>
         </dl>
         <div class="data-actions">
-          <button type="button" class="btn" id="exportBtn">백업 파일 저장</button>
+          <button type="button" class="btn" id="backupBtn">백업 파일 저장</button>
           <button type="button" class="btn-ghost" id="importBtn">백업 불러오기</button>
           <input type="file" id="importFile" accept=".json,.txt,application/json,text/plain" hidden>
         </div>
@@ -156,11 +157,13 @@
         <button class="chip" data-period="month" aria-pressed="true">이번 달</button>
         <button class="chip" data-period="3m" aria-pressed="false">최근 3개월</button>
         <button class="chip" data-period="year" aria-pressed="false">올해</button>
-        <button class="chip" data-period="all" aria-pressed="false">전체</button>
       </div>
     </div>
     <div class="stats-bar">
-      <div class="summary-line" id="periodSummary"></div>
+      <button type="button" class="btn-ghost export-btn" id="exportBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        엑셀로 내보내기
+      </button>
       <div class="seg" id="rankSort" role="group" aria-label="정렬">
         <button type="button" data-sort="rate" aria-pressed="true">참석률순</button>
         <button type="button" data-sort="name" aria-pressed="false">이름순</button>
@@ -242,7 +245,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=1"></script>
+<script src="local.js?v=2"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {

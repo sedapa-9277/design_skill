@@ -46,6 +46,9 @@
     rankOpen: null,           // 통계에서 최근 10경기를 펼친 회원 id
     shownGames: new Map(),    // "date|팀" -> 출석판에 직접 늘려 둔 경기 수
     confirmDeleteDay: null,   // "date|팀": 날짜 기록 삭제 확인 중
+    confirmClearGame: null,   // "date|팀|gN": 경기 참석 초기화 확인 중
+    teamNames: {},            // 팀 구분값 -> 화면에 보이는 팀 이름
+    editTeamName: false,      // 회원 관리에서 팀 이름 고치는 중
     confirmDel: null,
     confirmPurge: null,
     editId: null,
@@ -79,6 +82,8 @@
     return null;
   }
   function memberName(id) { return S.members.get(id)?.name || "(삭제된 회원)"; }
+  // 화면에 보이는 팀 이름 (회원 관리에서 바꿀 수 있음). 저장된 이름이 없으면 "믿음팀"처럼 기본값
+  function tn(team) { return S.teamNames[team] || `${team}팀`; }
 
   let toastTimer;
   function toast(msg) {
@@ -143,6 +148,7 @@
       version: 1,
       savedAt: new Date().toISOString(),
       members: [...S.members].map(([id, m]) => ({ id, name: m.name, active: m.active !== false, team: m.team, created_at: m.created_at || null })),
+      teamNames: { ...S.teamNames },
       days,
     };
   }
@@ -180,7 +186,18 @@
       }
       if (Object.keys(day.att).length || Object.keys(day.lineup).length) days.set(d, day);
     }
-    return { members, days };
+    // 팀 이름 (예전 백업 파일에는 없을 수 있다)
+    const teamNames = {};
+    for (const [t, n] of Object.entries(o.teamNames || {})) {
+      if (teams.has(t) && typeof n === "string" && n.trim()) teamNames[t] = n.trim().slice(0, 12);
+    }
+    return { members, days, teamNames };
+  }
+
+  function applyData(parsed) {
+    S.members = parsed ? parsed.members : new Map();
+    S.days = parsed ? parsed.days : new Map();
+    S.teamNames = parsed ? parsed.teamNames : {};
   }
 
   function countData(data) {
@@ -200,7 +217,7 @@
     try {
       try { idb = await openDb(); } catch (e) { idb = null; }
       const parsed = parseData(await kvGet("data"));
-      if (parsed) { S.members = parsed.members; S.days = parsed.days; }
+      applyData(parsed);
       try { S.lastBackup = (await kvGet("lastBackup")) || null; } catch (e) { S.lastBackup = null; }
       S.mode = "live";
       showNotice(idb ? "" : "이 브라우저는 IndexedDB를 쓸 수 없어 임시 저장소에 저장합니다. 백업 파일을 자주 저장해 주세요.");
@@ -215,8 +232,7 @@
   async function revert() {
     try {
       const parsed = parseData(await kvGet("data"));
-      S.members = parsed ? parsed.members : new Map();
-      S.days = parsed ? parsed.days : new Map();
+      applyData(parsed);
     } catch (e) { /* 그대로 둔다 */ }
     renderAll();
   }
@@ -234,7 +250,9 @@
 
   function handleErr(e) {
     const msg = String(e?.message || "");
-    if (msg.includes("duplicate_name")) {
+    if (msg.includes("duplicate_team_name")) {
+      toast("다른 팀이 이미 쓰는 이름입니다.");
+    } else if (msg.includes("duplicate_name")) {
       toast("같은 이름의 회원이 이미 명단에 있습니다.");
     } else if (msg.includes("wrong_team")) {
       toast("다른 팀 회원은 이 팀 포지션에 넣을 수 없습니다.");
@@ -391,6 +409,28 @@
     tidyDay(date);
   }
 
+  // 한 경기 초기화: 그날 그 경기의 이 팀 출석과 포지션 자리를 지운다 (포메이션은 남긴다). 지운 출석 수를 돌려준다
+  function dbClearTeamGame(date, team, g) {
+    const day = S.days.get(date);
+    if (!day) return 0;
+    let n = 0;
+    for (const [mid, gs] of Object.entries(day.att)) {
+      if (S.members.get(mid)?.team === team && gs[`g${g}`]) { delete gs[`g${g}`]; n++; }
+    }
+    const lu = day.lineup[team]?.[`g${g}`];
+    if (lu) lu.pos = {};
+    tidyDay(date);
+    return n;
+  }
+
+  // 팀 이름: 화면에 보이는 이름만 바꾼다 (기록은 믿음·소망·사랑 구분값으로 남는다)
+  function dbRenameTeam(team, name) {
+    if (!name) fail("empty_name");
+    if (TEAMS.some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) fail("duplicate_team_name");
+    if (name === `${team}팀`) delete S.teamNames[team];
+    else S.teamNames[team] = name;
+  }
+
   // ---------- 출석 ----------
   function setGames(mid, games, on) {
     const date = S.date;
@@ -466,7 +506,7 @@
     c.fillStyle = "#ffffff";
     c.textBaseline = "alphabetic";
     c.font = `64px ${DISPLAY}`;
-    c.fillText(`${S.team}팀 · ${g}경기`, PAD, 92);
+    c.fillText(`${tn(S.team)} · ${g}경기`, PAD, 92);
     c.font = `500 32px ${BODY}`;
     c.fillStyle = "#b9d7c2";
     c.fillText(`${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11명`, PAD, 146);
@@ -538,7 +578,7 @@
     c.textBaseline = "alphabetic";
     c.font = `500 24px ${BODY}`;
     c.fillStyle = "#6f8f78";
-    c.fillText("축구회 경기 출석부", W - PAD, H - 30);
+    c.fillText("Soccer line-up", W - PAD, H - 30);
 
     return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
   }
@@ -551,7 +591,8 @@
     try {
       const blob = await drawLineupImage();
       if (!blob) throw new Error("no blob");
-      const name = `${S.team}팀_${S.date}_${S.lineupGame}경기.png`;
+      const safeTeam = tn(S.team).replace(/[\\/:*?"<>|\s]+/g, "_");
+      const name = `${safeTeam}_${S.date}_${S.lineupGame}경기.png`;
       const dataUrl = await new Promise((resolve, reject) => {
         const r = new FileReader();
         r.onload = () => resolve(r.result);
@@ -562,7 +603,7 @@
       const touch = window.matchMedia("(pointer: coarse)").matches;
       const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       $("imgPreview").src = dataUrl;
-      $("imgModalTitle").textContent = name.replace(".png", "").replaceAll("_", " · ");
+      $("imgModalTitle").textContent = `${tn(S.team)} · ${S.date} · ${S.lineupGame}경기`;
       $("imgTip").innerHTML = !touch
         ? "<b>파일로 저장</b>을 누르면 PNG 파일로 내려받습니다."
         : ios
@@ -615,19 +656,19 @@
     const fresh = names.filter((n) => !nameTakenBy(n));
     if (taken.length) {
       const [n, m] = taken[0];
-      toast(m.team === S.team ? `${n} 님은 이미 ${m.team}팀에 있습니다.` : `${n} 님은 ${m.team}팀 회원입니다. 회원 관리에서 팀을 옮길 수 있습니다.`);
+      toast(m.team === S.team ? `${n} 님은 이미 ${tn(m.team)}에 있습니다.` : `${n} 님은 ${tn(m.team)} 회원입니다. 회원 관리에서 팀을 옮길 수 있습니다.`);
     }
     if (!fresh.length) return;
     const team = S.team;
     write(() => dbAddMembers(team, fresh),
-      (n) =>`${team}팀에 ${n ?? fresh.length}명을 추가했습니다${taken.length ? ` (이미 있는 ${taken.length}명 제외)` : ""}.`);
+      (n) => `${tn(team)}에 ${n ?? fresh.length}명을 추가했습니다${taken.length ? ` (이미 있는 ${taken.length}명 제외)` : ""}.`);
   }
 
   async function moveMember(id, team) {
     const m = S.members.get(id);
     if (!m || m.team === team) return true;
     return write(() => dbSetTeam(id, team),
-      `${m.name} 님을 ${team}팀으로 옮겼습니다.`);
+      `${m.name} 님을 ${tn(team)}으로 옮겼습니다.`);
   }
 
   function removeMember(id) {
@@ -640,7 +681,7 @@
     const m = S.members.get(id);
     if (!m) return;
     const other = nameTakenBy(m.name, id);
-    if (other) { toast(`같은 이름(${m.name})의 회원이 이미 ${other.team}팀 명단에 있습니다.`); return; }
+    if (other) { toast(`같은 이름(${m.name})의 회원이 이미 ${tn(other.team)} 명단에 있습니다.`); return; }
     write(() => dbSetActive(id, true),
       `${m.name} 님을 명단에 다시 넣었습니다.`);
   }
@@ -659,7 +700,7 @@
     if (!name) { toast("이름을 입력해 주세요."); return; }
     if (name !== m.name) {
       const other = nameTakenBy(name, id);
-      if (other) { toast(`같은 이름(${name})의 회원이 이미 ${other.team}팀에 있습니다.`); return; }
+      if (other) { toast(`같은 이름(${name})의 회원이 이미 ${tn(other.team)}에 있습니다.`); return; }
       const ok = await write(() => dbRename(id, name),
         `${m.name} → ${name}(으)로 이름을 바꿨습니다.`);
       if (!ok) return;
@@ -671,9 +712,73 @@
     renderMembers();
   }
 
+  // ---------- 팀 이름 변경 (지금 고른 팀) ----------
+  function renderTeamName() {
+    const row = $("teamNameRow");
+    row.replaceChildren();
+    if (!S.editTeamName) {
+      const label = document.createElement("span");
+      label.className = "muted";
+      label.textContent = "팀 이름";
+      const name = document.createElement("b");
+      name.textContent = tn(S.team);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "row-btn";
+      btn.textContent = "변경";
+      btn.setAttribute("aria-label", `${tn(S.team)} 이름 변경`);
+      btn.addEventListener("click", () => {
+        S.editTeamName = true;
+        renderTeamName();
+      });
+      row.append(label, name, btn);
+      return;
+    }
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = "teamNameInput";
+    input.className = "edit-input";
+    input.maxLength = 12;
+    input.value = tn(S.team);
+    input.setAttribute("aria-label", "새 팀 이름");
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "row-btn";
+    save.textContent = "저장";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "row-btn";
+    cancel.textContent = "취소";
+    const doCancel = () => { S.editTeamName = false; renderTeamName(); };
+    const doSave = () => saveTeamName(input.value);
+    save.addEventListener("click", doSave);
+    cancel.addEventListener("click", doCancel);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); doSave(); }
+      if (e.key === "Escape") doCancel();
+    });
+    row.append(input, save, cancel);
+    setTimeout(() => { input.focus(); input.select(); }, 0);
+  }
+
+  async function saveTeamName(raw) {
+    const name = String(raw || "").trim().slice(0, 12);
+    const team = S.team, before = tn(team);
+    if (!name) { toast("팀 이름을 입력해 주세요."); return; }
+    if (name === before) { S.editTeamName = false; renderTeamName(); return; }
+    if (TEAMS.some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) {
+      toast("다른 팀이 이미 쓰는 이름입니다.");
+      return;
+    }
+    const ok = await write(() => dbRenameTeam(team, name),
+      `${before} → ${name}(으)로 팀 이름을 바꿨습니다.`);
+    if (ok) { S.editTeamName = false; renderAll(); }
+  }
+
   function setTeam(team, fromHash) {
     if (!TEAMS.some(([t]) => t === team)) return;
     S.team = team;
+    S.editTeamName = false;
     S.rankOpen = null;
     S.pickSlot = null;
     S.editId = null;
@@ -691,7 +796,7 @@
     for (const [t] of TEAMS) {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = `${t}팀`;
+      b.textContent = `${tn(t)}`;
       b.setAttribute("aria-pressed", t === S.team);
       b.addEventListener("click", () => setTeam(t));
       box.append(b);
@@ -788,8 +893,8 @@
 
   // 이 폰의 기록 전체를 바꾼다 (백업 불러오기, 공유 DB 가져오기)
   async function replaceAll(parsed, okMsg) {
-    S.members = parsed.members;
-    S.days = parsed.days;
+    applyData(parsed);
+    S.editTeamName = false;
     S.shownGames.clear();
     S.pickSlot = null;
     S.rankOpen = null;
@@ -851,11 +956,12 @@
     btn.textContent = "공유 DB 읽는 중…";
     let parsed = null;
     try {
-      const [members, att, lineups, slots] = await Promise.all([
+      const [members, att, lineups, slots, teamRows] = await Promise.all([
         fetchTable("members", "id,name,active,team,created_at", "created_at,id"),
         fetchTable("attendance", "day,member_id,game", "day,member_id,game"),
         fetchTable("lineups", "day,team,game,formation", "day,team,game"),
         fetchTable("lineup_slots", "day,team,game,slot,member_id", "day,team,game,slot"),
+        fetchTable("team_names", "team,name", "team").catch(() => []), // 표가 없어도 나머지는 가져온다
       ]);
       const days = {};
       const day = (d) => (days[d] ||= { att: {}, lineup: {} });
@@ -863,7 +969,8 @@
       const lu = (r) => ((day(r.day).lineup[r.team] ||= {})[`g${r.game}`] ||= { pos: {} });
       for (const r of lineups) lu(r).formation = r.formation;
       for (const r of slots) lu(r).pos[`s${r.slot}`] = r.member_id;
-      parsed = parseData({ members, days });
+      const teamNames = Object.fromEntries(teamRows.map((r) => [r.team, r.name]));
+      parsed = parseData({ members, days, teamNames });
     } catch (e) {
       parsed = null;
     } finally {
@@ -1035,7 +1142,9 @@
     if (picking && !wasPicking && window.matchMedia("(max-width: 860px)").matches) window.scrollTo(0, 0);
     const sum = document.createElement("div");
     sum.className = "lineup-sum";
-    sum.innerHTML = `${S.team}팀 · ${g}경기 · ${formation} · 배치 <b>${slots.filter(Boolean).length}</b>/11명`;
+    const cntB = document.createElement("b");
+    cntB.textContent = slots.filter(Boolean).length;
+    sum.append(`${tn(S.team)} · ${g}경기 · ${formation} · 배치 `, cntB, "/11명");
 
     if (S.pickSlot === null || S.pickSlot >= spots.length) {
       S.pickSlot = null;
@@ -1074,11 +1183,24 @@
     const list = document.createElement("div");
     list.className = "picker-list";
     const placedAt = new Map(slots.map((v, k) => [v, k]).filter(([v]) => v));
-    const members = activeMembers().sort((a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko"));
+    // 최근 3번 모임(보고 있는 날짜까지) 중 한 번도 안 나온 회원은 구분선 아래로 보내고 흐리게
+    const recent3 = [...S.days.keys()].filter((d) => d <= S.date && hasAny(d)).sort().slice(-3);
+    const cameRecently = (id) => recent3.some((d) => GAMES.some((g) => attended(d, id, g)));
+    const order = (a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko");
+    const all = activeMembers();
+    const regulars = recent3.length ? all.filter(([id]) => cameRecently(id) || placedAt.has(id)) : all;
+    const rare = recent3.length ? all.filter(([id]) => !cameRecently(id) && !placedAt.has(id)) : [];
+    const members = [...regulars.sort(order), ...rare.sort(order)];
     for (const [id, m] of members) {
+      if (rare.length && id === rare[0][0]) {
+        const hr = document.createElement("div");
+        hr.className = "pick-divider";
+        hr.textContent = `최근 ${recent3.length}번 모임 불참`;
+        list.append(hr);
+      }
       const b = document.createElement("button");
       const at = placedAt.get(id);
-      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "");
+      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "") + (rare.some(([rid]) => rid === id) ? " rare" : "");
       b.textContent = m.name;
       if (at !== undefined && id !== cur) {
         const s = document.createElement("small");
@@ -1096,6 +1218,19 @@
       list.append(p);
     }
     picker.append(sum, head, list);
+  }
+
+  // 한 경기의 이 팀 참석을 모두 해제 (그 경기 포지션 배치에서도 빠진다)
+  function clearGame(g, key) {
+    if (S.confirmClearGame !== key) {
+      S.confirmClearGame = key;
+      renderGrid();
+      setTimeout(() => { if (S.confirmClearGame === key) { S.confirmClearGame = null; renderGrid(); } }, 3000);
+      return;
+    }
+    S.confirmClearGame = null;
+    const date = S.date, team = S.team;
+    write(() => dbClearTeamGame(date, team, g), (n) => `${g}경기 참석 ${n}명을 초기화했습니다.`);
   }
 
   // 출석판에 보이는 경기 수: 기본 4경기, 기록이 있거나 직접 추가한 경기까지 (최대 6)
@@ -1117,12 +1252,28 @@
   function renderGrid() {
     const list = activeMembers();
     const games = visibleGames();
+    // 보이는 경기 수에 따라 출석 칸 크기를 바꾼다 (4경기면 크게, 6경기면 화면에 맞게)
+    $("attTable").dataset.games = games.length;
     const counts = games.map((g) => list.filter(([id]) => attended(S.date, id, g)).length);
     const canAdd = games.length < GAMES.length;
     const canRemove = games.length > BASE_GAMES && games.length > usedGames();
     const head = document.createElement("tr");
     head.innerHTML = `<th class="name">이름</th>${games.map((g, i) =>
       `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}`;
+    // 경기별 참석 초기화: 체크된 사람이 있을 때만 작게 표시, 한 번 더 눌러야 실행
+    games.forEach((g, i) => {
+      if (!counts[i]) return;
+      const key = `${shownKey()}|g${g}`;
+      const confirming = S.confirmClearGame === key;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "game-reset" + (confirming ? " confirm" : "");
+      b.textContent = confirming ? "확인" : "↺";
+      b.title = `${g}경기 참석 모두 해제`;
+      b.setAttribute("aria-label", confirming ? `${g}경기 참석 초기화 확인` : `${g}경기 참석 초기화`);
+      b.addEventListener("click", () => clearGame(g, key));
+      head.children[i + 1].append(b);
+    });
     if (canAdd || canRemove) {
       const th = document.createElement("th");
       th.className = "add-col";
@@ -1167,7 +1318,7 @@
     }
     if (!list.length) {
       empty.hidden = false;
-      $("emptyTitle").textContent = `${S.team}팀에 등록된 회원이 없습니다`;
+      $("emptyTitle").textContent = `${tn(S.team)}에 등록된 회원이 없습니다`;
       $("emptyText").textContent = "회원 탭에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다. 온라인 출석부 기록이 있다면 회원 탭의 \"공유 DB에서 가져오기\"로 한 번에 옮길 수 있습니다.";
       return;
     }
@@ -1177,19 +1328,26 @@
       const tr = document.createElement("tr");
       const n = GAMES.filter((g) => attended(S.date, id, g)).length;
 
+      // 이름 한 줄 + 아래 작은 줄("3경기 · 전 경기")로 줄 높이를 줄인다
       const tdName = document.createElement("td");
       tdName.className = "name";
-      tdName.textContent = m.name;
+      const nm = document.createElement("span");
+      nm.className = "nm-main";
+      nm.textContent = m.name;
+      nm.title = m.name;
       const sub = document.createElement("span");
       sub.className = "sub";
-      sub.textContent = n ? `${n}경기 출전` : "불참";
+      // 몇 경기 나왔는지는 동그라미로 보이므로, 아래 줄에는 "전 경기" 버튼만 둔다
+      sub.title = n ? `${n}경기 출전` : "불참";
       // "전 경기"는 지금 보이는 경기만 체크/해제한다
       const all = document.createElement("button");
-      all.className = "row-btn";
+      all.className = "all-link";
       const full = games.every((g) => attended(S.date, id, g));
       all.textContent = full ? "전체 해제" : "전 경기";
+      all.setAttribute("aria-label", `${m.name} ${full ? "보이는 경기 모두 해제" : "보이는 경기 모두 참석"}`);
       all.addEventListener("click", () => setGames(id, games, !full));
-      tdName.append(sub, all);
+      sub.append(all);
+      tdName.append(nm, sub);
       tr.append(tdName);
 
       for (const g of games) {
@@ -1212,7 +1370,9 @@
 
   function dayRoster(date) {
     const ids = teamMembers(true).map(([id]) => id);
-    const games = GAMES.map((g) => ({
+    // 요약도 출석판과 같은 경기만: 기본 4경기, 기록이 있거나 + 로 늘린 경기까지
+    const shown = date === S.date ? visibleGames() : GAMES;
+    const games = shown.map((g) => ({
       g,
       people: ids.filter((id) => attended(date, id, g)).map(memberName).sort((a, b) => a.localeCompare(b, "ko")),
     }));
@@ -1229,6 +1389,25 @@
 
     const r = $("roster");
     r.replaceChildren();
+    // 이 팀에 그날 출석 기록이 하나도 없으면 안내만 보여 주고 복사 버튼은 끈다
+    const empty = people.size === 0;
+    const copy = $("copyBtn");
+    copy.disabled = empty || S.mode !== "live";
+    copy.title = empty ? "이날 기록이 없어 복사할 명단이 없습니다" : "";
+    if (empty) {
+      $("copyFallback").hidden = true;
+      const msg = document.createElement("div");
+      msg.className = "roster-empty";
+      const strong = document.createElement("strong");
+      strong.textContent = "아직 기록 없음";
+      const sub = document.createElement("span");
+      sub.textContent = S.mode === "live"
+        ? `${label(S.date, true)} ${tn(S.team)}의 출석 기록이 아직 없습니다. 출석 탭에서 체크하면 여기에 경기별 명단이 나옵니다.`
+        : "기록을 불러오는 중입니다.";
+      msg.append(strong, sub);
+      r.append(msg);
+      return;
+    }
     for (const { g, people: p } of games) {
       const div = document.createElement("div");
       const gs = document.createElement("span");
@@ -1261,8 +1440,8 @@
     const confirming = S.confirmDeleteDay === key;
     btn.classList.toggle("confirm", confirming);
     btn.textContent = confirming
-      ? `정말 삭제할까요? ${label(S.date, true)} ${S.team}팀 ${peopleCount}명 기록`
-      : `${label(S.date, true)} ${S.team}팀 기록 삭제`;
+      ? `정말 삭제할까요? ${label(S.date, true)} ${tn(S.team)} ${peopleCount}명 기록`
+      : `${label(S.date, true)} ${tn(S.team)} 기록 삭제`;
   }
 
   function deleteDay() {
@@ -1278,15 +1457,84 @@
     write(() => {
       dbDeleteTeamDay(date, team);
       S.shownGames.delete(`${date}|${team}`);
-    }, `${when} ${team}팀 기록을 삭제했습니다.`);
+    }, `${when} ${tn(team)} 기록을 삭제했습니다.`);
   }
 
   function rosterText() {
     const { games, people } = dayRoster(S.date);
-    const lines = [`[${label(S.date, true)} ${S.team}팀 출석]`];
+    const lines = [`[${label(S.date, true)} ${tn(S.team)} 출석]`];
     for (const { g, people: p } of games) if (p.length) lines.push(`${g}경기 (${p.length}명): ${p.join(", ")}`);
     lines.push(`총 참석 ${people.size}명`);
     return lines.join("\n");
+  }
+
+  // ---------- 통계: 팀별 탭으로 나눈 날짜별 출석자 명단을 엑셀(.xlsx)로 내보내기 ----------
+  const PERIOD_LABEL = { month: "이번달", "3m": "최근3개월", year: "올해", all: "전체" };
+  let xlsxLoading = null;
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    xlsxLoading ||= new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error("xlsx")));
+      s.onerror = () => { xlsxLoading = null; reject(new Error("xlsx")); };
+      document.head.append(s);
+    });
+    return xlsxLoading;
+  }
+
+  // 팀 한 개의 시트 내용: [날짜, 인원, 출석자 명단] (그날 한 경기라도 나온 사람, 이름순)
+  function teamExportRows(team) {
+    const ids = [...S.members.entries()].filter(([, m]) => m.team === team).map(([id]) => id);
+    const rows = [];
+    for (const d of [...S.days.keys()].filter(inPeriod).sort()) {
+      const names = ids.filter((id) => GAMES.some((g) => attended(d, id, g)))
+        .map(memberName).sort((a, b) => a.localeCompare(b, "ko"));
+      if (!names.length) continue;
+      const day = parseYmd(d);
+      rows.push([`${d} (${WD[day.getDay()]})`, names.length, names.join(", ")]);
+    }
+    return rows;
+  }
+
+  async function exportAttendance() {
+    const btn = $("exportBtn");
+    if (S.mode !== "live") { toast("기록을 불러온 뒤에 다시 눌러 주세요."); return; }
+    btn.disabled = true;
+    try {
+      const XLSX = await loadXlsx();
+      const wb = XLSX.utils.book_new();
+      let total = 0;
+      const used = new Set();
+      for (const [t] of TEAMS) {
+        const rows = teamExportRows(t);
+        total += rows.length;
+        const ws = XLSX.utils.aoa_to_sheet([["날짜", "인원", "출석자 명단"], ...(rows.length ? rows : [["(이 기간 기록 없음)", "", ""]])]);
+        ws["!cols"] = [{ wch: 16 }, { wch: 6 }, { wch: 80 }];
+        // 시트 이름: 엑셀 규칙(31자, 금지 문자) 맞추고 겹치지 않게
+        let name = tn(t).replace(/[\\/?*[\]:]/g, " ").slice(0, 31).trim() || t;
+        while (used.has(name)) name = (name.slice(0, 28) + "_" + used.size);
+        used.add(name);
+        XLSX.utils.book_append_sheet(wb, ws, name);
+      }
+      if (!total) { toast("이 기간에는 내보낼 출석 기록이 없습니다."); return; }
+      const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const file = `출석명단_${PERIOD_LABEL[S.period] || ""}_${ymd(new Date())}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast(`${file} 파일을 저장했습니다. 휴대폰은 '다운로드' 폴더에서 찾을 수 있습니다.`);
+    } catch (e) {
+      toast("엑셀 파일을 만들지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.");
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   function inPeriod(date) {
@@ -1304,12 +1552,12 @@
     const ids = activeMembers().map(([id]) => id);
     const allIds = teamMembers(true).map(([id]) => id);
 
-    let playedGames = 0, totalSlots = 0;
+    let playedGames = 0;
     const stat = new Map(ids.map((id) => [id, { games: 0, days: 0 }]));
     for (const d of dates) {
       for (const g of GAMES) {
         const c = allIds.filter((id) => attended(d, id, g)).length;
-        if (c) { playedGames++; totalSlots += c; }
+        if (c) playedGames++;
       }
       for (const id of ids) {
         const n = GAMES.filter((g) => attended(d, id, g)).length;
@@ -1318,11 +1566,6 @@
         if (n) s.days++;
       }
     }
-
-    $("periodSummary").innerHTML =
-      `<span><b class="num">${dates.length}</b>일 모임</span>` +
-      `<span><b class="num">${playedGames}</b>경기 진행</span>` +
-      `<span>경기당 평균 <b class="num">${playedGames ? (totalSlots / playedGames).toFixed(1) : 0}</b>명</span>`;
 
     const rows = ids.map((id) => ({ id, name: S.members.get(id).name, ...stat.get(id) }))
       .sort((a, b) => b.games - a.games || b.days - a.days || a.name.localeCompare(b.name, "ko"));
@@ -1340,7 +1583,7 @@
       body.append(tr);
       return;
     }
-    // 순위(#)는 항상 참석률 기준. 이름순일 때는 보여 주는 순서만 바꾼다
+    // 참석률순: # 는 참석률 순위(동점은 같은 순위). 이름순: # 는 1번부터 차례대로
     let pos = 0, prev = null;
     rows.forEach((r, i) => {
       if (r.games !== prev) { pos = i + 1; prev = r.games; }
@@ -1350,12 +1593,14 @@
       ? [...rows].sort((a, b) => a.name.localeCompare(b.name, "ko"))
       : rows;
     const recent = S.rankOpen ? recentTeamGames(10) : [];
-    for (const r of shown) {
+    const byName = S.rankSort === "name";
+    shown.forEach((r, idx) => {
       const pct = playedGames ? Math.round((r.games / playedGames) * 100) : 0;
       const open = S.rankOpen === r.id;
       const tr = document.createElement("tr");
-      tr.className = (r.pos <= 3 && r.games > 0 ? "top " : "") + (open ? "open" : "");
-      tr.innerHTML = `<td class="pos num">${r.pos}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
+      const no = byName ? idx + 1 : r.pos;
+      tr.className = (!byName && r.pos <= 3 && r.games > 0 ? "top " : "") + (open ? "open" : "");
+      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
         <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
       const btn = document.createElement("button");
       btn.type = "button";
@@ -1363,14 +1608,41 @@
       btn.textContent = r.name;
       btn.title = `${r.name} 최근 모임 10번 보기`;
       btn.setAttribute("aria-expanded", open);
-      btn.addEventListener("click", () => {
-        S.rankOpen = S.rankOpen === r.id ? null : r.id;
-        renderStats();
-      });
+      btn.addEventListener("click", () => toggleRecentRow(tr, btn, r.id));
       tr.children[1].append(btn);
       body.append(tr);
       if (open) body.append(recentRow(r.id, recent));
+    });
+  }
+
+  // 표를 다시 그리지 않고 누른 줄 아래만 펼치거나 닫는다.
+  // 휴대폰에서 표 전체를 다시 그리면 화면이 맨 위로 튀던 문제를 막고, 누른 이름이 같은 자리에 머물게 한다
+  function toggleRecentRow(tr, btn, mid) {
+    const body = $("rankBody");
+    const before = tr.getBoundingClientRect().top;
+    const opening = S.rankOpen !== mid;
+    body.querySelectorAll("tr.recent-row").forEach((x) => x.remove());
+    body.querySelectorAll("tr.open").forEach((x) => x.classList.remove("open"));
+    body.querySelectorAll('.name-btn[aria-expanded="true"]').forEach((x) => x.setAttribute("aria-expanded", "false"));
+    S.rankOpen = opening ? mid : null;
+    let detail = null;
+    if (opening) {
+      tr.classList.add("open");
+      btn.setAttribute("aria-expanded", "true");
+      detail = recentRow(mid, recentTeamGames(10));
+      tr.after(detail);
     }
+    // 위쪽에서 닫힌 줄만큼 화면을 보정해 누른 이름이 제자리에 있게 한다
+    const shift = tr.getBoundingClientRect().top - before;
+    if (shift) window.scrollBy(0, shift);
+    // 펼친 내용이 하단 탭에 가려지면 보이는 만큼만 살짝 올린다
+    if (detail) {
+      const bar = $("tabbar");
+      const limit = bar && getComputedStyle(bar).display !== "none" ? bar.getBoundingClientRect().top : window.innerHeight;
+      const over = detail.getBoundingClientRect().bottom - limit + 8;
+      if (over > 0) window.scrollBy({ top: over, behavior: "smooth" });
+    }
+    btn.focus({ preventScroll: true });
   }
 
   // 이 팀의 최근 모임 날짜 n개 (팀에서 한 명이라도 출석한 날), 오래된 순
@@ -1451,6 +1723,7 @@
   }
 
   function renderMembers() {
+    renderTeamName();
     const active = activeMembers();
     const inactive = [...S.members.entries()]
       .filter(([, m]) => m.active === false)
@@ -1484,7 +1757,7 @@
         sel.className = "team-sel";
         sel.id = "editTeam-" + id;
         sel.setAttribute("aria-label", `${m.name} 소속 팀`);
-        TEAMS.forEach(([t]) => sel.add(new Option(`${t}팀`, t)));
+        TEAMS.forEach(([t]) => sel.add(new Option(`${tn(t)}`, t)));
         sel.value = S.editTeam ?? m.team;
         sel.addEventListener("change", () => { S.editTeam = sel.value; });
         const save = document.createElement("button");
@@ -1555,7 +1828,11 @@
     }
   }
 
+  // 다시 그려도 보던 위치를 유지한다 (누른 버튼이 다시 그려지며 사라질 때 휴대폰에서 화면이 위로 튀는 것 방지)
   function renderAll() {
+    const y = window.scrollY;
+    const active = document.activeElement;
+    const hadFocusInList = active && active !== document.body && (active.closest?.("#attBody, #rankBody, #memberList, #inactiveList, #field, #picker, #gameTabs"));
     renderTeams();
     renderHeader();
     renderLineup();
@@ -1564,6 +1841,8 @@
     renderMembers();
     renderStats();
     renderBackup();
+    if (hadFocusInList && document.activeElement !== active) active.blur?.();
+    if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
   }
 
   // ---------- 이벤트 ----------
@@ -1628,6 +1907,8 @@
   $("imgModal").addEventListener("click", (e) => { if (e.target === $("imgModal")) closeImageModal(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("imgModal").hidden) closeImageModal(); });
 
+  $("exportBtn").addEventListener("click", exportAttendance);
+
   $("rankSort").addEventListener("click", (e) => {
     const b = e.target.closest("[data-sort]");
     if (b) setRankSort(b.dataset.sort);
@@ -1642,7 +1923,7 @@
     } catch (e) { fallback(); }
   });
 
-  $("exportBtn").addEventListener("click", openBackup);
+  $("backupBtn").addEventListener("click", openBackup);
   $("backupBarBtn").addEventListener("click", () => {
     setView("members");
     $("dataPanel").scrollIntoView({ block: "start" });

@@ -995,3 +995,189 @@ body.modal-open { overflow: hidden; }
   .backup-bar .btn-ghost { flex: none; padding: 8px 10px; }
   body.picking .backup-bar { display: none; }
 }
+
+/* 삭제 확인 단계: 휴대폰에서 누른 뒤 남는 hover 상태가 빨간 배경을 덮지 않게 (흰 글씨가 안 보이던 문제) */
+.btn-danger.confirm,
+.btn-danger.confirm:hover:not(:disabled),
+.btn-danger.confirm:active,
+.btn-danger.confirm:focus { background: #c62828; border-color: #c62828; color: #ffffff; filter: none; }
+@media (hover: none) {
+  .btn-danger:hover:not(:disabled):not(.confirm) { background: var(--danger-bg); filter: none; }
+}
+
+/* 참석 통계: 요약 줄을 없앤 뒤 정렬 버튼만 오른쪽에 */
+.stats-bar { justify-content: flex-end; }
+
+/* 출석판: 한 사람당 줄 높이를 줄여 한 화면에 더 많이 */
+.att td.name { white-space: nowrap; }
+.att td.name .nm-main { display: block; overflow: hidden; text-overflow: ellipsis; font-weight: 700; line-height: 1.25; }
+.att td.name .sub { display: block; margin-top: 1px; font-size: .72rem; line-height: 1.3; }
+.att td.name .all-link {
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  margin: -2px 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--pitch);
+  cursor: pointer;
+}
+.att td.name .all-link:hover { text-decoration: underline; }
+.att td { padding-top: 4px; padding-bottom: 4px; }
+@media (max-width: 860px) {
+  .att th, .att td { padding: 3px 2px; }
+  .att td.name { max-width: 7.5em; padding-right: 4px; }
+  .cell { width: 36px; height: 36px; font-size: .8rem; }
+  .att thead th { padding-bottom: 6px; }
+}
+@media (max-width: 380px) {
+  .cell { width: 33px; height: 33px; }
+  .att td.name { max-width: 6em; }
+}
+
+/* 출석판: 경기별 참석 초기화 (작게) */
+.game-reset {
+  display: block;
+  margin: 3px auto 0;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .62rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.game-reset:hover { border-color: var(--danger); color: var(--danger); }
+.game-reset.confirm,
+.game-reset.confirm:hover { background: #c62828; border-color: #c62828; color: #ffffff; font-weight: 700; }
+/* 초기화 아이콘: 좁은 경기 칸을 넓히지 않도록 작게 */
+.game-reset { min-width: 24px; height: 20px; padding: 0 5px; font-size: .78rem; line-height: 18px; }
+.game-reset.confirm { font-size: .62rem; padding: 0 4px; }
+
+/* 회원 관리: 팀 이름 변경 */
+.team-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: .9rem;
+}
+.team-name-row b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-name-row .edit-input {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--pitch);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+/* 팀 이름이 길어도 팀 버튼 3개가 한 줄에 들어가게 */
+.teams button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 보기 전용(잠김)일 때 회원 화면의 편집 버튼과 추가 칸 숨기기 */
+body.locked #memberPanel .row-actions,
+body.locked #memberPanel #addForm,
+body.locked #memberPanel .team-name-row .row-btn { display: none; }
+body.locked #memberPanel .mlist li { min-height: 40px; }
+body.locked #memberPanel > .hint { display: none; }
+
+/* 이날 요약: 기록 없는 날 안내, 복사 버튼 비활성 */
+.roster-empty {
+  display: grid;
+  gap: 4px;
+  padding: 16px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  text-align: center;
+  color: var(--muted);
+  font-size: .85rem;
+}
+.roster-empty strong { color: var(--fg); font-size: .95rem; }
+.btn-ghost:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); }
+
+/* ---- 출석판: 누르기 쉬운 크기 (경기 수에 따라 자동) ---- */
+.att .cell { width: 44px; height: 44px; font-size: .9rem; }
+.att[data-games="5"] .cell { width: 40px; height: 40px; }
+.att[data-games="6"] .cell { width: 38px; height: 38px; font-size: .82rem; }
+.att td.name .sub { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.att td.name .all-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid var(--pitch);
+  border-radius: 999px;
+  font-size: .72rem;
+  line-height: 1;
+}
+.att td.name .all-link:hover { text-decoration: none; background: var(--pitch-soft); }
+.game-reset { min-width: 32px; height: 28px; padding: 0 6px; font-size: .95rem; line-height: 26px; margin-top: 4px; }
+.game-reset.confirm { font-size: .7rem; }
+@media (max-width: 860px) {
+  .att .cell { width: 44px; height: 44px; }
+  .att[data-games="5"] .cell { width: 39px; height: 39px; }
+  .att[data-games="6"] .cell { width: 35px; height: 35px; }
+  .att td.name { max-width: 7em; }
+  .att[data-games="6"] td.name { max-width: 5.6em; }
+  .att th, .att td { padding: 3px 1px; }
+}
+@media (max-width: 380px) {
+  .att .cell { width: 42px; height: 42px; }
+  .att[data-games="5"] .cell { width: 37px; height: 37px; }
+  .att[data-games="6"] .cell { width: 33px; height: 33px; }
+  .att[data-games="6"] td.name { max-width: 5.2em; }
+}
+/* 이름 칸 폭을 고정해 경기 수와 상관없이 표가 화면 안에 들어가게 */
+@media (max-width: 860px) {
+  .att td.name, .att th.name { width: 5.4em; max-width: 5.4em; }
+  .att[data-games="6"] td.name { max-width: 5.4em; }
+  .att td.name .all-link { padding: 0 8px; }
+  .att .cell { width: 44px; height: 44px; }
+  .att[data-games="5"] .cell { width: 40px; height: 40px; }
+  .att[data-games="6"] .cell { width: 35px; height: 35px; }
+}
+@media (max-width: 380px) {
+  .att .cell { width: 42px; height: 42px; }
+  .att[data-games="5"] .cell { width: 38px; height: 38px; }
+  .att[data-games="6"] .cell { width: 33px; height: 33px; }
+}
+/* +/− 를 세로로 쌓아 마지막 칸 폭을 줄인다 */
+@media (max-width: 860px) {
+  .att th.add-col .game-add { display: grid; width: 32px; height: 32px; margin: 2px auto; }
+}
+
+/* 포지션 회원 고르기: 최근 3번 모임 불참자는 구분선 아래에 흐리게 */
+.pick-divider {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+  font-size: .72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pick-divider::before,
+.pick-divider::after { content: ""; flex: 1; border-top: 1px dashed var(--muted); opacity: .6; }
+.pick.rare { opacity: .45; }
+.pick.rare:hover, .pick.rare:focus-visible { opacity: .8; }
+
+/* 통계: 엑셀로 내보내기 */
+.stats-bar { justify-content: space-between; }
+.export-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.export-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.export-btn:disabled { opacity: .6; cursor: progress; }
+@media (max-width: 860px) {
+  .stats-bar { flex-wrap: wrap; }
+  .export-btn { order: 2; width: 100%; justify-content: center; min-height: 40px; }
+}

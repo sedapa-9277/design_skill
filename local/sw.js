@@ -1,13 +1,14 @@
 // 출석부 (내 폰) 서비스 워커 — local/ 폴더 전용. 앱 화면 파일을 캐시해 두고 캐시에서 먼저 연다(오프라인 동작).
 // local.css·local.js의 ?v=N을 올리면 아래 SHELL과 VERSION도 함께 올린다.
-const VERSION = 1;
+const VERSION = 2;
 const PREFIX = 'soccer-local-shell-';
 const CACHE = PREFIX + VERSION;
 const FONT_CACHE = 'soccer-local-fonts';
+const XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
 const SHELL = [
   './',
-  'local.css?v=1',
-  'local.js?v=1',
+  'local.css?v=2',
+  'local.js?v=2',
   'manifest.webmanifest',
   '../icon-192.png',
   '../icon-512.png',
@@ -56,6 +57,11 @@ self.addEventListener('fetch', (e) => {
   // 구글 폰트: 한 번 받은 글꼴은 캐시해 두고 오프라인에서도 쓴다 (실패하면 기본 글꼴)
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
     e.respondWith(fromCacheOrNet(req, req, FONT_CACHE));
+    return;
+  }
+  // 엑셀 내보내기 라이브러리: 한 번 받으면 캐시해 두고 오프라인에서도 쓴다
+  if (url.href === XLSX_URL) {
+    e.respondWith(fromCacheOrNet(req, XLSX_URL, FONT_CACHE));
     return;
   }
   if (url.origin !== self.location.origin) return; // 공유 DB 가져오기(Supabase)는 항상 네트워크로
