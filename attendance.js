@@ -279,7 +279,7 @@
     const spots = FORMATIONS[formation];
     const d = parseYmd(S.date);
 
-    const W = 1080, PAD = 40, HEAD = 190;
+    const W = 1080, PAD = 22, HEAD = 190;
     const PW = W - PAD * 2, PH = Math.round(PW * 100 / 68);
     const H = HEAD + PH + PAD + 50;
     const cv = document.createElement("canvas");
@@ -333,7 +333,7 @@
     spots.forEach(([pos, px, py], i) => {
       const cx = X + (PW * px) / 100, cy = Y + (PH * py) / 100;
       const mid = slots[i];
-      const R = 46;
+      const R = 62;
       c.beginPath();
       c.arc(cx, cy, R, 0, Math.PI * 2);
       if (mid) {
@@ -343,26 +343,26 @@
       } else {
         c.fillStyle = "rgba(0,0,0,.22)";
         c.fill();
-        c.setLineDash([8, 7]);
+        c.setLineDash([10, 8]);
         c.strokeStyle = "rgba(255,255,255,.85)";
         c.lineWidth = 3;
         c.stroke();
         c.setLineDash([]);
         c.fillStyle = "#ffffff";
       }
-      c.font = `700 ${pos.length > 2 ? 24 : 28}px ${BODY}`;
+      c.font = `700 ${pos.length > 2 ? 30 : 36}px ${BODY}`;
       c.textBaseline = "middle";
       c.fillText(pos, cx, cy + 1);
 
       const name = mid ? memberName(mid) : "-";
-      c.font = `700 30px ${BODY}`;
-      const tw = Math.min(c.measureText(name).width, 230);
-      const bw = tw + 28, bh = 46, by = cy + R + 10;
+      c.font = `700 42px ${BODY}`;
+      const tw = Math.min(c.measureText(name).width, 250);
+      const bw = tw + 34, bh = 60, by = cy + R + 8;
       round(cx - bw / 2, by, bw, bh, 10);
-      c.fillStyle = mid ? "rgba(0,0,0,.55)" : "rgba(0,0,0,0)";
+      c.fillStyle = mid ? "rgba(0,0,0,.72)" : "rgba(0,0,0,0)";
       c.fill();
       c.fillStyle = mid ? "#ffffff" : "rgba(255,255,255,.7)";
-      c.fillText(name, cx, by + bh / 2 + 1, 230);
+      c.fillText(name, cx, by + bh / 2 + 2, 250);
     });
 
     // 바닥 글씨
