@@ -45,6 +45,8 @@
     shownGames: new Map(),    // "date|팀" -> 출석판에 직접 늘려 둔 경기 수
     confirmDeleteDay: null,   // "date|팀": 날짜 기록 삭제 확인 중
     confirmClearGame: null,   // "date|팀|gN": 경기 참석 초기화 확인 중
+    teamNames: {},            // 팀 구분값 -> 화면에 보이는 팀 이름
+    editTeamName: false,      // 회원 관리에서 팀 이름 고치는 중
     confirmDel: null,
     confirmPurge: null,
     editId: null,
@@ -80,6 +82,8 @@
     return null;
   }
   function memberName(id) { return S.members.get(id)?.name || "(삭제된 회원)"; }
+  // 화면에 보이는 팀 이름 (회원 관리에서 바꿀 수 있음). 저장된 이름이 없으면 "믿음팀"처럼 기본값
+  function tn(team) { return S.teamNames[team] || `${team}팀`; }
 
   let toastTimer;
   function toast(msg) {
@@ -113,14 +117,16 @@
   async function reload() {
     const seq = ++loadSeq;
     try {
-      const [members, att, lineups, slots] = await Promise.all([
+      const [members, att, lineups, slots, teamNames] = await Promise.all([
         fetchAll("members", "id,name,active,team", ["created_at", "id"]),
         fetchAll("attendance", "day,member_id,game", ["day", "member_id", "game"]),
         fetchAll("lineups", "day,team,game,formation", ["day", "team", "game"]),
         fetchAll("lineup_slots", "day,team,game,slot,member_id", ["day", "team", "game", "slot"]),
+        fetchAll("team_names", "team,name", ["team"]).catch(() => []),
       ]);
       if (seq !== loadSeq) return;
       S.members = new Map(members.map((m) => [m.id, { name: m.name, active: m.active, team: m.team }]));
+      S.teamNames = Object.fromEntries(teamNames.map((t) => [t.team, t.name]));
       const days = new Map();
       for (const r of att) {
         const d = dayOf(days, r.day);
@@ -165,6 +171,8 @@
     if (msg.includes("invalid_pin")) {
       lock();
       toast("PIN이 바뀌었거나 맞지 않습니다. 다시 입력해 주세요.");
+    } else if (msg.includes("duplicate_team_name")) {
+      toast("다른 팀이 이미 쓰는 이름입니다.");
     } else if (msg.includes("duplicate_name")) {
       toast("같은 이름의 회원이 이미 명단에 있습니다.");
     } else if (msg.includes("wrong_team")) {
@@ -300,7 +308,7 @@
     c.fillStyle = "#ffffff";
     c.textBaseline = "alphabetic";
     c.font = `64px ${DISPLAY}`;
-    c.fillText(`${S.team}팀 · ${g}경기`, PAD, 92);
+    c.fillText(`${tn(S.team)} · ${g}경기`, PAD, 92);
     c.font = `500 32px ${BODY}`;
     c.fillStyle = "#b9d7c2";
     c.fillText(`${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11명`, PAD, 146);
@@ -385,7 +393,8 @@
     try {
       const blob = await drawLineupImage();
       if (!blob) throw new Error("no blob");
-      const name = `${S.team}팀_${S.date}_${S.lineupGame}경기.png`;
+      const safeTeam = tn(S.team).replace(/[\\/:*?"<>|\s]+/g, "_");
+      const name = `${safeTeam}_${S.date}_${S.lineupGame}경기.png`;
       const dataUrl = await new Promise((resolve, reject) => {
         const r = new FileReader();
         r.onload = () => resolve(r.result);
@@ -449,19 +458,19 @@
     const fresh = names.filter((n) => !nameTakenBy(n));
     if (taken.length) {
       const [n, m] = taken[0];
-      toast(m.team === S.team ? `${n} 님은 이미 ${m.team}팀에 있습니다.` : `${n} 님은 ${m.team}팀 회원입니다. 회원 관리에서 팀을 옮길 수 있습니다.`);
+      toast(m.team === S.team ? `${n} 님은 이미 ${tn(m.team)}에 있습니다.` : `${n} 님은 ${tn(m.team)} 회원입니다. 회원 관리에서 팀을 옮길 수 있습니다.`);
     }
     if (!fresh.length) return;
     const team = S.team;
     write("members", [], () => rpc("add_members", { p_team: team, p_names: fresh }),
-      (n) => `${team}팀에 ${n ?? fresh.length}명을 추가했습니다${taken.length ? ` (이미 있는 ${taken.length}명 제외)` : ""}.`);
+      (n) => `${tn(team)}에 ${n ?? fresh.length}명을 추가했습니다${taken.length ? ` (이미 있는 ${taken.length}명 제외)` : ""}.`);
   }
 
   async function moveMember(id, team) {
     const m = S.members.get(id);
     if (!m || m.team === team) return true;
     return write("members", [], () => rpc("set_member_team", { p_id: id, p_team: team }),
-      `${m.name} 님을 ${team}팀으로 옮겼습니다.`);
+      `${m.name} 님을 ${tn(team)}으로 옮겼습니다.`);
   }
 
   function removeMember(id) {
@@ -474,7 +483,7 @@
     const m = S.members.get(id);
     if (!m) return;
     const other = nameTakenBy(m.name, id);
-    if (other) { toast(`같은 이름(${m.name})의 회원이 이미 ${other.team}팀 명단에 있습니다.`); return; }
+    if (other) { toast(`같은 이름(${m.name})의 회원이 이미 ${tn(other.team)} 명단에 있습니다.`); return; }
     write("members", [], () => rpc("set_member_active", { p_id: id, p_active: true }),
       `${m.name} 님을 명단에 다시 넣었습니다.`);
   }
@@ -493,7 +502,7 @@
     if (!name) { toast("이름을 입력해 주세요."); return; }
     if (name !== m.name) {
       const other = nameTakenBy(name, id);
-      if (other) { toast(`같은 이름(${name})의 회원이 이미 ${other.team}팀에 있습니다.`); return; }
+      if (other) { toast(`같은 이름(${name})의 회원이 이미 ${tn(other.team)}에 있습니다.`); return; }
       const ok = await write("members", [], () => rpc("rename_member", { p_id: id, p_name: name }),
         `${m.name} → ${name}(으)로 이름을 바꿨습니다.`);
       if (!ok) return;
@@ -505,9 +514,74 @@
     renderMembers();
   }
 
+  // ---------- 팀 이름 변경 (지금 고른 팀) ----------
+  function renderTeamName() {
+    const row = $("teamNameRow");
+    row.replaceChildren();
+    if (!S.editTeamName) {
+      const label = document.createElement("span");
+      label.className = "muted";
+      label.textContent = "팀 이름";
+      const name = document.createElement("b");
+      name.textContent = tn(S.team);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "row-btn";
+      btn.textContent = "변경";
+      btn.setAttribute("aria-label", `${tn(S.team)} 이름 변경`);
+      btn.addEventListener("click", () => {
+        if (needPin()) return;
+        S.editTeamName = true;
+        renderTeamName();
+      });
+      row.append(label, name, btn);
+      return;
+    }
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = "teamNameInput";
+    input.className = "edit-input";
+    input.maxLength = 12;
+    input.value = tn(S.team);
+    input.setAttribute("aria-label", "새 팀 이름");
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "row-btn";
+    save.textContent = "저장";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "row-btn";
+    cancel.textContent = "취소";
+    const doCancel = () => { S.editTeamName = false; renderTeamName(); };
+    const doSave = () => saveTeamName(input.value);
+    save.addEventListener("click", doSave);
+    cancel.addEventListener("click", doCancel);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); doSave(); }
+      if (e.key === "Escape") doCancel();
+    });
+    row.append(input, save, cancel);
+    setTimeout(() => { input.focus(); input.select(); }, 0);
+  }
+
+  async function saveTeamName(raw) {
+    const name = String(raw || "").trim().slice(0, 12);
+    const team = S.team, before = tn(team);
+    if (!name) { toast("팀 이름을 입력해 주세요."); return; }
+    if (name === before) { S.editTeamName = false; renderTeamName(); return; }
+    if (TEAMS.some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) {
+      toast("다른 팀이 이미 쓰는 이름입니다.");
+      return;
+    }
+    const ok = await write("team-names", [], () => rpc("rename_team", { p_team: team, p_name: name }),
+      `${before} → ${name}(으)로 팀 이름을 바꿨습니다.`);
+    if (ok) { S.editTeamName = false; renderAll(); }
+  }
+
   function setTeam(team, fromHash) {
     if (!TEAMS.some(([t]) => t === team)) return;
     S.team = team;
+    S.editTeamName = false;
     S.rankOpen = null;
     S.pickSlot = null;
     S.editId = null;
@@ -525,7 +599,7 @@
     for (const [t] of TEAMS) {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = `${t}팀`;
+      b.textContent = `${tn(t)}`;
       b.setAttribute("aria-pressed", t === S.team);
       b.addEventListener("click", () => setTeam(t));
       box.append(b);
@@ -712,7 +786,9 @@
     if (picking && !wasPicking && window.matchMedia("(max-width: 860px)").matches) window.scrollTo(0, 0);
     const sum = document.createElement("div");
     sum.className = "lineup-sum";
-    sum.innerHTML = `${S.team}팀 · ${g}경기 · ${formation} · 배치 <b>${slots.filter(Boolean).length}</b>/11명`;
+    const cntB = document.createElement("b");
+    cntB.textContent = slots.filter(Boolean).length;
+    sum.append(`${tn(S.team)} · ${g}경기 · ${formation} · 배치 `, cntB, "/11명");
 
     if (S.pickSlot === null || S.pickSlot >= spots.length) {
       S.pickSlot = null;
@@ -880,7 +956,7 @@
     }
     if (!list.length) {
       empty.hidden = false;
-      $("emptyTitle").textContent = `${S.team}팀에 등록된 회원이 없습니다`;
+      $("emptyTitle").textContent = `${tn(S.team)}에 등록된 회원이 없습니다`;
       $("emptyText").textContent = "PIN으로 잠금을 해제한 뒤 회원 관리에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다.";
       return;
     }
@@ -982,8 +1058,8 @@
     const confirming = S.confirmDeleteDay === key;
     btn.classList.toggle("confirm", confirming);
     btn.textContent = confirming
-      ? `정말 삭제할까요? ${label(S.date, true)} ${S.team}팀 ${peopleCount}명 기록`
-      : `${label(S.date, true)} ${S.team}팀 기록 삭제`;
+      ? `정말 삭제할까요? ${label(S.date, true)} ${tn(S.team)} ${peopleCount}명 기록`
+      : `${label(S.date, true)} ${tn(S.team)} 기록 삭제`;
   }
 
   function deleteDay() {
@@ -999,13 +1075,13 @@
     const date = S.date, team = S.team, when = label(date, true);
     write(date, [], () => rpc("delete_team_day", { p_day: date, p_team: team }), () => {
       S.shownGames.delete(`${date}|${team}`);
-      return `${when} ${team}팀 기록을 삭제했습니다.`;
+      return `${when} ${tn(team)} 기록을 삭제했습니다.`;
     });
   }
 
   function rosterText() {
     const { games, people } = dayRoster(S.date);
-    const lines = [`[${label(S.date, true)} ${S.team}팀 출석]`];
+    const lines = [`[${label(S.date, true)} ${tn(S.team)} 출석]`];
     for (const { g, people: p } of games) if (p.length) lines.push(`${g}경기 (${p.length}명): ${p.join(", ")}`);
     lines.push(`총 참석 ${people.size}명`);
     return lines.join("\n");
@@ -1198,6 +1274,7 @@
   }
 
   function renderMembers() {
+    renderTeamName();
     const active = activeMembers();
     const inactive = [...S.members.entries()]
       .filter(([, m]) => m.active === false)
@@ -1231,7 +1308,7 @@
         sel.className = "team-sel";
         sel.id = "editTeam-" + id;
         sel.setAttribute("aria-label", `${m.name} 소속 팀`);
-        TEAMS.forEach(([t]) => sel.add(new Option(`${t}팀`, t)));
+        TEAMS.forEach(([t]) => sel.add(new Option(`${tn(t)}`, t)));
         sel.value = S.editTeam ?? m.team;
         sel.addEventListener("change", () => { S.editTeam = sel.value; });
         const save = document.createElement("button");
@@ -1437,7 +1514,7 @@
 
   reload();
   const ch = S.sb.channel("attendance-changes");
-  ["members", "attendance", "lineups", "lineup_slots"].forEach((table) => {
+  ["members", "attendance", "lineups", "lineup_slots", "team_names"].forEach((table) => {
     ch.on("postgres_changes", { event: "*", schema: "public", table }, scheduleReload);
   });
   ch.subscribe();

@@ -1033,3 +1033,29 @@ body.modal-open { overflow: hidden; }
 /* 초기화 아이콘: 좁은 경기 칸을 넓히지 않도록 작게 */
 .game-reset { min-width: 24px; height: 20px; padding: 0 5px; font-size: .78rem; line-height: 18px; }
 .game-reset.confirm { font-size: .62rem; padding: 0 4px; }
+
+/* 회원 관리: 팀 이름 변경 */
+.team-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: .9rem;
+}
+.team-name-row b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-name-row .edit-input {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--pitch);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+/* 팀 이름이 길어도 팀 버튼 3개가 한 줄에 들어가게 */
+.teams button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
