@@ -677,6 +677,8 @@
     $("calMonth").textContent = `${d.getMonth() + 1}월`;
     $("calDay").textContent = d.getDate();
     $("datePick").value = S.date;
+    $("calDesk").textContent = `${S.date} (${WD[d.getDay()]})`;
+    $("calBtn").setAttribute("aria-label", `달력 열기, 지금 ${label(S.date)}`);
 
     const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, 8);
     const box = $("recent");
@@ -1224,7 +1226,7 @@
     if (!rows.length || !dates.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5;
+      td.colSpan = 4;
       td.className = "muted";
       td.style.textAlign = "center";
       td.style.padding = "18px 6px";
@@ -1250,7 +1252,7 @@
       const tr = document.createElement("tr");
       const no = byName ? idx + 1 : r.pos;
       tr.className = (!byName && r.pos <= 3 && r.days > 0 ? "top " : "") + (open ? "open" : "");
-      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
+      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.days}/${meetingDays}</td>
         <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
       const btn = document.createElement("button");
       btn.type = "button";
@@ -1304,7 +1306,7 @@
     const tr = document.createElement("tr");
     tr.className = "recent-row";
     const td = document.createElement("td");
-    td.colSpan = 5;
+    td.colSpan = 4;
     const wrap = document.createElement("div");
     wrap.className = "recent10";
     const strip = document.createElement("div");
@@ -1497,6 +1499,52 @@
   }
 
   // ---------- 이벤트 ----------
+  // ---------- 달력: 지금 팀의 모임이 있던 날을 동그라미로 표시 ----------
+  let calView = null; // 보고 있는 달의 1일 (Date)
+  function openCalendar() {
+    const d = parseYmd(S.date);
+    calView = new Date(d.getFullYear(), d.getMonth(), 1);
+    renderCalendar();
+    $("calModal").hidden = false;
+    document.body.classList.add("modal-open");
+    ($("calGrid").querySelector(".sel") || $("calClose")).focus();
+  }
+  function closeCalendar() {
+    $("calModal").hidden = true;
+    document.body.classList.remove("modal-open");
+    $("calBtn").focus({ preventScroll: true });
+  }
+  function renderCalendar() {
+    if (!calView) return;
+    const y = calView.getFullYear(), m = calView.getMonth();
+    $("calTitle").textContent = `${y}년 ${m + 1}월`;
+    const grid = $("calGrid");
+    grid.replaceChildren();
+    const lead = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const today = ymd(new Date());
+    for (let i = 0; i < lead; i++) grid.append(document.createElement("span"));
+    for (let n = 1; n <= days; n++) {
+      const ds = ymd(new Date(y, m, n));
+      const met = hasAny(ds) || teamHasLineup(ds);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cal-day-btn" + (met ? " met" : "") + (ds === S.date ? " sel" : "") + (ds === today ? " today" : "");
+      b.textContent = n;
+      const wd = new Date(y, m, n).getDay();
+      if (wd === 0) b.classList.add("sun");
+      if (wd === 6) b.classList.add("sat");
+      b.setAttribute("aria-label", `${m + 1}월 ${n}일 (${WD[wd]})${met ? ", 모임 있음" : ""}${ds === today ? ", 오늘" : ""}`);
+      if (ds === S.date) b.setAttribute("aria-current", "date");
+      b.addEventListener("click", () => { closeCalendar(); setDate(ds); });
+      grid.append(b);
+    }
+  }
+  function shiftCalendar(n) {
+    calView = new Date(calView.getFullYear(), calView.getMonth() + n, 1);
+    renderCalendar();
+  }
+
   // ---------- 하단 탭 (휴대폰 화면에서만 한 번에 한 화면) ----------
   const VIEW_KEY = "soccer-attendance-view";
   const VIEWS = ["check", "lineup", "summary", "stats", "members"];
@@ -1527,6 +1575,13 @@
   $("prevDay").addEventListener("click", () => setDate(shiftDate(S.date, -1)));
   $("nextDay").addEventListener("click", () => setDate(shiftDate(S.date, 1)));
   $("datePick").addEventListener("change", (e) => { if (e.target.value) setDate(e.target.value); });
+  $("calBtn").addEventListener("click", openCalendar);
+  $("calPrev").addEventListener("click", () => shiftCalendar(-1));
+  $("calNext").addEventListener("click", () => shiftCalendar(1));
+  $("calClose").addEventListener("click", closeCalendar);
+  $("calToday").addEventListener("click", () => { closeCalendar(); setDate(ymd(new Date())); });
+  $("calModal").addEventListener("click", (e) => { if (e.target === $("calModal")) closeCalendar(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("calModal").hidden) closeCalendar(); });
   window.addEventListener("hashchange", () => { const t = teamFromHash(); if (t && t !== S.team) setTeam(t, true); });
 
   $("formationSel").addEventListener("change", (e) => {

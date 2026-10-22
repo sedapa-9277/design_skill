@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="attendance.css?v=38">
+  <link rel="stylesheet" href="attendance.css?v=39">
 </head>
 <body class="locked" data-view="check">
 <div class="wrap">
@@ -27,10 +27,11 @@
       </div>
       <div class="date-nav">
         <button id="prevDay" aria-label="이전 날짜">‹</button>
-        <label class="cal-btn">
+        <button type="button" class="cal-btn" id="calBtn" aria-label="달력 열기" aria-haspopup="dialog">
           <span class="cal-tile" aria-hidden="true"><span class="cal-month" id="calMonth"></span><span class="cal-day" id="calDay"></span></span>
-          <input type="date" id="datePick" aria-label="모임 날짜 선택">
-        </label>
+          <span class="cal-desk" id="calDesk" aria-hidden="true"></span>
+        </button>
+        <input type="date" id="datePick" aria-label="모임 날짜 선택" hidden>
         <button id="nextDay" aria-label="다음 날짜">›</button>
       </div>
     </div>
@@ -161,7 +162,7 @@
     </div>
     <div class="rank-scroll">
       <table class="rank">
-        <thead><tr><th class="pos">#</th><th>이름</th><th class="r">경기</th><th class="r">일수</th><th>참석률</th></tr></thead>
+        <thead><tr><th class="pos">#</th><th>이름</th><th class="r" title="참석한 모임 날짜 / 기간 중 전체 모임 날짜">참석/전체</th><th>참석률</th></tr></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
@@ -207,10 +208,29 @@
   </div>
 </div>
 
+<div class="cal-modal" id="calModal" hidden role="dialog" aria-modal="true" aria-labelledby="calTitle">
+  <div class="cal-card">
+    <div class="cal-head">
+      <button type="button" class="cal-nav" id="calPrev" aria-label="이전 달">‹</button>
+      <b id="calTitle"></b>
+      <button type="button" class="cal-nav" id="calNext" aria-label="다음 달">›</button>
+    </div>
+    <div class="cal-week" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+    <div class="cal-grid" id="calGrid" role="grid"></div>
+    <div class="cal-foot">
+      <span class="cal-legend"><i class="dot-met"></i>모임 있던 날</span>
+      <span class="cal-actions">
+        <button type="button" class="btn-ghost" id="calToday">오늘</button>
+        <button type="button" class="btn-ghost" id="calClose">닫기</button>
+      </span>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="attendance.js?v=38"></script>
+<script src="attendance.js?v=39"></script>
 <script>
   // PWA·앱 설치용 서비스 워커 등록
   if ('serviceWorker' in navigator) {
