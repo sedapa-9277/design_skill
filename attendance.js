@@ -1073,6 +1073,7 @@
       const li = document.createElement("li");
 
       if (S.editId === id) {
+        li.className = "editing";
         const input = document.createElement("input");
         input.type = "text";
         input.id = "editName-" + id;
