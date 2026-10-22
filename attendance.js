@@ -1122,6 +1122,75 @@
     return lines.join("\n");
   }
 
+  // ---------- 통계: 팀별 탭으로 나눈 날짜별 출석자 명단을 엑셀(.xlsx)로 내보내기 ----------
+  const PERIOD_LABEL = { month: "이번달", "3m": "최근3개월", year: "올해", all: "전체" };
+  let xlsxLoading = null;
+  function loadXlsx() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    xlsxLoading ||= new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error("xlsx")));
+      s.onerror = () => { xlsxLoading = null; reject(new Error("xlsx")); };
+      document.head.append(s);
+    });
+    return xlsxLoading;
+  }
+
+  // 팀 한 개의 시트 내용: [날짜, 인원, 출석자 명단] (그날 한 경기라도 나온 사람, 이름순)
+  function teamExportRows(team) {
+    const ids = [...S.members.entries()].filter(([, m]) => m.team === team).map(([id]) => id);
+    const rows = [];
+    for (const d of [...S.days.keys()].filter(inPeriod).sort()) {
+      const names = ids.filter((id) => GAMES.some((g) => attended(d, id, g)))
+        .map(memberName).sort((a, b) => a.localeCompare(b, "ko"));
+      if (!names.length) continue;
+      const day = parseYmd(d);
+      rows.push([`${d} (${WD[day.getDay()]})`, names.length, names.join(", ")]);
+    }
+    return rows;
+  }
+
+  async function exportAttendance() {
+    const btn = $("exportBtn");
+    if (S.mode !== "live") { toast("기록을 불러온 뒤에 다시 눌러 주세요."); return; }
+    btn.disabled = true;
+    try {
+      const XLSX = await loadXlsx();
+      const wb = XLSX.utils.book_new();
+      let total = 0;
+      const used = new Set();
+      for (const [t] of TEAMS) {
+        const rows = teamExportRows(t);
+        total += rows.length;
+        const ws = XLSX.utils.aoa_to_sheet([["날짜", "인원", "출석자 명단"], ...(rows.length ? rows : [["(이 기간 기록 없음)", "", ""]])]);
+        ws["!cols"] = [{ wch: 16 }, { wch: 6 }, { wch: 80 }];
+        // 시트 이름: 엑셀 규칙(31자, 금지 문자) 맞추고 겹치지 않게
+        let name = tn(t).replace(/[\\/?*[\]:]/g, " ").slice(0, 31).trim() || t;
+        while (used.has(name)) name = (name.slice(0, 28) + "_" + used.size);
+        used.add(name);
+        XLSX.utils.book_append_sheet(wb, ws, name);
+      }
+      if (!total) { toast("이 기간에는 내보낼 출석 기록이 없습니다."); return; }
+      const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const file = `출석명단_${PERIOD_LABEL[S.period] || ""}_${ymd(new Date())}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast(`${file} 파일을 저장했습니다. 휴대폰은 '다운로드' 폴더에서 찾을 수 있습니다.`);
+    } catch (e) {
+      toast("엑셀 파일을 만들지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function inPeriod(date) {
     const today = new Date();
     const d = parseYmd(date);
@@ -1494,6 +1563,8 @@
   $("imgShareBtn").addEventListener("click", shareShot);
   $("imgModal").addEventListener("click", (e) => { if (e.target === $("imgModal")) closeImageModal(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("imgModal").hidden) closeImageModal(); });
+
+  $("exportBtn").addEventListener("click", exportAttendance);
 
   $("rankSort").addEventListener("click", (e) => {
     const b = e.target.closest("[data-sort]");

@@ -1148,3 +1148,13 @@ body.locked #memberPanel > .hint { display: none; }
 .pick-divider::after { content: ""; flex: 1; border-top: 1px dashed var(--muted); opacity: .6; }
 .pick.rare { opacity: .45; }
 .pick.rare:hover, .pick.rare:focus-visible { opacity: .8; }
+
+/* 통계: 엑셀로 내보내기 */
+.stats-bar { justify-content: space-between; }
+.export-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.export-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.export-btn:disabled { opacity: .6; cursor: progress; }
+@media (max-width: 860px) {
+  .stats-bar { flex-wrap: wrap; }
+  .export-btn { order: 2; width: 100%; justify-content: center; min-height: 40px; }
+}

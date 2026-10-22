@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="attendance.css?v=34">
+  <link rel="stylesheet" href="attendance.css?v=35">
 </head>
 <body class="locked" data-view="check">
 <div class="wrap">
@@ -150,6 +150,10 @@
       </div>
     </div>
     <div class="stats-bar">
+      <button type="button" class="btn-ghost export-btn" id="exportBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        엑셀로 내보내기
+      </button>
       <div class="seg" id="rankSort" role="group" aria-label="정렬">
         <button type="button" data-sort="rate" aria-pressed="true">참석률순</button>
         <button type="button" data-sort="name" aria-pressed="false">이름순</button>
@@ -206,7 +210,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="attendance.js?v=34"></script>
+<script src="attendance.js?v=35"></script>
 <script>
   // PWA·앱 설치용 서비스 워커 등록
   if ('serviceWorker' in navigator) {
