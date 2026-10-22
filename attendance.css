@@ -972,3 +972,12 @@ body.modal-open { overflow: hidden; }
 .btn-danger:hover:not(:disabled) { background: var(--danger-bg); filter: brightness(1.08); }
 .btn-danger.confirm { background: #c62828; border-color: #c62828; color: #ffffff; }
 .btn-danger:disabled { background: transparent; border-color: var(--line); color: var(--muted); }
+
+/* 삭제 확인 단계: 휴대폰에서 누른 뒤 남는 hover 상태가 빨간 배경을 덮지 않게 (흰 글씨가 안 보이던 문제) */
+.btn-danger.confirm,
+.btn-danger.confirm:hover:not(:disabled),
+.btn-danger.confirm:active,
+.btn-danger.confirm:focus { background: #c62828; border-color: #c62828; color: #ffffff; filter: none; }
+@media (hover: none) {
+  .btn-danger:hover:not(:disabled):not(.confirm) { background: var(--danger-bg); filter: none; }
+}
