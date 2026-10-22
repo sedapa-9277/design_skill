@@ -942,3 +942,19 @@ body.modal-open { overflow: hidden; }
   .game-tabs { grid-template-columns: repeat(var(--tab-count, 6), minmax(0, 1fr)); }
   .game-tabs .tab-add { min-width: 0; font-size: 1.2rem; }
 }
+
+/* 이날 요약: 날짜 기록 삭제 */
+.danger-zone { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.btn-danger {
+  width: 100%;
+  border: 1px solid var(--warn);
+  background: transparent;
+  color: var(--warn);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: .88rem;
+}
+.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.btn-danger.confirm { background: var(--warn); color: #fff; }
+.btn-danger:disabled { border-color: var(--line); color: var(--muted); cursor: default; }

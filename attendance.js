@@ -43,6 +43,7 @@
     rankSort: "rate",         // rate | name
     rankOpen: null,           // 통계에서 최근 10경기를 펼친 회원 id
     shownGames: new Map(),    // "date|팀" -> 출석판에 직접 늘려 둔 경기 수
+    confirmDeleteDay: null,   // "date|팀": 날짜 기록 삭제 확인 중
     confirmDel: null,
     confirmPurge: null,
     editId: null,
@@ -903,6 +904,7 @@
     $("tPeople").textContent = people.size;
     $("tGames").textContent = games.filter((x) => x.people.length).length;
     $("tSlots").textContent = games.reduce((s, x) => s + x.people.length, 0);
+    renderDeleteDay(people.size);
 
     const r = $("roster");
     r.replaceChildren();
@@ -917,6 +919,46 @@
       div.append(gs, " ", txt);
       r.append(div);
     }
+  }
+
+  // ---------- 날짜 기록 삭제 (선택한 날짜, 지금 팀만) ----------
+  function teamHasLineup(date) {
+    return Object.values(S.days.get(date)?.lineup?.[S.team] || {}).length > 0;
+  }
+
+  function renderDeleteDay(peopleCount) {
+    const btn = $("deleteDayBtn");
+    const key = shownKey();
+    const has = hasAny(S.date) || teamHasLineup(S.date);
+    btn.disabled = !has;
+    if (!has) {
+      if (S.confirmDeleteDay === key) S.confirmDeleteDay = null;
+      btn.classList.remove("confirm");
+      btn.textContent = "이 날짜에 지울 기록이 없습니다";
+      return;
+    }
+    const confirming = S.confirmDeleteDay === key;
+    btn.classList.toggle("confirm", confirming);
+    btn.textContent = confirming
+      ? `정말 삭제할까요? ${label(S.date, true)} ${S.team}팀 ${peopleCount}명 기록`
+      : `${label(S.date, true)} ${S.team}팀 기록 삭제`;
+  }
+
+  function deleteDay() {
+    if (needPin()) return;
+    const key = shownKey();
+    if (S.confirmDeleteDay !== key) {
+      S.confirmDeleteDay = key;
+      renderSide();
+      setTimeout(() => { if (S.confirmDeleteDay === key) { S.confirmDeleteDay = null; renderSide(); } }, 4000);
+      return;
+    }
+    S.confirmDeleteDay = null;
+    const date = S.date, team = S.team, when = label(date, true);
+    write(date, [], () => rpc("delete_team_day", { p_day: date, p_team: team }), () => {
+      S.shownGames.delete(`${date}|${team}`);
+      return `${when} ${team}팀 기록을 삭제했습니다.`;
+    });
   }
 
   function rosterText() {
@@ -1262,6 +1304,7 @@
   });
 
   $("saveLineupBtn").addEventListener("click", saveLineupImage);
+  $("deleteDayBtn").addEventListener("click", deleteDay);
   $("imgCloseBtn").addEventListener("click", closeImageModal);
   $("imgDownloadBtn").addEventListener("click", downloadShot);
   $("imgShareBtn").addEventListener("click", shareShot);
