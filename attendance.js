@@ -620,13 +620,16 @@
   }
 
   function renderLineup() {
+    // 경기 탭도 출석판과 같은 규칙: 기본 4경기, 기록이 있거나 + 로 늘린 경기까지
+    const games = visibleGames();
+    if (!games.includes(S.lineupGame)) { S.lineupGame = games[games.length - 1]; S.pickSlot = null; }
     const g = S.lineupGame;
     const { formation, slots } = lineupOf(S.date, g);
     const spots = FORMATIONS[formation];
 
     const tabs = $("gameTabs");
     tabs.replaceChildren();
-    for (const n of GAMES) {
+    for (const n of games) {
       const b = document.createElement("button");
       const filled = lineupOf(S.date, n).slots.filter(Boolean).length;
       b.setAttribute("aria-pressed", n === g);
@@ -635,6 +638,38 @@
       b.addEventListener("click", () => { S.lineupGame = n; S.pickSlot = null; renderLineup(); });
       tabs.append(b);
     }
+    const canAdd = games.length < GAMES.length;
+    const canRemove = games.length > BASE_GAMES && games.length > usedGames();
+    if (canAdd) {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "tab-add";
+      add.textContent = "+";
+      add.title = `${games.length + 1}경기 추가`;
+      add.setAttribute("aria-label", add.title);
+      add.addEventListener("click", () => {
+        S.shownGames.set(shownKey(), games.length + 1);
+        S.lineupGame = games.length + 1;
+        S.pickSlot = null;
+        renderAll();
+      });
+      tabs.append(add);
+    }
+    if (canRemove) {
+      const rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "tab-add minus";
+      rm.textContent = "−";
+      rm.title = `${games.length}경기 닫기`;
+      rm.setAttribute("aria-label", rm.title);
+      rm.addEventListener("click", () => {
+        S.shownGames.set(shownKey(), games.length - 1);
+        S.pickSlot = null;
+        renderAll();
+      });
+      tabs.append(rm);
+    }
+    tabs.style.setProperty("--tab-count", games.length + (canAdd ? 1 : 0) + (canRemove ? 1 : 0));
 
     const sel = $("formationSel");
     if (!sel.options.length) Object.keys(FORMATIONS).forEach((f) => sel.add(new Option(f, f)));
@@ -777,7 +812,7 @@
         add.setAttribute("aria-label", add.title);
         add.addEventListener("click", () => {
           S.shownGames.set(shownKey(), games.length + 1);
-          renderGrid();
+          renderAll();
         });
         th.append(add);
       }
@@ -790,7 +825,7 @@
         rm.setAttribute("aria-label", rm.title);
         rm.addEventListener("click", () => {
           S.shownGames.set(shownKey(), games.length - 1);
-          renderGrid();
+          renderAll();
         });
         th.append(rm);
       }

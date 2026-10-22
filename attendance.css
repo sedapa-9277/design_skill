@@ -925,3 +925,20 @@ body.modal-open { overflow: hidden; }
   .mlist .row-actions { gap: 6px; }
   .mlist .row-btn { padding: 7px 9px; }
 }
+
+/* 포지션 배치: 경기 탭 추가(+) / 닫기(−) */
+.game-tabs .tab-add {
+  min-width: 38px;
+  border: 1.5px dashed var(--pitch);
+  background: transparent;
+  color: var(--pitch);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.game-tabs .tab-add:hover { background: var(--pitch-soft); }
+.game-tabs .tab-add.minus { border-color: var(--line); color: var(--muted); }
+@media (max-width: 860px) {
+  .game-tabs { grid-template-columns: repeat(var(--tab-count, 6), minmax(0, 1fr)); }
+  .game-tabs .tab-add { min-width: 0; font-size: 1.2rem; }
+}
