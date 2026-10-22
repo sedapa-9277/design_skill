@@ -1045,14 +1045,41 @@
       btn.textContent = r.name;
       btn.title = `${r.name} 최근 모임 10번 보기`;
       btn.setAttribute("aria-expanded", open);
-      btn.addEventListener("click", () => {
-        S.rankOpen = S.rankOpen === r.id ? null : r.id;
-        renderStats();
-      });
+      btn.addEventListener("click", () => toggleRecentRow(tr, btn, r.id));
       tr.children[1].append(btn);
       body.append(tr);
       if (open) body.append(recentRow(r.id, recent));
     }
+  }
+
+  // 표를 다시 그리지 않고 누른 줄 아래만 펼치거나 닫는다.
+  // 휴대폰에서 표 전체를 다시 그리면 화면이 맨 위로 튀던 문제를 막고, 누른 이름이 같은 자리에 머물게 한다
+  function toggleRecentRow(tr, btn, mid) {
+    const body = $("rankBody");
+    const before = tr.getBoundingClientRect().top;
+    const opening = S.rankOpen !== mid;
+    body.querySelectorAll("tr.recent-row").forEach((x) => x.remove());
+    body.querySelectorAll("tr.open").forEach((x) => x.classList.remove("open"));
+    body.querySelectorAll('.name-btn[aria-expanded="true"]').forEach((x) => x.setAttribute("aria-expanded", "false"));
+    S.rankOpen = opening ? mid : null;
+    let detail = null;
+    if (opening) {
+      tr.classList.add("open");
+      btn.setAttribute("aria-expanded", "true");
+      detail = recentRow(mid, recentTeamGames(10));
+      tr.after(detail);
+    }
+    // 위쪽에서 닫힌 줄만큼 화면을 보정해 누른 이름이 제자리에 있게 한다
+    const shift = tr.getBoundingClientRect().top - before;
+    if (shift) window.scrollBy(0, shift);
+    // 펼친 내용이 하단 탭에 가려지면 보이는 만큼만 살짝 올린다
+    if (detail) {
+      const bar = $("tabbar");
+      const limit = bar && getComputedStyle(bar).display !== "none" ? bar.getBoundingClientRect().top : window.innerHeight;
+      const over = detail.getBoundingClientRect().bottom - limit + 8;
+      if (over > 0) window.scrollBy({ top: over, behavior: "smooth" });
+    }
+    btn.focus({ preventScroll: true });
   }
 
   // 이 팀의 최근 모임 날짜 n개 (팀에서 한 명이라도 출석한 날), 오래된 순
