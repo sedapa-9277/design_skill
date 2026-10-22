@@ -1008,7 +1008,7 @@
         const b = document.createElement("button");
         const on = attended(S.date, id, g);
         b.className = "cell";
-        b.textContent = on ? "참" : g;
+        b.textContent = on ? "" : g;
         b.setAttribute("aria-pressed", on);
         b.setAttribute("aria-label", `${m.name} ${g}경기 ${on ? "참석" : "미참석"}`);
         b.addEventListener("click", () => toggleCell(id, g));
