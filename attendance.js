@@ -892,6 +892,8 @@
   function renderGrid() {
     const list = activeMembers();
     const games = visibleGames();
+    // 보이는 경기 수에 따라 출석 칸 크기를 바꾼다 (4경기면 크게, 6경기면 화면에 맞게)
+    $("attTable").dataset.games = games.length;
     const counts = games.map((g) => list.filter(([id]) => attended(S.date, id, g)).length);
     const canAdd = games.length < GAMES.length;
     const canRemove = games.length > BASE_GAMES && games.length > usedGames();
@@ -975,7 +977,8 @@
       nm.title = m.name;
       const sub = document.createElement("span");
       sub.className = "sub";
-      sub.textContent = n ? `${n}경기` : "불참";
+      // 몇 경기 나왔는지는 동그라미로 보이므로, 아래 줄에는 "전 경기" 버튼만 둔다
+      sub.title = n ? `${n}경기 출전` : "불참";
       // "전 경기"는 지금 보이는 경기만 체크/해제한다
       const all = document.createElement("button");
       all.className = "all-link";
@@ -983,7 +986,7 @@
       all.textContent = full ? "전체 해제" : "전 경기";
       all.setAttribute("aria-label", `${m.name} ${full ? "보이는 경기 모두 해제" : "보이는 경기 모두 참석"}`);
       all.addEventListener("click", () => setGames(id, games, !full));
-      sub.append(" · ", all);
+      sub.append(all);
       tdName.append(nm, sub);
       tr.append(tdName);
 

@@ -1080,3 +1080,55 @@ body.locked #memberPanel > .hint { display: none; }
 }
 .roster-empty strong { color: var(--fg); font-size: .95rem; }
 .btn-ghost:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); }
+
+/* ---- 출석판: 누르기 쉬운 크기 (경기 수에 따라 자동) ---- */
+.att .cell { width: 44px; height: 44px; font-size: .9rem; }
+.att[data-games="5"] .cell { width: 40px; height: 40px; }
+.att[data-games="6"] .cell { width: 38px; height: 38px; font-size: .82rem; }
+.att td.name .sub { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.att td.name .all-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid var(--pitch);
+  border-radius: 999px;
+  font-size: .72rem;
+  line-height: 1;
+}
+.att td.name .all-link:hover { text-decoration: none; background: var(--pitch-soft); }
+.game-reset { min-width: 32px; height: 28px; padding: 0 6px; font-size: .95rem; line-height: 26px; margin-top: 4px; }
+.game-reset.confirm { font-size: .7rem; }
+@media (max-width: 860px) {
+  .att .cell { width: 44px; height: 44px; }
+  .att[data-games="5"] .cell { width: 39px; height: 39px; }
+  .att[data-games="6"] .cell { width: 35px; height: 35px; }
+  .att td.name { max-width: 7em; }
+  .att[data-games="6"] td.name { max-width: 5.6em; }
+  .att th, .att td { padding: 3px 1px; }
+}
+@media (max-width: 380px) {
+  .att .cell { width: 42px; height: 42px; }
+  .att[data-games="5"] .cell { width: 37px; height: 37px; }
+  .att[data-games="6"] .cell { width: 33px; height: 33px; }
+  .att[data-games="6"] td.name { max-width: 5.2em; }
+}
+/* 이름 칸 폭을 고정해 경기 수와 상관없이 표가 화면 안에 들어가게 */
+@media (max-width: 860px) {
+  .att td.name, .att th.name { width: 5.4em; max-width: 5.4em; }
+  .att[data-games="6"] td.name { max-width: 5.4em; }
+  .att td.name .all-link { padding: 0 8px; }
+  .att .cell { width: 44px; height: 44px; }
+  .att[data-games="5"] .cell { width: 40px; height: 40px; }
+  .att[data-games="6"] .cell { width: 35px; height: 35px; }
+}
+@media (max-width: 380px) {
+  .att .cell { width: 42px; height: 42px; }
+  .att[data-games="5"] .cell { width: 38px; height: 38px; }
+  .att[data-games="6"] .cell { width: 33px; height: 33px; }
+}
+/* +/− 를 세로로 쌓아 마지막 칸 폭을 줄인다 */
+@media (max-width: 860px) {
+  .att th.add-col .game-add { display: grid; width: 32px; height: 32px; margin: 2px auto; }
+}
