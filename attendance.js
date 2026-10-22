@@ -41,6 +41,7 @@
     date: ymd(new Date()),
     period: "month",
     rankSort: "rate",         // rate | name
+    rankOpen: null,           // 통계에서 최근 10경기를 펼친 회원 id
     confirmDel: null,
     confirmPurge: null,
     editId: null,
@@ -335,6 +336,7 @@
   function setTeam(team, fromHash) {
     if (!TEAMS.some(([t]) => t === team)) return;
     S.team = team;
+    S.rankOpen = null;
     S.pickSlot = null;
     S.editId = null;
     S.confirmDel = null;
@@ -726,16 +728,88 @@
     const shown = S.rankSort === "name"
       ? [...rows].sort((a, b) => a.name.localeCompare(b.name, "ko"))
       : rows;
+    const recent = S.rankOpen ? recentTeamGames(10) : [];
     for (const r of shown) {
       const pct = playedGames ? Math.round((r.games / playedGames) * 100) : 0;
+      const open = S.rankOpen === r.id;
       const tr = document.createElement("tr");
-      if (r.pos <= 3 && r.games > 0) tr.className = "top";
+      tr.className = (r.pos <= 3 && r.games > 0 ? "top " : "") + (open ? "open" : "");
       tr.innerHTML = `<td class="pos num">${r.pos}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
         <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
-      tr.children[1].textContent = r.name;
-      tr.children[1].title = r.name;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "name-btn";
+      btn.textContent = r.name;
+      btn.title = `${r.name} 최근 10경기 보기`;
+      btn.setAttribute("aria-expanded", open);
+      btn.addEventListener("click", () => {
+        S.rankOpen = S.rankOpen === r.id ? null : r.id;
+        renderStats();
+      });
+      tr.children[1].append(btn);
       body.append(tr);
+      if (open) body.append(recentRow(r.id, recent));
     }
+  }
+
+  // 이 팀에서 출석이 하나라도 있는 경기(날짜+경기 번호) 중 최근 n개, 오래된 순
+  function recentTeamGames(n) {
+    const ids = teamMembers(true).map(([id]) => id);
+    const out = [];
+    const dates = [...S.days.keys()].sort().reverse();
+    for (const d of dates) {
+      for (let g = GAMES.length; g >= 1 && out.length < n; g--) {
+        if (ids.some((id) => attended(d, id, g))) out.push({ d, g });
+      }
+      if (out.length >= n) break;
+    }
+    return out.reverse();
+  }
+
+  function recentRow(mid, games) {
+    const tr = document.createElement("tr");
+    tr.className = "recent-row";
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    const wrap = document.createElement("div");
+    wrap.className = "recent10";
+    const strip = document.createElement("div");
+    strip.className = "strip";
+    let hit = 0;
+    for (let i = 0; i < 10; i++) {
+      const x = games[i];
+      const c = document.createElement("span");
+      if (!x) {
+        c.className = "c none";
+        c.title = "경기 기록 없음";
+      } else {
+        const on = attended(x.d, mid, x.g);
+        if (on) hit++;
+        c.className = "c " + (on ? "in" : "out");
+        c.textContent = x.g;
+        c.title = `${label(x.d, true)} ${x.g}경기 ${on ? "참석" : "불참"}`;
+        c.setAttribute("aria-label", c.title);
+      }
+      strip.append(c);
+    }
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    if (games.length) {
+      const range = document.createElement("span");
+      range.textContent = `${label(games[0].d, true)} → ${label(games[games.length - 1].d, true)}`;
+      const sum = document.createElement("b");
+      sum.textContent = `최근 ${games.length}경기 중 ${hit}경기 참석`;
+      meta.append(sum, range);
+    } else {
+      meta.textContent = "아직 이 팀의 경기 기록이 없습니다.";
+    }
+    const legend = document.createElement("div");
+    legend.className = "legend";
+    legend.innerHTML = `<span><i class="c in"></i>참석</span><span><i class="c out"></i>불참</span><span>칸 안 숫자 = 그날의 경기 번호</span>`;
+    wrap.append(meta, strip, legend);
+    td.append(wrap);
+    tr.append(td);
+    return tr;
   }
 
   function setRankSort(v) {

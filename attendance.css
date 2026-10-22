@@ -762,3 +762,62 @@ html { -webkit-text-size-adjust: 100%; }
   .cal-btn:has(input:focus-visible) .cal-tile { outline: 3px solid #fff; outline-offset: 2px; }
   .date-nav button { height: 44px; }
 }
+
+/* ---- 통계: 이름을 누르면 최근 10경기 ---- */
+:root { --absent: #f1d3c8; --absent-fg: #8a3a1f; --none: #e4e9e2; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --absent: #4a2a20; --absent-fg: #f0b39b; --none: #232d26; }
+}
+:root[data-theme="dark"] { --absent: #4a2a20; --absent-fg: #f0b39b; --none: #232d26; }
+
+.name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.name-btn::after {
+  content: "";
+  flex: none;
+  width: 6px; height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform .15s;
+}
+.name-btn[aria-expanded="true"] { color: var(--pitch); font-weight: 700; }
+.name-btn[aria-expanded="true"]::after { transform: rotate(-135deg) translateY(-1px); border-color: var(--pitch); }
+.rank tr.open td { border-bottom-color: transparent; background: var(--surface-2); }
+.rank tr.recent-row td { padding: 0 6px 12px; background: var(--surface-2); }
+
+.recent10 { display: grid; gap: 8px; padding-top: 2px; }
+.recent10 .meta { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+.recent10 .meta b { color: var(--fg); }
+.recent10 .strip { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.recent10 .c {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  max-width: 100%;
+  border-radius: 6px;
+  font-size: .72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.recent10 .c.in { background: var(--pitch); color: var(--chalk); }
+.recent10 .c.out { background: var(--absent); color: var(--absent-fg); }
+.recent10 .c.none { background: transparent; border: 1.5px dashed var(--none); }
+.recent10 .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: .72rem; color: var(--muted); }
+.recent10 .legend span { display: inline-flex; align-items: center; gap: 4px; }
+.recent10 .legend .c { display: inline-block; width: 12px; height: 12px; aspect-ratio: auto; border-radius: 3px; }
+@media (min-width: 861px) { .recent10 .strip { max-width: 420px; } }
