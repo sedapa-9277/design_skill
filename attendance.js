@@ -159,10 +159,10 @@
     return data;
   }
 
+  // 잠긴 상태면 안내만 띄운다. PIN 칸으로 포커스를 옮기면 휴대폰에서 화면이 맨 위로 튀고 키패드가 올라오므로 옮기지 않는다
   function needPin() {
     if (S.pin) return false;
-    toast("수정하려면 먼저 위에서 PIN 4자리를 입력해 주세요.");
-    $("pinInput").focus();
+    toast("보기 전용입니다. 수정하려면 맨 위 PIN 칸에 4자리를 입력해 주세요.");
     return true;
   }
 
@@ -1380,7 +1380,11 @@
     }
   }
 
+  // 다시 그려도 보던 위치를 유지한다 (누른 버튼이 다시 그려지며 사라질 때 휴대폰에서 화면이 위로 튀는 것 방지)
   function renderAll() {
+    const y = window.scrollY;
+    const active = document.activeElement;
+    const hadFocusInList = active && active !== document.body && (active.closest?.("#attBody, #rankBody, #memberList, #inactiveList, #field, #picker, #gameTabs"));
     renderTeams();
     renderHeader();
     renderLineup();
@@ -1388,6 +1392,8 @@
     renderSide();
     renderMembers();
     renderStats();
+    if (hadFocusInList && document.activeElement !== active) active.blur?.();
+    if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
   }
 
   // ---------- 이벤트 ----------

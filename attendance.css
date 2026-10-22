@@ -1059,3 +1059,10 @@ body.modal-open { overflow: hidden; }
 }
 /* 팀 이름이 길어도 팀 버튼 3개가 한 줄에 들어가게 */
 .teams button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 보기 전용(잠김)일 때 회원 화면의 편집 버튼과 추가 칸 숨기기 */
+body.locked #memberPanel .row-actions,
+body.locked #memberPanel #addForm,
+body.locked #memberPanel .team-name-row .row-btn { display: none; }
+body.locked #memberPanel .mlist li { min-height: 40px; }
+body.locked #memberPanel > .hint { display: none; }
