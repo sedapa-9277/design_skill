@@ -231,7 +231,14 @@
   }
 
   function toggleCell(mid, g) {
-    return setGames(mid, [g], !attended(S.date, mid, g));
+    const on = !attended(S.date, mid, g);
+    // 방금 체크한 칸만 축구공이 통통 튀게 표시한다
+    if (on && S.pin) {
+      const key = `${S.date}|${mid}|g${g}`;
+      S.popKey = key;
+      setTimeout(() => { if (S.popKey === key) S.popKey = null; }, 700);
+    }
+    return setGames(mid, [g], on);
   }
 
   // ---------- 포지션 배치 ----------
@@ -1009,7 +1016,7 @@
         const td = document.createElement("td");
         const b = document.createElement("button");
         const on = attended(S.date, id, g);
-        b.className = "cell";
+        b.className = "cell" + (on && S.popKey === `${S.date}|${id}|g${g}` ? " pop" : "");
         b.textContent = on ? "" : g;
         b.setAttribute("aria-pressed", on);
         b.setAttribute("aria-label", `${m.name} ${g}경기 ${on ? "참석" : "미참석"}`);
