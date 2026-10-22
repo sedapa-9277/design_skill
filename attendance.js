@@ -371,7 +371,7 @@
     c.textBaseline = "alphabetic";
     c.font = `500 24px ${BODY}`;
     c.fillStyle = "#6f8f78";
-    c.fillText("축구회 경기 출석부", W - PAD, H - 30);
+    c.fillText("Soccer line-up", W - PAD, H - 30);
 
     return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
   }
