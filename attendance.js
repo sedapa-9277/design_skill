@@ -890,7 +890,9 @@
 
   function dayRoster(date) {
     const ids = teamMembers(true).map(([id]) => id);
-    const games = GAMES.map((g) => ({
+    // 요약도 출석판과 같은 경기만: 기본 4경기, 기록이 있거나 + 로 늘린 경기까지
+    const shown = date === S.date ? visibleGames() : GAMES;
+    const games = shown.map((g) => ({
       g,
       people: ids.filter((id) => attended(date, id, g)).map(memberName).sort((a, b) => a.localeCompare(b, "ko")),
     }));
