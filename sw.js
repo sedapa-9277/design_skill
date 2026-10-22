@@ -19,11 +19,11 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// 이전 버전 캐시 정리
+// 이전 버전 캐시 정리 — local/ 등 다른 앱의 캐시는 건드리지 않도록 자기 접두사만
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('attendance-shell-') && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
