@@ -1026,6 +1026,25 @@
 
     const r = $("roster");
     r.replaceChildren();
+    // 이 팀에 그날 출석 기록이 하나도 없으면 안내만 보여 주고 복사 버튼은 끈다
+    const empty = people.size === 0;
+    const copy = $("copyBtn");
+    copy.disabled = empty || S.mode !== "live";
+    copy.title = empty ? "이날 기록이 없어 복사할 명단이 없습니다" : "";
+    if (empty) {
+      $("copyFallback").hidden = true;
+      const msg = document.createElement("div");
+      msg.className = "roster-empty";
+      const strong = document.createElement("strong");
+      strong.textContent = "아직 기록 없음";
+      const sub = document.createElement("span");
+      sub.textContent = S.mode === "live"
+        ? `${label(S.date, true)} ${tn(S.team)}의 출석 기록이 아직 없습니다. 출석 탭에서 체크하면 여기에 경기별 명단이 나옵니다.`
+        : "기록을 불러오는 중입니다.";
+      msg.append(strong, sub);
+      r.append(msg);
+      return;
+    }
     for (const { g, people: p } of games) {
       const div = document.createElement("div");
       const gs = document.createElement("span");

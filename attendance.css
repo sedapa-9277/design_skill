@@ -1066,3 +1066,17 @@ body.locked #memberPanel #addForm,
 body.locked #memberPanel .team-name-row .row-btn { display: none; }
 body.locked #memberPanel .mlist li { min-height: 40px; }
 body.locked #memberPanel > .hint { display: none; }
+
+/* 이날 요약: 기록 없는 날 안내, 복사 버튼 비활성 */
+.roster-empty {
+  display: grid;
+  gap: 4px;
+  padding: 16px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  text-align: center;
+  color: var(--muted);
+  font-size: .85rem;
+}
+.roster-empty strong { color: var(--fg); font-size: .95rem; }
+.btn-ghost:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); }
