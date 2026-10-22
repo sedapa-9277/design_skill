@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "축구회 경기 출석부 (내 폰)",
+  "short_name": "출석부 (내 폰)",
+  "description": "믿음·소망·사랑팀 경기별 출석과 포지션 배치, 참석 통계 — 기록은 이 폰에만 저장",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef2ec",
+  "theme_color": "#1d6e3a",
+  "icons": [
+    { "src": "../icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "../icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "../icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
