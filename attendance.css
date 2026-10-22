@@ -981,3 +981,6 @@ body.modal-open { overflow: hidden; }
 @media (hover: none) {
   .btn-danger:hover:not(:disabled):not(.confirm) { background: var(--danger-bg); filter: none; }
 }
+
+/* 참석 통계: 요약 줄을 없앤 뒤 정렬 버튼만 오른쪽에 */
+.stats-bar { justify-content: flex-end; }

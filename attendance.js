@@ -985,12 +985,12 @@
     const ids = activeMembers().map(([id]) => id);
     const allIds = teamMembers(true).map(([id]) => id);
 
-    let playedGames = 0, totalSlots = 0;
+    let playedGames = 0;
     const stat = new Map(ids.map((id) => [id, { games: 0, days: 0 }]));
     for (const d of dates) {
       for (const g of GAMES) {
         const c = allIds.filter((id) => attended(d, id, g)).length;
-        if (c) { playedGames++; totalSlots += c; }
+        if (c) playedGames++;
       }
       for (const id of ids) {
         const n = GAMES.filter((g) => attended(d, id, g)).length;
@@ -999,11 +999,6 @@
         if (n) s.days++;
       }
     }
-
-    $("periodSummary").innerHTML =
-      `<span><b class="num">${dates.length}</b>일 모임</span>` +
-      `<span><b class="num">${playedGames}</b>경기 진행</span>` +
-      `<span>경기당 평균 <b class="num">${playedGames ? (totalSlots / playedGames).toFixed(1) : 0}</b>명</span>`;
 
     const rows = ids.map((id) => ({ id, name: S.members.get(id).name, ...stat.get(id) }))
       .sort((a, b) => b.games - a.games || b.days - a.days || a.name.localeCompare(b.name, "ko"));
