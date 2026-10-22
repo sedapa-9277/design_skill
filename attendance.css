@@ -1158,3 +1158,8 @@ body.locked #memberPanel > .hint { display: none; }
   .stats-bar { flex-wrap: wrap; }
   .export-btn { order: 2; width: 100%; justify-content: center; min-height: 40px; }
 }
+
+/* 휴대폰 상단 팀 버튼 글씨 조금 크게 */
+@media (max-width: 860px) {
+  .teams button { font-size: 1.15rem; padding: 8px 4px; }
+}
