@@ -826,3 +826,24 @@ html { -webkit-text-size-adjust: 100%; }
 .recent10 .c:not(.legend .c) { aspect-ratio: auto; height: 38px; grid-template-rows: auto auto; align-content: center; gap: 0; line-height: 1.05; }
 .recent10 .c small { font-size: .56rem; font-weight: 500; opacity: .85; }
 .recent10 .c b { font-family: var(--font-display); font-weight: 400; font-size: .95rem; }
+
+/* 출석판: 경기 추가(+) / 닫기(−) */
+.att th.add-col { width: 1%; white-space: nowrap; vertical-align: middle; }
+.game-add {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 2px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--pitch);
+  background: transparent;
+  color: var(--pitch);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.game-add:hover { background: var(--pitch-soft); }
+.game-add.minus { border-color: var(--line); color: var(--muted); }
+.att th.add-col .game-add + .game-add { margin-left: 0; }
+@media (max-width: 860px) { .game-add { width: 34px; height: 34px; } .att th.add-col { padding-inline: 0; } }

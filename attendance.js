@@ -42,6 +42,7 @@
     period: "month",
     rankSort: "rate",         // rate | name
     rankOpen: null,           // 통계에서 최근 10경기를 펼친 회원 id
+    shownGames: new Map(),    // "date|팀" -> 출석판에 직접 늘려 둔 경기 수
     confirmDel: null,
     confirmPurge: null,
     editId: null,
@@ -570,11 +571,63 @@
     picker.append(sum, head, list);
   }
 
+  // 출석판에 보이는 경기 수: 기본 4경기, 기록이 있거나 직접 추가한 경기까지 (최대 6)
+  const BASE_GAMES = 4;
+  function shownKey() { return `${S.date}|${S.team}`; }
+  function usedGames() {
+    const ids = teamMembers(true).map(([id]) => id);
+    let max = 0;
+    for (const g of GAMES) {
+      if (ids.some((id) => attended(S.date, id, g)) || lineupOf(S.date, g).slots.some(Boolean)) max = g;
+    }
+    return max;
+  }
+  function visibleGames() {
+    const n = Math.max(BASE_GAMES, usedGames(), S.shownGames.get(shownKey()) || 0);
+    return GAMES.slice(0, Math.min(n, GAMES.length));
+  }
+
   function renderGrid() {
     const list = activeMembers();
-    const counts = GAMES.map((g) => list.filter(([id]) => attended(S.date, id, g)).length);
-    $("attHead").innerHTML = `<tr><th class="name">이름</th>${GAMES.map((g, i) =>
-      `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}</tr>`;
+    const games = visibleGames();
+    const counts = games.map((g) => list.filter(([id]) => attended(S.date, id, g)).length);
+    const canAdd = games.length < GAMES.length;
+    const canRemove = games.length > BASE_GAMES && games.length > usedGames();
+    const head = document.createElement("tr");
+    head.innerHTML = `<th class="name">이름</th>${games.map((g, i) =>
+      `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}`;
+    if (canAdd || canRemove) {
+      const th = document.createElement("th");
+      th.className = "add-col";
+      if (canAdd) {
+        const add = document.createElement("button");
+        add.type = "button";
+        add.className = "game-add";
+        add.textContent = "+";
+        add.title = `${games.length + 1}경기 추가`;
+        add.setAttribute("aria-label", add.title);
+        add.addEventListener("click", () => {
+          S.shownGames.set(shownKey(), games.length + 1);
+          renderGrid();
+        });
+        th.append(add);
+      }
+      if (canRemove) {
+        const rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "game-add minus";
+        rm.textContent = "−";
+        rm.title = `${games.length}경기 칸 닫기`;
+        rm.setAttribute("aria-label", rm.title);
+        rm.addEventListener("click", () => {
+          S.shownGames.set(shownKey(), games.length - 1);
+          renderGrid();
+        });
+        th.append(rm);
+      }
+      head.append(th);
+    }
+    $("attHead").replaceChildren(head);
 
     const body = $("attBody");
     body.replaceChildren();
@@ -588,7 +641,7 @@
     if (!list.length) {
       empty.hidden = false;
       $("emptyTitle").textContent = `${S.team}팀에 등록된 회원이 없습니다`;
-      $("emptyText").textContent = "PIN으로 잠금을 해제한 뒤 회원 관리에서 이름을 추가하면 이 팀의 1~6경기 출석판이 생깁니다.";
+      $("emptyText").textContent = "PIN으로 잠금을 해제한 뒤 회원 관리에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다.";
       return;
     }
     empty.hidden = true;
@@ -603,15 +656,16 @@
       const sub = document.createElement("span");
       sub.className = "sub";
       sub.textContent = n ? `${n}경기 출전` : "불참";
+      // "전 경기"는 지금 보이는 경기만 체크/해제한다
       const all = document.createElement("button");
       all.className = "row-btn";
-      const full = n === GAMES.length;
+      const full = games.every((g) => attended(S.date, id, g));
       all.textContent = full ? "전체 해제" : "전 경기";
-      all.addEventListener("click", () => setGames(id, GAMES, !full));
+      all.addEventListener("click", () => setGames(id, games, !full));
       tdName.append(sub, all);
       tr.append(tdName);
 
-      for (const g of GAMES) {
+      for (const g of games) {
         const td = document.createElement("td");
         const b = document.createElement("button");
         const on = attended(S.date, id, g);
@@ -623,6 +677,7 @@
         td.append(b);
         tr.append(td);
       }
+      if (canAdd || canRemove) tr.append(document.createElement("td"));
 
       body.append(tr);
     }
