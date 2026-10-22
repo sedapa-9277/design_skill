@@ -44,6 +44,7 @@
     rankOpen: null,           // 통계에서 최근 10경기를 펼친 회원 id
     shownGames: new Map(),    // "date|팀" -> 출석판에 직접 늘려 둔 경기 수
     confirmDeleteDay: null,   // "date|팀": 날짜 기록 삭제 확인 중
+    confirmClearGame: null,   // "date|팀|gN": 경기 참석 초기화 확인 중
     confirmDel: null,
     confirmPurge: null,
     editId: null,
@@ -776,6 +777,26 @@
     picker.append(sum, head, list);
   }
 
+  // 한 경기의 이 팀 참석을 모두 해제 (그 경기 포지션 배치에서도 빠진다)
+  function clearGame(g, key) {
+    if (needPin()) return;
+    if (S.confirmClearGame !== key) {
+      S.confirmClearGame = key;
+      renderGrid();
+      setTimeout(() => { if (S.confirmClearGame === key) { S.confirmClearGame = null; renderGrid(); } }, 3000);
+      return;
+    }
+    S.confirmClearGame = null;
+    const date = S.date, team = S.team, gk = `g${g}`;
+    const pend = [];
+    for (const [id] of teamMembers(true)) {
+      if (attended(date, id, g)) pend.push([S.pending, `${date}|${id}|${gk}`, false]);
+    }
+    lineupOf(date, g).slots.forEach((v, i) => { if (v) pend.push([S.pendingLineup, `${date}|${team}|${gk}|s${i}`, null]); });
+    write(date, pend, () => rpc("clear_team_game", { p_day: date, p_team: team, p_game: g }),
+      (n) => `${g}경기 참석 ${n ?? pend.length}명을 초기화했습니다.`);
+  }
+
   // 출석판에 보이는 경기 수: 기본 4경기, 기록이 있거나 직접 추가한 경기까지 (최대 6)
   const BASE_GAMES = 4;
   function shownKey() { return `${S.date}|${S.team}`; }
@@ -801,6 +822,20 @@
     const head = document.createElement("tr");
     head.innerHTML = `<th class="name">이름</th>${games.map((g, i) =>
       `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}`;
+    // 경기별 참석 초기화: 체크된 사람이 있을 때만 작게 표시, 한 번 더 눌러야 실행
+    games.forEach((g, i) => {
+      if (!counts[i]) return;
+      const key = `${shownKey()}|g${g}`;
+      const confirming = S.confirmClearGame === key;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "game-reset" + (confirming ? " confirm" : "");
+      b.textContent = confirming ? "확인" : "↺";
+      b.title = `${g}경기 참석 모두 해제`;
+      b.setAttribute("aria-label", confirming ? `${g}경기 참석 초기화 확인` : `${g}경기 참석 초기화`);
+      b.addEventListener("click", () => clearGame(g, key));
+      head.children[i + 1].append(b);
+    });
     if (canAdd || canRemove) {
       const th = document.createElement("th");
       th.className = "add-col";

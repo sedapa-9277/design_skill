@@ -1011,3 +1011,25 @@ body.modal-open { overflow: hidden; }
   .cell { width: 33px; height: 33px; }
   .att td.name { max-width: 6em; }
 }
+
+/* 출석판: 경기별 참석 초기화 (작게) */
+.game-reset {
+  display: block;
+  margin: 3px auto 0;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .62rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.game-reset:hover { border-color: var(--danger); color: var(--danger); }
+.game-reset.confirm,
+.game-reset.confirm:hover { background: #c62828; border-color: #c62828; color: #ffffff; font-weight: 700; }
+/* 초기화 아이콘: 좁은 경기 칸을 넓히지 않도록 작게 */
+.game-reset { min-width: 24px; height: 20px; padding: 0 5px; font-size: .78rem; line-height: 18px; }
+.game-reset.confirm { font-size: .62rem; padding: 0 4px; }
