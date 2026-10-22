@@ -1132,3 +1132,19 @@ body.locked #memberPanel > .hint { display: none; }
 @media (max-width: 860px) {
   .att th.add-col .game-add { display: grid; width: 32px; height: 32px; margin: 2px auto; }
 }
+
+/* 포지션 회원 고르기: 최근 3번 모임 불참자는 구분선 아래에 흐리게 */
+.pick-divider {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+  font-size: .72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pick-divider::before,
+.pick-divider::after { content: ""; flex: 1; border-top: 1px dashed var(--muted); opacity: .6; }
+.pick.rare { opacity: .45; }
+.pick.rare:hover, .pick.rare:focus-visible { opacity: .8; }

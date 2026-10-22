@@ -829,11 +829,24 @@
     const list = document.createElement("div");
     list.className = "picker-list";
     const placedAt = new Map(slots.map((v, k) => [v, k]).filter(([v]) => v));
-    const members = activeMembers().sort((a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko"));
+    // 최근 3번 모임(보고 있는 날짜까지) 중 한 번도 안 나온 회원은 구분선 아래로 보내고 흐리게
+    const recent3 = [...S.days.keys()].filter((d) => d <= S.date && hasAny(d)).sort().slice(-3);
+    const cameRecently = (id) => recent3.some((d) => GAMES.some((g) => attended(d, id, g)));
+    const order = (a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko");
+    const all = activeMembers();
+    const regulars = recent3.length ? all.filter(([id]) => cameRecently(id) || placedAt.has(id)) : all;
+    const rare = recent3.length ? all.filter(([id]) => !cameRecently(id) && !placedAt.has(id)) : [];
+    const members = [...regulars.sort(order), ...rare.sort(order)];
     for (const [id, m] of members) {
+      if (rare.length && id === rare[0][0]) {
+        const hr = document.createElement("div");
+        hr.className = "pick-divider";
+        hr.textContent = `최근 ${recent3.length}번 모임 불참`;
+        list.append(hr);
+      }
       const b = document.createElement("button");
       const at = placedAt.get(id);
-      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "");
+      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "") + (rare.some(([rid]) => rid === id) ? " rare" : "");
       b.textContent = m.name;
       if (at !== undefined && id !== cur) {
         const s = document.createElement("small");
