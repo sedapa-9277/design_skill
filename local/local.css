@@ -1181,3 +1181,11 @@ body.locked #memberPanel > .hint { display: none; }
   .stats-bar { flex-wrap: wrap; }
   .export-btn { order: 2; width: 100%; justify-content: center; min-height: 40px; }
 }
+
+/* 회원 관리: 팀 관리 (팀 추가 · 회원 전체 삭제 · 팀 삭제) */
+.team-tools { flex-wrap: wrap; }
+.team-tools > .muted { flex: 1; min-width: 4em; }
+.team-tools .row-btn:disabled { opacity: .45; cursor: not-allowed; }
+.team-tools .row-btn.danger.confirm,
+.team-tools .row-btn.danger.confirm:hover,
+.team-tools .row-btn.danger.confirm:active { background: #c62828; border-color: #c62828; color: #fff; }

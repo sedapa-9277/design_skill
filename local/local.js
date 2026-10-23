@@ -11,7 +11,8 @@
 
   // [팀 이름, 주소 뒤 # 링크]
   const TEAMS = [["믿음", "faith"], ["소망", "hope"], ["사랑", "love"]];
-  const teamFromHash = () => TEAMS.find(([, h]) => "#" + h === location.hash)?.[0] || null;
+  // 삭제한(쓰지 않는) 팀 링크는 null — 첫 번째 사용 중인 팀으로 간다
+  const teamFromHash = () => TEAMS.find(([t, h]) => "#" + h === location.hash && isActiveTeam(t))?.[0] || null;
 
   const GAMES = [1, 2, 3, 4, 5, 6];
   const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -48,6 +49,10 @@
     confirmDeleteDay: null,   // "date|팀": 날짜 기록 삭제 확인 중
     confirmClearGame: null,   // "date|팀|gN": 경기 참석 초기화 확인 중
     teamNames: {},            // 팀 구분값 -> 화면에 보이는 팀 이름
+    teamActive: { 믿음: true, 소망: true, 사랑: true }, // 팀 구분값 -> 사용 중인지 (최소 1팀)
+    addingTeam: false,        // 회원 관리에서 새 팀 이름 입력 중
+    confirmTeamDel: null,     // 팀 삭제 확인 중인 팀
+    confirmTeamPurge: null,   // 팀 회원 전체 삭제 확인 중인 팀
     editTeamName: false,      // 회원 관리에서 팀 이름 고치는 중
     confirmDel: null,
     confirmPurge: null,
@@ -84,6 +89,8 @@
   function memberName(id) { return S.members.get(id)?.name || "(삭제된 회원)"; }
   // 화면에 보이는 팀 이름 (회원 관리에서 바꿀 수 있음). 저장된 이름이 없으면 "믿음팀"처럼 기본값
   function tn(team) { return S.teamNames[team] || `${team}팀`; }
+  function isActiveTeam(t) { return S.teamActive[t] !== false; }
+  function activeTeams() { return TEAMS.filter(([t]) => isActiveTeam(t)); }
 
   let toastTimer;
   function toast(msg) {
@@ -149,6 +156,7 @@
       savedAt: new Date().toISOString(),
       members: [...S.members].map(([id, m]) => ({ id, name: m.name, active: m.active !== false, team: m.team, created_at: m.created_at || null })),
       teamNames: { ...S.teamNames },
+      teamActive: Object.fromEntries(TEAMS.map(([t]) => [t, isActiveTeam(t)])),
       days,
     };
   }
@@ -191,13 +199,21 @@
     for (const [t, n] of Object.entries(o.teamNames || {})) {
       if (teams.has(t) && typeof n === "string" && n.trim()) teamNames[t] = n.trim().slice(0, 12);
     }
-    return { members, days, teamNames };
+    // 사용 중인 팀 (예전 백업에는 없으니 모두 사용 중으로)
+    const teamActive = Object.fromEntries(TEAMS.map(([t]) => [t, o.teamActive?.[t] !== false]));
+    if (!Object.values(teamActive).some(Boolean)) TEAMS.forEach(([t]) => { teamActive[t] = true; });
+    return { members, days, teamNames, teamActive };
   }
 
   function applyData(parsed) {
     S.members = parsed ? parsed.members : new Map();
     S.days = parsed ? parsed.days : new Map();
     S.teamNames = parsed ? parsed.teamNames : {};
+    S.teamActive = parsed ? parsed.teamActive : Object.fromEntries(TEAMS.map(([t]) => [t, true]));
+    S.addingTeam = false;
+    S.confirmTeamDel = null;
+    S.confirmTeamPurge = null;
+    if (!isActiveTeam(S.team)) switchToTeam(activeTeams()[0][0]);
   }
 
   function countData(data) {
@@ -250,7 +266,11 @@
 
   function handleErr(e) {
     const msg = String(e?.message || "");
-    if (msg.includes("duplicate_team_name")) {
+    if (msg.includes("last_team")) {
+      toast("마지막 남은 팀은 삭제할 수 없습니다.");
+    } else if (msg.includes("max_teams")) {
+      toast("팀은 최대 3개까지 만들 수 있습니다.");
+    } else if (msg.includes("duplicate_team_name")) {
       toast("다른 팀이 이미 쓰는 이름입니다.");
     } else if (msg.includes("duplicate_name")) {
       toast("같은 이름의 회원이 이미 명단에 있습니다.");
@@ -388,16 +408,53 @@
     const m = S.members.get(id);
     if (!m) fail("no_member");
     if (m.active !== false) fail("not_inactive");
-    S.members.delete(id);
+    wipeMembers(new Set([id]));
+  }
+
+  // 회원 정보와 그 회원들의 출석·포지션 기록을 모두 지운다
+  function wipeMembers(ids) {
+    for (const id of ids) S.members.delete(id);
     for (const [date, day] of [...S.days]) {
-      delete day.att[id];
+      for (const id of ids) delete day.att[id];
       for (const games of Object.values(day.lineup)) {
         for (const lu of Object.values(games)) {
-          for (const [s, v] of Object.entries(lu.pos || {})) if (v === id) delete lu.pos[s];
+          for (const [s, v] of Object.entries(lu.pos || {})) if (ids.has(v)) delete lu.pos[s];
         }
       }
       tidyDay(date);
     }
+  }
+
+  // 팀 회원 전체 삭제 (명단에서 뺀 회원 포함). 팀은 남는다. 지운 회원 수를 돌려준다
+  function dbPurgeTeamMembers(team) {
+    const ids = new Set([...S.members].filter(([, m]) => m.team === team).map(([id]) => id));
+    wipeMembers(ids);
+    return ids.size;
+  }
+
+  // 팀 삭제: 회원·출석·포지션을 모두 지우고 팀을 쉬게 한다 (이름은 기본값으로). 마지막 한 팀은 지울 수 없다
+  function dbDeleteTeam(team) {
+    if (!isActiveTeam(team) || activeTeams().length <= 1) fail("last_team");
+    dbPurgeTeamMembers(team);
+    for (const [date, day] of [...S.days]) {
+      delete day.lineup[team];
+      tidyDay(date);
+    }
+    S.teamActive[team] = false;
+    delete S.teamNames[team];
+  }
+
+  // 팀 추가: 쉬고 있는 첫 번째 팀 자리를 새 이름으로 다시 쓴다. 그 팀 구분값을 돌려준다
+  function dbAddTeam(name) {
+    if (!name) fail("empty_name");
+    const free = TEAMS.find(([t]) => !isActiveTeam(t));
+    if (!free) fail("max_teams");
+    if (activeTeams().some(([t]) => tn(t).toLowerCase() === name.toLowerCase())) fail("duplicate_team_name");
+    const t = free[0];
+    S.teamActive[t] = true;
+    if (name === `${t}팀`) delete S.teamNames[t];
+    else S.teamNames[t] = name;
+    return t;
   }
 
   // 날짜 기록 삭제: 그날 이 팀 회원의 출석과 이 팀 포지션만 지운다
@@ -426,7 +483,7 @@
   // 팀 이름: 화면에 보이는 이름만 바꾼다 (기록은 믿음·소망·사랑 구분값으로 남는다)
   function dbRenameTeam(team, name) {
     if (!name) fail("empty_name");
-    if (TEAMS.some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) fail("duplicate_team_name");
+    if (activeTeams().some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) fail("duplicate_team_name");
     if (name === `${team}팀`) delete S.teamNames[team];
     else S.teamNames[team] = name;
   }
@@ -766,7 +823,7 @@
     const team = S.team, before = tn(team);
     if (!name) { toast("팀 이름을 입력해 주세요."); return; }
     if (name === before) { S.editTeamName = false; renderTeamName(); return; }
-    if (TEAMS.some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) {
+    if (activeTeams().some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) {
       toast("다른 팀이 이미 쓰는 이름입니다.");
       return;
     }
@@ -775,10 +832,105 @@
     if (ok) { S.editTeamName = false; renderAll(); }
   }
 
-  function setTeam(team, fromHash) {
-    if (!TEAMS.some(([t]) => t === team)) return;
+  // ---------- 팀 관리: 추가 · 삭제 · 회원 전체 삭제 ----------
+  // 두 번 눌러야 실행되는 빨간 버튼 (4초 안에 다시 누르지 않으면 원래대로)
+  function teamConfirmButton(text, confirmText, stateKey, disabled, onConfirm) {
+    const b = document.createElement("button");
+    b.type = "button";
+    const confirming = !disabled && S[stateKey] === S.team;
+    b.className = "row-btn danger" + (confirming ? " confirm" : "");
+    b.textContent = confirming ? confirmText : text;
+    b.disabled = disabled;
+    b.addEventListener("click", () => {
+      const team = S.team;
+      if (S[stateKey] === team) { S[stateKey] = null; onConfirm(team); return; }
+      S[stateKey] = team;
+      renderTeamTools();
+      setTimeout(() => { if (S[stateKey] === team) { S[stateKey] = null; renderTeamTools(); } }, 4000);
+    });
+    return b;
+  }
+
+  function renderTeamTools() {
+    const box = $("teamTools");
+    box.replaceChildren();
+    if (S.addingTeam) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = "newTeamInput";
+      input.className = "edit-input";
+      input.maxLength = 12;
+      input.placeholder = "새 팀 이름";
+      input.setAttribute("aria-label", "새 팀 이름");
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "row-btn";
+      add.textContent = "추가";
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "row-btn";
+      cancel.textContent = "취소";
+      const doAdd = () => addTeam(input.value);
+      const doCancel = () => { S.addingTeam = false; renderTeamTools(); };
+      add.addEventListener("click", doAdd);
+      cancel.addEventListener("click", doCancel);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); doAdd(); }
+        if (e.key === "Escape") doCancel();
+      });
+      box.append(input, add, cancel);
+      setTimeout(() => input.focus(), 0);
+      return;
+    }
+    const label = document.createElement("span");
+    label.className = "muted";
+    label.textContent = "팀 관리";
+    box.append(label);
+    if (activeTeams().length < TEAMS.length) {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "row-btn";
+      add.textContent = "팀 추가";
+      add.addEventListener("click", () => { S.addingTeam = true; S.confirmTeamDel = null; S.confirmTeamPurge = null; renderTeamTools(); });
+      box.append(add);
+    }
+    const n = teamMembers(true).length;
+    box.append(teamConfirmButton("회원 전체 삭제", `정말 ${n}명 모두 삭제할까요?`, "confirmTeamPurge", n === 0, purgeTeamMembers));
+    const last = activeTeams().length <= 1;
+    const del = teamConfirmButton("팀 삭제", "정말 삭제할까요? 회원·기록 모두 삭제", "confirmTeamDel", last, deleteTeam);
+    if (last) del.title = "마지막 남은 팀은 삭제할 수 없습니다";
+    box.append(del);
+  }
+
+  async function addTeam(raw) {
+    const name = String(raw || "").trim().slice(0, 12);
+    if (!name) { toast("팀 이름을 입력해 주세요."); return; }
+    if (activeTeams().some(([t]) => tn(t).toLowerCase() === name.toLowerCase())) { toast("다른 팀이 이미 쓰는 이름입니다."); return; }
+    let team = null;
+    const ok = await write(() => { team = dbAddTeam(name); }, `${name} 팀을 추가했습니다. 회원을 추가해 주세요.`);
+    if (ok) { S.addingTeam = false; setTeam(team); }
+  }
+
+  function deleteTeam(team) {
+    const name = tn(team);
+    write(() => {
+      dbDeleteTeam(team);
+      switchToTeam(activeTeams()[0][0]);
+    }, `${name}을(를) 삭제했습니다. 회원과 기록도 모두 지웠습니다.`);
+  }
+
+  function purgeTeamMembers(team) {
+    const name = tn(team);
+    write(() => dbPurgeTeamMembers(team), (n) => `${name} 회원 ${n}명과 그 기록을 모두 삭제했습니다.`);
+  }
+
+  // 화면을 다시 그리지 않고 지금 팀만 바꾼다 (주소 # 와 마지막 팀 기억도 함께)
+  function switchToTeam(team) {
     S.team = team;
     S.editTeamName = false;
+    S.addingTeam = false;
+    S.confirmTeamDel = null;
+    S.confirmTeamPurge = null;
     S.rankOpen = null;
     S.pickSlot = null;
     S.editId = null;
@@ -786,14 +938,21 @@
     S.confirmPurge = null;
     try { localStorage.setItem(TEAM_KEY, team); } catch (e) { /* 저장 불가 시 무시 */ }
     const hash = "#" + TEAMS.find(([t]) => t === team)[1];
-    if (!fromHash && location.hash !== hash) history.replaceState(null, "", hash);
+    if (location.hash !== hash) history.replaceState(null, "", hash);
+  }
+
+  function setTeam(team) {
+    if (!TEAMS.some(([t]) => t === team) || !isActiveTeam(team)) return;
+    switchToTeam(team);
     renderAll();
   }
 
   function renderTeams() {
     const box = $("teamTabs");
     box.replaceChildren();
-    for (const [t] of TEAMS) {
+    const teams = activeTeams();
+    box.style.gridTemplateColumns = `repeat(${teams.length}, 1fr)`;
+    for (const [t] of teams) {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = `${tn(t)}`;
@@ -961,7 +1120,10 @@
         fetchTable("attendance", "day,member_id,game", "day,member_id,game"),
         fetchTable("lineups", "day,team,game,formation", "day,team,game"),
         fetchTable("lineup_slots", "day,team,game,slot,member_id", "day,team,game,slot"),
-        fetchTable("team_names", "team,name", "team").catch(() => []), // 표가 없어도 나머지는 가져온다
+        // 팀 이름·사용 여부: active 열이 없으면 이름만, 표가 없으면 빈 목록
+        fetchTable("team_names", "team,name,active", "team")
+          .catch(() => fetchTable("team_names", "team,name", "team"))
+          .catch(() => []),
       ]);
       const days = {};
       const day = (d) => (days[d] ||= { att: {}, lineup: {} });
@@ -970,7 +1132,8 @@
       for (const r of lineups) lu(r).formation = r.formation;
       for (const r of slots) lu(r).pos[`s${r.slot}`] = r.member_id;
       const teamNames = Object.fromEntries(teamRows.map((r) => [r.team, r.name]));
-      parsed = parseData({ members, days, teamNames });
+      const teamActive = Object.fromEntries(teamRows.filter((r) => r.active === false).map((r) => [r.team, false]));
+      parsed = parseData({ members, days, teamNames, teamActive });
     } catch (e) {
       parsed = null;
     } finally {
@@ -1506,7 +1669,7 @@
       const wb = XLSX.utils.book_new();
       let total = 0;
       const used = new Set();
-      for (const [t] of TEAMS) {
+      for (const [t] of activeTeams()) {
         const rows = teamExportRows(t);
         total += rows.length;
         const ws = XLSX.utils.aoa_to_sheet([["날짜", "인원", "출석자 명단"], ...(rows.length ? rows : [["(이 기간 기록 없음)", "", ""]])]);
@@ -1724,6 +1887,7 @@
 
   function renderMembers() {
     renderTeamName();
+    renderTeamTools();
     const active = activeMembers();
     const inactive = [...S.members.entries()]
       .filter(([, m]) => m.active === false)
@@ -1757,7 +1921,7 @@
         sel.className = "team-sel";
         sel.id = "editTeam-" + id;
         sel.setAttribute("aria-label", `${m.name} 소속 팀`);
-        TEAMS.forEach(([t]) => sel.add(new Option(`${tn(t)}`, t)));
+        activeTeams().forEach(([t]) => sel.add(new Option(`${tn(t)}`, t)));
         sel.value = S.editTeam ?? m.team;
         sel.addEventListener("change", () => { S.editTeam = sel.value; });
         const save = document.createElement("button");
@@ -1876,7 +2040,8 @@
   $("prevDay").addEventListener("click", () => setDate(shiftDate(S.date, -1)));
   $("nextDay").addEventListener("click", () => setDate(shiftDate(S.date, 1)));
   $("datePick").addEventListener("change", (e) => { if (e.target.value) setDate(e.target.value); });
-  window.addEventListener("hashchange", () => { const t = teamFromHash(); if (t && t !== S.team) setTeam(t, true); });
+  // 삭제한 팀 링크로 오면 지금 팀 주소로 되돌린다
+  window.addEventListener("hashchange", () => { const t = teamFromHash(); if (!t) setTeam(S.team); else if (t !== S.team) setTeam(t); });
 
   $("formationSel").addEventListener("change", (e) => {
     setFormation(e.target.value);
@@ -1948,7 +2113,7 @@
   // 팀: 주소의 #faith/#hope/#love → 이 브라우저에서 마지막으로 고른 팀 → 믿음팀
   let savedTeam = null;
   try { savedTeam = localStorage.getItem(TEAM_KEY); } catch (e) { savedTeam = null; }
-  const startTeam = teamFromHash() || (TEAMS.some(([t]) => t === savedTeam) ? savedTeam : "믿음");
+  const startTeam = teamFromHash() || (TEAMS.some(([t]) => t === savedTeam) ? savedTeam : "믿음"); // 저장된 팀 정보를 읽은 뒤 쉬는 팀이면 첫 팀으로 바뀐다
   S.team = startTeam;
   if (!teamFromHash()) history.replaceState(null, "", "#" + TEAMS.find(([t]) => t === startTeam)[1]);
   renderAll();
