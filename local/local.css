@@ -1192,3 +1192,18 @@ body.locked #memberPanel > .hint { display: none; }
 
 /* 안내 메시지는 그림·백업 미리보기 창보다 위에 보이게 */
 .toast { z-index: 60; }
+
+/* 상단: 앱 이름(Best Line-up)을 크게, 날짜는 조금 작게 */
+.board-top .eyebrow {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1.15;
+  letter-spacing: .01em;
+  opacity: 1;
+}
+.date-big { font-size: clamp(1.15rem, 3vw, 1.5rem); opacity: .92; margin-top: 2px; }
+@media (max-width: 860px) {
+  .board-top .eyebrow { font-size: 1.4rem; }
+  .date-big { font-size: 1.05rem; }
+}
