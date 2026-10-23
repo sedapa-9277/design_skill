@@ -1288,3 +1288,6 @@ body.locked #memberPanel > .hint { display: none; }
 .cal-legend { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--muted); }
 .cal-legend .dot-met { width: 14px; height: 14px; border: 2px solid var(--pitch); border-radius: 50%; display: inline-block; }
 .cal-actions { display: inline-flex; gap: 6px; }
+
+/* ---- 포지션에 들어간 경기: "참" 대신 포지션 이름 ---- */
+.att .cell.pos[aria-pressed="true"] { font-size: .72rem; letter-spacing: -.02em; }

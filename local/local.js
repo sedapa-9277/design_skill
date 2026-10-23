@@ -534,6 +534,13 @@
     return null;
   }
 
+  // 그 경기에서 이 회원이 맡은 포지션 이름 (출석판 동그라미에 표시), 없으면 null
+  function posLabel(date, mid, g) {
+    const lu = lineupOf(date, g);
+    const i = lu.slots.indexOf(mid);
+    return i < 0 ? null : FORMATIONS[lu.formation][i][0];
+  }
+
   function setFormation(f) {
     const date = S.date, g = S.lineupGame, t = S.team;
     write(() => dbSetFormation(date, t, g, f));
@@ -954,7 +961,8 @@
     const box = $("teamTabs");
     box.replaceChildren();
     const teams = activeTeams();
-    box.style.gridTemplateColumns = `repeat(${teams.length}, 1fr)`;
+    // 팀이 하나뿐이어도 버튼이 화면 가득 넓어지지 않게 세 팀일 때 크기로 둔다
+    box.style.gridTemplateColumns = `repeat(${teams.length === 1 ? 3 : teams.length}, 1fr)`;
     for (const [t] of teams) {
       const b = document.createElement("button");
       b.type = "button";
@@ -1522,10 +1530,12 @@
         const td = document.createElement("td");
         const b = document.createElement("button");
         const on = attended(S.date, id, g);
-        b.className = "cell";
-        b.textContent = on ? "참" : g;
+        // 포지션에 들어간 경기는 "참" 대신 포지션 이름을 보여 준다
+        const pos = on ? posLabel(S.date, id, g) : null;
+        b.className = "cell" + (pos ? " pos" : "");
+        b.textContent = on ? pos || "참" : g;
         b.setAttribute("aria-pressed", on);
-        b.setAttribute("aria-label", `${m.name} ${g}경기 ${on ? "참석" : "미참석"}`);
+        b.setAttribute("aria-label", `${m.name} ${g}경기 ${on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`);
         b.addEventListener("click", () => toggleCell(id, g));
         td.append(b);
         tr.append(td);
