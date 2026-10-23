@@ -1368,7 +1368,55 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
   background: #00000038;
   box-shadow: inset 0 1px 3px #0000004d, 0 1px 0 #ffffff14;
 }
-@media (min-width: 861px) { .teams { justify-self: start; } }
+/* 팀 선택 + 설정 버튼 한 줄: 휴대폰은 팀 선택이 남는 폭을 다 쓰고, PC는 내용만큼 */
+.team-row { display: flex; align-items: center; gap: 8px; }
+.team-row .teams { flex: 1; min-width: 0; }
+@media (min-width: 861px) { .team-row .teams { flex: none; } .team-row .set-btn { margin-left: auto; } }
+.set-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px; height: 44px;
+  padding: 0;
+  border: 1px solid #ffffff2b;
+  border-radius: 12px;
+  background: #ffffff12;
+  color: #ffffffd9;
+  box-shadow: inset 0 1px 0 #ffffff1f;
+  cursor: pointer;
+  transition: background .15s, transform .3s;
+}
+.set-btn:hover { background: #ffffff24; color: #fff; }
+.set-btn:active { transform: rotate(45deg); }
+.set-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* 설정 창 */
+.set-card { grid-template-rows: none; gap: 16px; }
+.set-group { display: grid; gap: 8px; }
+.set-label { font-size: .82rem; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+.set-card .seg { display: flex; width: 100%; }
+.set-card .seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 0; font-size: .95rem; }
+.set-card .seg svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 구장 아래쪽을 왼쪽에서 오른쪽으로 굴러가는 작은 축구공 */
+.board > .ball-roll {
+  position: absolute;
+  z-index: 0;
+  left: -16px;
+  bottom: 3px;
+  width: 11px; height: 11px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23fff' stroke='%23222' stroke-width='1.4'/%3E%3Cpolygon points='10,6.4 13.4,8.9 12.1,12.8 7.9,12.8 6.6,8.9' fill='%23222'/%3E%3Cpath d='M10 6.4V2.2M13.4 8.9l3.9-1.3M12.1 12.8l2.4 3.3M7.9 12.8l-2.4 3.3M6.6 8.9L2.7 7.6' stroke='%23222' stroke-width='1.2'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 1px 1px #00000080);
+  pointer-events: none;
+  animation: ballRoll 11s linear infinite;
+}
+/* 왼쪽 밖에서 들어와 오른쪽 밖으로 굴러 나간 뒤, 잠깐 쉬었다 다시 */
+@keyframes ballRoll {
+  0% { left: -16px; transform: rotate(0deg); }
+  72% { left: calc(100% + 4px); transform: rotate(1440deg); }
+  100% { left: calc(100% + 4px); transform: rotate(1440deg); }
+}
+@media (prefers-reduced-motion: reduce) { .board > .ball-roll { display: none; } }
 .teams button {
   border: 0;
   background: transparent;

@@ -12,8 +12,22 @@
   const teamFromHash = () => TEAMS.find(([t, h]) => "#" + h === location.hash && isActiveTeam(t))?.[0] || null;
 
   const GAMES = [1, 2, 3, 4, 5, 6];
-  const WD = ["일", "월", "화", "수", "목", "금", "토"];
+  const WD_KO = ["일", "월", "화", "수", "목", "금", "토"];
+  const WD_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MON_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const $ = (id) => document.getElementById(id);
+
+  // ---------- 설정: 언어(기본 영어)와 화면 모드 ----------
+  const LANG_KEY = "soccer-local-lang";
+  const THEME_KEY = "soccer-local-theme";
+  let lang = "en";
+  try { if (localStorage.getItem(LANG_KEY) === "ko") lang = "ko"; } catch (e) { /* 저장 불가 시 기본값 */ }
+  // 한국어/영어 문구 고르기: 소스에는 한국어를 먼저 쓰고 영어를 옆에 둔다
+  const L = (ko, en) => (lang === "ko" ? ko : en);
+  const wd = (i) => (lang === "ko" ? WD_KO : WD_EN)[i];
+  const monthName = (m) => L(`${m + 1}월`, MON_EN[m]); // m: 0~11
+  // 기본 팀 이름(영어): 회원 관리에서 바꾼 이름이 있으면 그 이름을 쓴다
+  const TEAM_EN = { 믿음: "Faith", 소망: "Hope", 사랑: "Love" };
 
   // 포메이션: [포지션, x%, y%] — 위쪽이 상대 골문, 첫 번째는 항상 GK
   const FORMATIONS = {
@@ -64,8 +78,9 @@
   function parseYmd(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
   function label(s, short) {
     const d = parseYmd(s);
-    return short ? `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`
-                 : `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})`;
+    return short ? `${d.getMonth() + 1}/${d.getDate()}(${wd(d.getDay())})`
+                 : L(`${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${wd(d.getDay())})`,
+                     `${wd(d.getDay())}, ${MON_EN[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`);
   }
   function shiftDate(s, n) { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
 
@@ -83,9 +98,9 @@
     for (const [id, m] of S.members) if (id !== exceptId && m.active && m.name === name) return m;
     return null;
   }
-  function memberName(id) { return S.members.get(id)?.name || "(삭제된 회원)"; }
-  // 화면에 보이는 팀 이름 (회원 관리에서 바꿀 수 있음). 저장된 이름이 없으면 "믿음팀"처럼 기본값
-  function tn(team) { return S.teamNames[team] || `${team}팀`; }
+  function memberName(id) { return S.members.get(id)?.name || L("(삭제된 회원)", "(deleted member)"); }
+  // 화면에 보이는 팀 이름 (회원 관리에서 바꿀 수 있음). 저장된 이름이 없으면 "믿음팀"/"Faith"처럼 기본값
+  function tn(team) { return S.teamNames[team] || L(`${team}팀`, TEAM_EN[team] || team); }
   function isActiveTeam(t) { return S.teamActive[t] !== false; }
   function activeTeams() { return TEAMS.filter(([t]) => isActiveTeam(t)); }
 
@@ -97,7 +112,13 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
   }
-  function showNotice(msg) { const n = $("notice"); n.textContent = msg; n.hidden = !msg; }
+  // msg는 문자열 또는 문구를 돌려주는 함수 (함수면 언어를 바꿀 때 다시 그린다)
+  let noticeMsg = "";
+  function showNotice(msg) {
+    noticeMsg = msg;
+    const text = typeof msg === "function" ? msg() : msg;
+    const n = $("notice"); n.textContent = text; n.hidden = !text;
+  }
 
   // ---------- 저장소 (IndexedDB, 못 쓰면 localStorage) ----------
   // 키 "data" 하나에 회원·출석·포지션 전체를 통째로 저장한다. 동호회 한 곳 분량이라 충분히 작다
@@ -226,7 +247,8 @@
     for (const d of data.days.values()) for (const gs of Object.values(d.att)) att += Object.keys(gs).length;
     return { members: data.members.size, days: data.days.size, att };
   }
-  const countText = (c) => `회원 ${c.members}명 · 모임 ${c.days}일 · 출석 ${c.att}건`;
+  const countText = (c) => L(`회원 ${c.members}명 · 모임 ${c.days}일 · 출석 ${c.att}건`,
+    `${c.members} members · ${c.days} days · ${c.att} check-ins`);
 
   function dayOf(map, d) {
     if (!map.has(d)) map.set(d, { att: {}, lineup: {} });
@@ -241,10 +263,12 @@
       applyData(parsed);
       try { S.lastBackup = (await kvGet("lastBackup")) || null; } catch (e) { S.lastBackup = null; }
       S.mode = "live";
-      showNotice(idb ? "" : "이 브라우저는 IndexedDB를 쓸 수 없어 임시 저장소에 저장합니다. 백업 파일을 자주 저장해 주세요.");
+      showNotice(idb ? "" : () => L("이 브라우저는 IndexedDB를 쓸 수 없어 임시 저장소에 저장합니다. 백업 파일을 자주 저장해 주세요.",
+        "This browser can't use IndexedDB, so records are kept in temporary storage. Save a backup file often."));
     } catch (e) {
       S.mode = "offline";
-      showNotice("이 기기의 저장소를 열 수 없습니다. 시크릿(비공개) 창이라면 일반 창에서 열어 주세요.");
+      showNotice(() => L("이 기기의 저장소를 열 수 없습니다. 시크릿(비공개) 창이라면 일반 창에서 열어 주세요.",
+        "Can't open this device's storage. If this is a private window, open the app in a normal window."));
     }
     renderAll();
   }
@@ -272,27 +296,27 @@
   function handleErr(e) {
     const msg = String(e?.message || "");
     if (msg.includes("last_team")) {
-      toast("마지막 남은 팀은 삭제할 수 없습니다.");
+      toast(L("마지막 남은 팀은 삭제할 수 없습니다.", "You can't delete the last remaining team."));
     } else if (msg.includes("max_teams")) {
-      toast("팀은 최대 3개까지 만들 수 있습니다.");
+      toast(L("팀은 최대 3개까지 만들 수 있습니다.", "You can have up to 3 teams."));
     } else if (msg.includes("duplicate_team_name")) {
-      toast("다른 팀이 이미 쓰는 이름입니다.");
+      toast(L("다른 팀이 이미 쓰는 이름입니다.", "Another team already uses that name."));
     } else if (msg.includes("duplicate_name")) {
-      toast("같은 이름의 회원이 이미 명단에 있습니다.");
+      toast(L("같은 이름의 회원이 이미 명단에 있습니다.", "A member with the same name is already on the roster."));
     } else if (msg.includes("wrong_team")) {
-      toast("다른 팀 회원은 이 팀 포지션에 넣을 수 없습니다.");
+      toast(L("다른 팀 회원은 이 팀 포지션에 넣을 수 없습니다.", "Members of another team can't be placed in this team's lineup."));
     } else if (msg.includes("empty_name")) {
-      toast("이름을 입력해 주세요.");
+      toast(L("이름을 입력해 주세요.", "Please enter a name."));
     } else if (msg.includes("not_inactive")) {
-      toast("명단에서 뺀 회원만 완전히 삭제할 수 있습니다.");
+      toast(L("명단에서 뺀 회원만 완전히 삭제할 수 있습니다.", "Only members removed from the roster can be permanently deleted."));
     } else {
-      toast("이 폰에 저장하지 못했습니다. 저장 공간이 부족한지 확인해 주세요.");
+      toast(L("이 폰에 저장하지 못했습니다. 저장 공간이 부족한지 확인해 주세요.", "Couldn't save on this phone. Check that there is enough storage space."));
     }
   }
 
   // change(): 규칙을 검사한 뒤 메모리 상태를 고친다. 성공하면 저장하고 okMsg를 띄우고 true를 돌려준다
   async function write(change, okMsg) {
-    if (S.mode !== "live") { toast("저장소를 열지 못해 수정할 수 없습니다."); return false; }
+    if (S.mode !== "live") { toast(L("저장소를 열지 못해 수정할 수 없습니다.", "Storage couldn't be opened, so changes can't be made.")); return false; }
     let r;
     try { r = change(); } catch (e) { handleErr(e); renderAll(); return false; }
     renderAll();
@@ -465,7 +489,7 @@
     if (activeTeams().some(([t]) => tn(t).toLowerCase() === name.toLowerCase())) fail("duplicate_team_name");
     const t = free[0];
     S.teamActive[t] = true;
-    if (name === `${t}팀`) delete S.teamNames[t];
+    if (name === `${t}팀` || name === TEAM_EN[t]) delete S.teamNames[t]; // 기본 이름이면 언어에 따라 바뀌게 둔다
     else S.teamNames[t] = name;
     return t;
   }
@@ -497,7 +521,7 @@
   function dbRenameTeam(team, name) {
     if (!name) fail("empty_name");
     if (activeTeams().some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) fail("duplicate_team_name");
-    if (name === `${team}팀`) delete S.teamNames[team];
+    if (name === `${team}팀` || name === TEAM_EN[team]) delete S.teamNames[team];
     else S.teamNames[team] = name;
   }
 
@@ -506,8 +530,8 @@
     const date = S.date;
     const fromLineup = !on && games.some((g) => lineupOf(date, g).slots.includes(mid));
     const healed = on && isInjured(mid);
-    const msg = fromLineup ? `${memberName(mid)} 님을 포지션에서도 뺐습니다.`
-      : healed ? `${memberName(mid)} 님의 부상 표시를 풀었습니다.` : null;
+    const msg = fromLineup ? L(`${memberName(mid)} 님을 포지션에서도 뺐습니다.`, `${memberName(mid)} was also removed from the lineup.`)
+      : healed ? L(`${memberName(mid)} 님의 부상 표시를 풀었습니다.`, `${memberName(mid)} is no longer marked injured.`) : null;
     return write(() => dbSetAttendance(date, mid, games, on), msg);
   }
 
@@ -518,7 +542,8 @@
   function toggleInjured(id) {
     const on = !isInjured(id);
     write(() => dbSetInjured(id, on),
-      on ? `${memberName(id)} 님을 부상으로 표시했습니다.` : `${memberName(id)} 님의 부상 표시를 풀었습니다.`);
+      on ? L(`${memberName(id)} 님을 부상으로 표시했습니다.`, `${memberName(id)} marked as injured.`)
+         : L(`${memberName(id)} 님의 부상 표시를 풀었습니다.`, `${memberName(id)} is no longer marked injured.`));
   }
 
   function toggleCell(mid, g) {
@@ -544,7 +569,8 @@
     const pos = FORMATIONS[lu.formation][slotIdx][0];
     // 사람을 넣을 때는 안내 없이 바로 반영한다 (자리를 비울 때만 안내)
     const msg = mid ? null
-                    : `${pos} 자리를 비웠습니다. 출석은 출석판에서 해제할 수 있습니다.`;
+                    : L(`${pos} 자리를 비웠습니다. 출석은 출석판에서 해제할 수 있습니다.`,
+                        `${pos} cleared. Attendance can be unchecked on the attendance board.`);
     // 다 채워도 시트를 닫지 않는다 (닫히면 휴대폰에서 화면이 맨 위로 돌아감) — 닫기는 "닫기" 버튼으로
     S.pickSlot = mid ? nextEmptySlot(lu.slots, slotIdx, mid) ?? slotIdx : slotIdx;
     write(() => dbPlace(date, t, g, slotIdx, mid || null, lu.formation), msg);
@@ -597,10 +623,10 @@
     c.fillStyle = "#ffffff";
     c.textBaseline = "alphabetic";
     c.font = `64px ${DISPLAY}`;
-    c.fillText(`${tn(S.team)} · ${g}경기`, PAD, 92);
+    c.fillText(`${tn(S.team)} · ${L(`${g}경기`, `Game ${g}`)}`, PAD, 92);
     c.font = `500 32px ${BODY}`;
     c.fillStyle = "#b9d7c2";
-    c.fillText(`${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11명`, PAD, 146);
+    c.fillText(`${label(S.date)}  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11${L("명", "")}`, PAD, 146);
 
     // 구장: 잔디 줄무늬와 라인
     const X = PAD, Y = HEAD;
@@ -683,7 +709,7 @@
       const blob = await drawLineupImage();
       if (!blob) throw new Error("no blob");
       const safeTeam = tn(S.team).replace(/[\\/:*?"<>|\s]+/g, "_");
-      const name = `${safeTeam}_${S.date}_${S.lineupGame}경기.png`;
+      const name = `${safeTeam}_${S.date}_${L(`${S.lineupGame}경기`, `game${S.lineupGame}`)}.png`;
       const dataUrl = await new Promise((resolve, reject) => {
         const r = new FileReader();
         r.onload = () => resolve(r.result);
@@ -694,19 +720,19 @@
       const touch = window.matchMedia("(pointer: coarse)").matches;
       const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       $("imgPreview").src = dataUrl;
-      $("imgModalTitle").textContent = `${tn(S.team)} · ${S.date} · ${S.lineupGame}경기`;
+      $("imgModalTitle").textContent = `${tn(S.team)} · ${S.date} · ${L(`${S.lineupGame}경기`, `Game ${S.lineupGame}`)}`;
       $("imgTip").innerHTML = !touch
-        ? "<b>파일로 저장</b>을 누르면 PNG 파일로 내려받습니다."
+        ? L("<b>파일로 저장</b>을 누르면 PNG 파일로 내려받습니다.", "Tap <b>Save file</b> to download a PNG file.")
         : ios
-          ? "그림을 <b>길게 눌러</b> <b>'사진 앱에 저장'</b>을 고르세요."
-          : "그림을 <b>길게 눌러</b> <b>'이미지 다운로드'</b>를 고르면 갤러리에 저장됩니다.";
+          ? L("그림을 <b>길게 눌러</b> <b>'사진 앱에 저장'</b>을 고르세요.", "<b>Press and hold</b> the image, then choose <b>'Save to Photos'</b>.")
+          : L("그림을 <b>길게 눌러</b> <b>'이미지 다운로드'</b>를 고르면 갤러리에 저장됩니다.", "<b>Press and hold</b> the image and choose <b>'Download image'</b> to save it to your gallery.");
       const file = new File([blob], name, { type: "image/png" });
       $("imgShareBtn").hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
       $("imgModal").hidden = false;
       document.body.classList.add("modal-open");
       $("imgCloseBtn").focus();
     } catch (e) {
-      toast("그림을 만들지 못했습니다. 다시 눌러 주세요.");
+      toast(L("그림을 만들지 못했습니다. 다시 눌러 주세요.", "Couldn't create the image. Please try again."));
     } finally {
       btn.disabled = false;
     }
@@ -729,16 +755,16 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast("파일로 저장했습니다. 휴대폰은 '다운로드' 또는 '파일' 앱에서 찾을 수 있습니다.");
+    toast(L("파일로 저장했습니다. 휴대폰은 '다운로드' 또는 '파일' 앱에서 찾을 수 있습니다.", "Saved. On a phone, look in the Downloads or Files app."));
   }
 
   async function shareShot() {
     if (!shot) return;
     try {
       await navigator.share({ files: [new File([shot.blob], shot.name, { type: "image/png" })], title: shot.name });
-      toast("그림을 공유했습니다.");
+      toast(L("그림을 공유했습니다.", "Image shared."));
     } catch (e) {
-      if (e?.name !== "AbortError") toast("공유하지 못했습니다. 그림을 길게 눌러 저장해 주세요.");
+      if (e?.name !== "AbortError") toast(L("공유하지 못했습니다. 그림을 길게 눌러 저장해 주세요.", "Couldn't share. Press and hold the image to save it."));
     }
   }
 
@@ -748,40 +774,43 @@
     const fresh = names.filter((n) => !nameTakenBy(n));
     if (taken.length) {
       const [n, m] = taken[0];
-      toast(m.team === S.team ? `${n} 님은 이미 ${tn(m.team)}에 있습니다.` : `${n} 님은 ${tn(m.team)} 회원입니다. 회원 관리에서 팀을 옮길 수 있습니다.`);
+      toast(m.team === S.team
+        ? L(`${n} 님은 이미 ${tn(m.team)}에 있습니다.`, `${n} is already on ${tn(m.team)}.`)
+        : L(`${n} 님은 ${tn(m.team)} 회원입니다. 회원 관리에서 팀을 옮길 수 있습니다.`, `${n} is a member of ${tn(m.team)}. You can move teams in Members.`));
     }
     if (!fresh.length) return;
     const team = S.team;
     write(() => dbAddMembers(team, fresh),
-      (n) => `${tn(team)}에 ${n ?? fresh.length}명을 추가했습니다${taken.length ? ` (이미 있는 ${taken.length}명 제외)` : ""}.`);
+      (n) => L(`${tn(team)}에 ${n ?? fresh.length}명을 추가했습니다${taken.length ? ` (이미 있는 ${taken.length}명 제외)` : ""}.`,
+               `Added ${n ?? fresh.length} to ${tn(team)}${taken.length ? ` (${taken.length} already listed)` : ""}.`));
   }
 
   async function moveMember(id, team) {
     const m = S.members.get(id);
     if (!m || m.team === team) return true;
     return write(() => dbSetTeam(id, team),
-      `${m.name} 님을 ${tn(team)}으로 옮겼습니다.`);
+      L(`${m.name} 님을 ${tn(team)}으로 옮겼습니다.`, `Moved ${m.name} to ${tn(team)}.`));
   }
 
   function removeMember(id) {
     const name = memberName(id);
     write(() => dbSetActive(id, false),
-      `${name} 님을 명단에서 뺐습니다. 지난 기록은 남아 있습니다.`);
+      L(`${name} 님을 명단에서 뺐습니다. 지난 기록은 남아 있습니다.`, `Removed ${name} from the roster. Past records are kept.`));
   }
 
   function restoreMember(id) {
     const m = S.members.get(id);
     if (!m) return;
     const other = nameTakenBy(m.name, id);
-    if (other) { toast(`같은 이름(${m.name})의 회원이 이미 ${tn(other.team)} 명단에 있습니다.`); return; }
+    if (other) { toast(L(`같은 이름(${m.name})의 회원이 이미 ${tn(other.team)} 명단에 있습니다.`, `A member named ${m.name} is already on ${tn(other.team)}.`)); return; }
     write(() => dbSetActive(id, true),
-      `${m.name} 님을 명단에 다시 넣었습니다.`);
+      L(`${m.name} 님을 명단에 다시 넣었습니다.`, `${m.name} is back on the roster.`));
   }
 
   function purgeMember(id) {
     const name = memberName(id);
     write(() => dbPurge(id),
-      `${name} 님의 회원 정보와 모든 출석·포지션 기록을 완전히 삭제했습니다.`);
+      L(`${name} 님의 회원 정보와 모든 출석·포지션 기록을 완전히 삭제했습니다.`, `Permanently deleted ${name} and all attendance and lineup records.`));
   }
 
   // 이름 수정과 팀 이동을 함께 저장
@@ -789,12 +818,12 @@
     const m = S.members.get(id);
     const name = String(raw || "").trim().slice(0, 40);
     if (!m) return;
-    if (!name) { toast("이름을 입력해 주세요."); return; }
+    if (!name) { toast(L("이름을 입력해 주세요.", "Please enter a name.")); return; }
     if (name !== m.name) {
       const other = nameTakenBy(name, id);
-      if (other) { toast(`같은 이름(${name})의 회원이 이미 ${tn(other.team)}에 있습니다.`); return; }
+      if (other) { toast(L(`같은 이름(${name})의 회원이 이미 ${tn(other.team)}에 있습니다.`, `A member named ${name} is already on ${tn(other.team)}.`)); return; }
       const ok = await write(() => dbRename(id, name),
-        `${m.name} → ${name}(으)로 이름을 바꿨습니다.`);
+        L(`${m.name} → ${name}(으)로 이름을 바꿨습니다.`, `Renamed ${m.name} → ${name}.`));
       if (!ok) return;
     }
     if (team !== m.team && !(await moveMember(id, team))) return;
@@ -811,14 +840,14 @@
     if (!S.editTeamName) {
       const label = document.createElement("span");
       label.className = "muted";
-      label.textContent = "팀 이름";
+      label.textContent = L("팀 이름", "Team name");
       const name = document.createElement("b");
       name.textContent = tn(S.team);
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "row-btn";
-      btn.textContent = "변경";
-      btn.setAttribute("aria-label", `${tn(S.team)} 이름 변경`);
+      btn.textContent = L("변경", "Edit");
+      btn.setAttribute("aria-label", L(`${tn(S.team)} 이름 변경`, `Rename ${tn(S.team)}`));
       btn.addEventListener("click", () => {
         S.editTeamName = true;
         renderTeamName();
@@ -832,15 +861,15 @@
     input.className = "edit-input";
     input.maxLength = 12;
     input.value = tn(S.team);
-    input.setAttribute("aria-label", "새 팀 이름");
+    input.setAttribute("aria-label", L("새 팀 이름", "New team name"));
     const save = document.createElement("button");
     save.type = "button";
     save.className = "row-btn";
-    save.textContent = "저장";
+    save.textContent = L("저장", "Save");
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.className = "row-btn";
-    cancel.textContent = "취소";
+    cancel.textContent = L("취소", "Cancel");
     const doCancel = () => { S.editTeamName = false; renderTeamName(); };
     const doSave = () => saveTeamName(input.value);
     save.addEventListener("click", doSave);
@@ -856,14 +885,14 @@
   async function saveTeamName(raw) {
     const name = String(raw || "").trim().slice(0, 12);
     const team = S.team, before = tn(team);
-    if (!name) { toast("팀 이름을 입력해 주세요."); return; }
+    if (!name) { toast(L("팀 이름을 입력해 주세요.", "Please enter a team name.")); return; }
     if (name === before) { S.editTeamName = false; renderTeamName(); return; }
     if (activeTeams().some(([t]) => t !== team && tn(t).toLowerCase() === name.toLowerCase())) {
-      toast("다른 팀이 이미 쓰는 이름입니다.");
+      toast(L("다른 팀이 이미 쓰는 이름입니다.", "Another team already uses that name."));
       return;
     }
     const ok = await write(() => dbRenameTeam(team, name),
-      `${before} → ${name}(으)로 팀 이름을 바꿨습니다.`);
+      L(`${before} → ${name}(으)로 팀 이름을 바꿨습니다.`, `Renamed team ${before} → ${name}.`));
     if (ok) { S.editTeamName = false; renderAll(); }
   }
 
@@ -895,16 +924,16 @@
       input.id = "newTeamInput";
       input.className = "edit-input";
       input.maxLength = 12;
-      input.placeholder = "새 팀 이름";
-      input.setAttribute("aria-label", "새 팀 이름");
+      input.placeholder = L("새 팀 이름", "New team name");
+      input.setAttribute("aria-label", L("새 팀 이름", "New team name"));
       const add = document.createElement("button");
       add.type = "button";
       add.className = "row-btn";
-      add.textContent = "추가";
+      add.textContent = L("추가", "Add");
       const cancel = document.createElement("button");
       cancel.type = "button";
       cancel.className = "row-btn";
-      cancel.textContent = "취소";
+      cancel.textContent = L("취소", "Cancel");
       const doAdd = () => addTeam(input.value);
       const doCancel = () => { S.addingTeam = false; renderTeamTools(); };
       add.addEventListener("click", doAdd);
@@ -919,30 +948,30 @@
     }
     const label = document.createElement("span");
     label.className = "muted";
-    label.textContent = "팀 관리";
+    label.textContent = L("팀 관리", "Teams");
     box.append(label);
     if (activeTeams().length < TEAMS.length) {
       const add = document.createElement("button");
       add.type = "button";
       add.className = "row-btn";
-      add.textContent = "팀 추가";
+      add.textContent = L("팀 추가", "Add team");
       add.addEventListener("click", () => { S.addingTeam = true; S.confirmTeamDel = null; S.confirmTeamPurge = null; renderTeamTools(); });
       box.append(add);
     }
     const n = teamMembers(true).length;
-    box.append(teamConfirmButton("회원 전체 삭제", `정말 ${n}명 모두 삭제할까요?`, "confirmTeamPurge", n === 0, purgeTeamMembers));
+    box.append(teamConfirmButton(L("회원 전체 삭제", "Delete all members"), L(`정말 ${n}명 모두 삭제할까요?`, `Really delete all ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers));
     const last = activeTeams().length <= 1;
-    const del = teamConfirmButton("팀 삭제", "정말 삭제할까요? 회원·기록 모두 삭제", "confirmTeamDel", last, deleteTeam);
-    if (last) del.title = "마지막 남은 팀은 삭제할 수 없습니다";
+    const del = teamConfirmButton(L("팀 삭제", "Delete team"), L("정말 삭제할까요? 회원·기록 모두 삭제", "Really delete? Members and records too"), "confirmTeamDel", last, deleteTeam);
+    if (last) del.title = L("마지막 남은 팀은 삭제할 수 없습니다", "You can't delete the last remaining team");
     box.append(del);
   }
 
   async function addTeam(raw) {
     const name = String(raw || "").trim().slice(0, 12);
-    if (!name) { toast("팀 이름을 입력해 주세요."); return; }
-    if (activeTeams().some(([t]) => tn(t).toLowerCase() === name.toLowerCase())) { toast("다른 팀이 이미 쓰는 이름입니다."); return; }
+    if (!name) { toast(L("팀 이름을 입력해 주세요.", "Please enter a team name.")); return; }
+    if (activeTeams().some(([t]) => tn(t).toLowerCase() === name.toLowerCase())) { toast(L("다른 팀이 이미 쓰는 이름입니다.", "Another team already uses that name.")); return; }
     let team = null;
-    const ok = await write(() => { team = dbAddTeam(name); }, `${name} 팀을 추가했습니다. 회원을 추가해 주세요.`);
+    const ok = await write(() => { team = dbAddTeam(name); }, L(`${name} 팀을 추가했습니다. 회원을 추가해 주세요.`, `Added team ${name}. Now add members.`));
     if (ok) { S.addingTeam = false; setTeam(team); }
   }
 
@@ -951,12 +980,12 @@
     write(() => {
       dbDeleteTeam(team);
       switchToTeam(activeTeams()[0][0]);
-    }, `${name}을(를) 삭제했습니다. 회원과 기록도 모두 지웠습니다.`);
+    }, L(`${name}을(를) 삭제했습니다. 회원과 기록도 모두 지웠습니다.`, `Deleted ${name}, including its members and records.`));
   }
 
   function purgeTeamMembers(team) {
     const name = tn(team);
-    write(() => dbPurgeTeamMembers(team), (n) => `${name} 회원 ${n}명과 그 기록을 모두 삭제했습니다.`);
+    write(() => dbPurgeTeamMembers(team), (n) => L(`${name} 회원 ${n}명과 그 기록을 모두 삭제했습니다.`, `Deleted ${n} members of ${name} and their records.`));
   }
 
   // 화면을 다시 그리지 않고 지금 팀만 바꾼다 (주소 # 와 마지막 팀 기억도 함께)
@@ -1011,9 +1040,9 @@
   // 백업 파일을 만들어 저장·공유 창을 띄운다 (그림 저장과 같은 방식)
   let backup = null; // {blob, name, shareFile}
   function openBackup() {
-    if (S.mode !== "live") { toast("저장소를 열지 못해 백업할 수 없습니다."); return; }
+    if (S.mode !== "live") { toast(L("저장소를 열지 못해 백업할 수 없습니다.", "Storage couldn't be opened, so a backup can't be made.")); return; }
     const text = JSON.stringify(snapshot(), null, 1);
-    const name = `출석부_백업_${ymd(new Date())}.json`;
+    const name = `${L("출석부_백업", "lineup_backup")}_${ymd(new Date())}.json`;
     const blob = new Blob([text], { type: "application/json" });
     // 안드로이드 크롬은 .json 파일 공유를 막으므로, 막히면 같은 내용을 .txt로 공유한다
     let shareFile = null;
@@ -1026,8 +1055,9 @@
     backup = { blob, name, shareFile };
     $("backupModalTitle").textContent = name;
     $("backupTip").innerHTML = `${esc(countText(countData(S)))}<br>` +
-      (shareFile ? "<b>파일로 저장</b>하거나 <b>공유하기</b>로 카톡·드라이브에 보내 두세요." : "<b>파일로 저장</b>한 뒤 카톡·드라이브 등에 올려 두세요.") +
-      " 폰을 바꾸거나 앱을 지웠을 때 이 파일로 되살릴 수 있습니다.";
+      (shareFile ? L("<b>파일로 저장</b>하거나 <b>공유하기</b>로 카톡·드라이브에 보내 두세요.", "<b>Save the file</b> or use <b>Share</b> to send it to a chat app or cloud drive.")
+                 : L("<b>파일로 저장</b>한 뒤 카톡·드라이브 등에 올려 두세요.", "<b>Save the file</b>, then keep a copy in a chat app or cloud drive.")) +
+      L(" 폰을 바꾸거나 앱을 지웠을 때 이 파일로 되살릴 수 있습니다.", " If you change phones or delete the app, you can restore from this file.");
     $("backupShareBtn").hidden = !shareFile;
     $("backupModal").hidden = false;
     document.body.classList.add("modal-open");
@@ -1051,7 +1081,7 @@
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     markBackedUp();
-    toast("백업 파일을 저장했습니다. 휴대폰은 '다운로드' 또는 '파일' 앱에서 찾을 수 있습니다.");
+    toast(L("백업 파일을 저장했습니다. 휴대폰은 '다운로드' 또는 '파일' 앱에서 찾을 수 있습니다.", "Backup saved. On a phone, look in the Downloads or Files app."));
   }
 
   async function shareBackup() {
@@ -1059,9 +1089,9 @@
     try {
       await navigator.share({ files: [backup.shareFile], title: backup.name });
       markBackedUp();
-      toast("백업 파일을 보냈습니다.");
+      toast(L("백업 파일을 보냈습니다.", "Backup file sent."));
     } catch (e) {
-      if (e?.name !== "AbortError") toast("공유하지 못했습니다. '파일로 저장'을 눌러 주세요.");
+      if (e?.name !== "AbortError") toast(L("공유하지 못했습니다. '파일로 저장'을 눌러 주세요.", "Couldn't share. Tap 'Save file' instead."));
     }
   }
 
@@ -1071,7 +1101,7 @@
     if (askResolve) closeAsk(false);
     $("askTitle").textContent = title;
     $("askText").innerHTML = html;
-    $("askOk").textContent = okLabel || "확인";
+    $("askOk").textContent = okLabel || L("확인", "OK");
     $("askModal").hidden = false;
     document.body.classList.add("modal-open");
     $("askCancel").focus();
@@ -1109,19 +1139,20 @@
     const now = countData(S);
     return `${src}<br><b>${esc(countText(incoming))}</b><br><br>` +
       (now.members || now.days
-        ? `지금 이 폰의 기록(${esc(countText(now))})을 <b>모두 지우고</b> 이 내용으로 바꿉니다. 되돌릴 수 없으니 필요하면 먼저 백업 파일을 저장하세요.`
-        : "이 폰에는 아직 기록이 없습니다. 이 내용으로 시작합니다.");
+        ? L(`지금 이 폰의 기록(${esc(countText(now))})을 <b>모두 지우고</b> 이 내용으로 바꿉니다. 되돌릴 수 없으니 필요하면 먼저 백업 파일을 저장하세요.`,
+            `This will <b>erase all records</b> on this phone (${esc(countText(now))}) and replace them. This can't be undone, so save a backup first if needed.`)
+        : L("이 폰에는 아직 기록이 없습니다. 이 내용으로 시작합니다.", "There are no records on this phone yet. You'll start with this data."));
   }
 
   async function importBackupFile(file) {
-    if (S.mode !== "live") { toast("저장소를 열지 못해 불러올 수 없습니다."); return; }
-    if (file.size > MAX_BACKUP_BYTES) { toast("백업 파일이 너무 큽니다. 출석부 백업 파일이 맞는지 확인해 주세요."); return; }
+    if (S.mode !== "live") { toast(L("저장소를 열지 못해 불러올 수 없습니다.", "Storage couldn't be opened, so the backup can't be loaded.")); return; }
+    if (file.size > MAX_BACKUP_BYTES) { toast(L("백업 파일이 너무 큽니다. 출석부 백업 파일이 맞는지 확인해 주세요.", "This file is too large. Make sure it's a backup from this app.")); return; }
     let parsed = null;
     try { parsed = parseData(JSON.parse(await file.text())); } catch (e) { parsed = null; }
-    if (!parsed) { toast("출석부 백업 파일이 아닙니다. 백업 파일 저장으로 만든 파일을 골라 주세요."); return; }
+    if (!parsed) { toast(L("출석부 백업 파일이 아닙니다. 백업 파일 저장으로 만든 파일을 골라 주세요.", "Not a backup file. Choose a file made with 'Save backup'.")); return; }
     const c = countData(parsed);
-    const ok = await askConfirm("백업 불러오기", overwriteText(`파일: ${esc(file.name)}`, c), "덮어쓰기");
-    if (ok) await replaceAll(parsed, `백업을 불러왔습니다. ${countText(c)}`);
+    const ok = await askConfirm(L("백업 불러오기", "Restore backup"), overwriteText(`${L("파일", "File")}: ${esc(file.name)}`, c), L("덮어쓰기", "Replace"));
+    if (ok) await replaceAll(parsed, L(`백업을 불러왔습니다. ${countText(c)}`, `Backup restored. ${countText(c)}`));
   }
 
   // ---------- 저장 공간 보호 (브라우저가 공간 부족 때 임의로 지우지 않도록 요청) ----------
@@ -1142,9 +1173,11 @@
     $("dataCount").textContent = S.mode === "live" ? countText(c) : "-";
     const lb = S.lastBackup;
     const ago = lb ? daysSince(lb) : null;
-    $("lastBackup").textContent = lb ? `${label(ymd(new Date(lb)), true)} (${ago <= 0 ? "오늘" : `${ago}일 전`})` : "아직 없음";
-    $("persistState").textContent = S.persisted === true ? "보호됨 (브라우저가 임의로 지우지 않음)"
-      : S.persisted === false ? "보호 안 됨 (공간이 부족하면 지워질 수 있음)" : "확인할 수 없음";
+    $("lastBackup").textContent = lb
+      ? `${label(ymd(new Date(lb)), true)} (${ago <= 0 ? L("오늘", "today") : L(`${ago}일 전`, `${ago} day${ago === 1 ? "" : "s"} ago`)})`
+      : L("아직 없음", "Never");
+    $("persistState").textContent = S.persisted === true ? L("보호됨 (브라우저가 임의로 지우지 않음)", "Protected (the browser won't clear it on its own)")
+      : S.persisted === false ? L("보호 안 됨 (공간이 부족하면 지워질 수 있음)", "Not protected (may be cleared when space runs low)") : L("확인할 수 없음", "Unknown");
     $("persistState").classList.toggle("warn", S.persisted === false);
     // 기록이 있는데 14일 넘게 백업하지 않았으면 백업 화면의 마지막 백업 날짜만 경고색 (첫 화면 알림줄은 없음)
     const due = S.mode === "live" && c.members > 0 && (!lb || ago >= BACKUP_REMIND_DAYS);
@@ -1164,13 +1197,18 @@
     const d = parseYmd(S.date);
     const y = document.createElement("span");
     y.className = "y";
-    y.textContent = `${d.getFullYear()}년 `;
-    $("dateBig").replaceChildren(y, `${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})`);
-    $("calMonth").textContent = `${d.getMonth() + 1}월`;
+    if (lang === "ko") {
+      y.textContent = `${d.getFullYear()}년 `;
+      $("dateBig").replaceChildren(y, `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd(d.getDay())})`);
+    } else {
+      y.textContent = `, ${d.getFullYear()}`;
+      $("dateBig").replaceChildren(`${wd(d.getDay())}, ${MON_EN[d.getMonth()]} ${d.getDate()}`, y);
+    }
+    $("calMonth").textContent = monthName(d.getMonth());
     $("calDay").textContent = d.getDate();
     $("datePick").value = S.date;
-    $("calDesk").textContent = `${S.date} (${WD[d.getDay()]})`;
-    $("calBtn").setAttribute("aria-label", `달력 열기, 지금 ${label(S.date)}`);
+    $("calDesk").textContent = `${S.date} (${wd(d.getDay())})`;
+    $("calBtn").setAttribute("aria-label", L(`달력 열기, 지금 ${label(S.date)}`, `Open calendar, now ${label(S.date)}`));
 
     const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, 8);
     const box = $("recent");
@@ -1178,7 +1216,7 @@
     if (!dates.length) return;
     const lab = document.createElement("span");
     lab.className = "label";
-    lab.textContent = "최근 모임";
+    lab.textContent = L("최근 모임", "Recent");
     box.append(lab);
     for (const d of dates) {
       const b = document.createElement("button");
@@ -1203,7 +1241,7 @@
       const b = document.createElement("button");
       const filled = lineupOf(S.date, n).slots.filter(Boolean).length;
       b.setAttribute("aria-pressed", n === g);
-      b.textContent = `${n}경기`;
+      b.textContent = L(`${n}경기`, `Game ${n}`);
       if (filled) { const s = document.createElement("small"); s.textContent = `${filled}/11`; b.append(s); }
       b.addEventListener("click", () => { S.lineupGame = n; S.pickSlot = null; renderLineup(); });
       tabs.append(b);
@@ -1215,7 +1253,7 @@
       add.type = "button";
       add.className = "tab-add";
       add.textContent = "+";
-      add.title = `${games.length + 1}경기 추가`;
+      add.title = L(`${games.length + 1}경기 추가`, `Add game ${games.length + 1}`);
       add.setAttribute("aria-label", add.title);
       add.addEventListener("click", () => {
         S.shownGames.set(shownKey(), games.length + 1);
@@ -1230,7 +1268,7 @@
       rm.type = "button";
       rm.className = "tab-add minus";
       rm.textContent = "−";
-      rm.title = `${games.length}경기 닫기`;
+      rm.title = L(`${games.length}경기 닫기`, `Hide game ${games.length}`);
       rm.setAttribute("aria-label", rm.title);
       rm.addEventListener("click", () => {
         S.shownGames.set(shownKey(), games.length - 1);
@@ -1254,13 +1292,13 @@
       b.style.left = x + "%";
       b.style.top = y + "%";
       b.setAttribute("aria-pressed", S.pickSlot === i);
-      b.setAttribute("aria-label", `${pos} ${mid ? memberName(mid) : "비어 있음"}`);
+      b.setAttribute("aria-label", `${pos} ${mid ? memberName(mid) : L("비어 있음", "empty")}`);
       const dot = document.createElement("span");
       dot.className = "dot";
       dot.textContent = pos;
       const nm = document.createElement("span");
       nm.className = "nm";
-      nm.textContent = mid ? memberName(mid) : "선택";
+      nm.textContent = mid ? memberName(mid) : L("선택", "Pick");
       b.append(dot, nm);
       b.addEventListener("click", () => {
         S.pickSlot = S.pickSlot === i ? null : i;
@@ -1281,15 +1319,16 @@
     sum.className = "lineup-sum";
     const cntB = document.createElement("b");
     cntB.textContent = slots.filter(Boolean).length;
-    sum.append(`${tn(S.team)} · ${g}경기 · ${formation} · 배치 `, cntB, "/11명");
+    sum.append(`${tn(S.team)} · ${L(`${g}경기`, `Game ${g}`)} · ${formation} · ${L("배치", "Placed")} `, cntB, L("/11명", "/11"));
 
     if (S.pickSlot === null || S.pickSlot >= spots.length) {
       S.pickSlot = null;
       const p = document.createElement("div");
       p.className = "picker-empty";
       p.textContent = activeMembers().length
-          ? "구장에서 포지션 동그라미를 누르면 여기서 회원을 고를 수 있습니다. 회원을 넣으면 다음 빈 자리로 자동으로 넘어갑니다."
-          : "먼저 회원 관리에서 회원을 추가해 주세요.";
+          ? L("구장에서 포지션 동그라미를 누르면 여기서 회원을 고를 수 있습니다. 회원을 넣으면 다음 빈 자리로 자동으로 넘어갑니다.",
+              "Tap a position circle on the pitch to pick a member here. After you place someone, it moves on to the next empty spot.")
+          : L("먼저 회원 관리에서 회원을 추가해 주세요.", "First add members in the Members tab.");
       picker.append(sum, p);
       return;
     }
@@ -1299,20 +1338,20 @@
     const head = document.createElement("div");
     head.className = "picker-head";
     const title = document.createElement("b");
-    title.textContent = `${spots[i][0]} 자리에 넣을 회원`;
+    title.textContent = L(`${spots[i][0]} 자리에 넣을 회원`, `Choose a member for ${spots[i][0]}`);
     const actions = document.createElement("div");
     actions.style.display = "flex";
     actions.style.gap = "6px";
     if (cur) {
       const clr = document.createElement("button");
       clr.className = "btn-ghost";
-      clr.textContent = "자리 비우기";
+      clr.textContent = L("자리 비우기", "Clear spot");
       clr.addEventListener("click", () => placeMember(i, null));
       actions.append(clr);
     }
     const close = document.createElement("button");
     close.className = "btn-ghost";
-    close.textContent = "닫기";
+    close.textContent = L("닫기", "Close");
     close.addEventListener("click", () => { S.pickSlot = null; renderLineup(); });
     actions.append(close);
     head.append(title, actions);
@@ -1335,13 +1374,13 @@
       if (rare.length && id === rare[0][0]) {
         const hr = document.createElement("div");
         hr.className = "pick-divider";
-        hr.textContent = `최근 ${recent3.length}번 모임 불참`;
+        hr.textContent = L(`최근 ${recent3.length}번 모임 불참`, `Missed the last ${recent3.length} meetings`);
         list.append(hr);
       }
       if (injured.length && id === injured[0][0]) {
         const hr = document.createElement("div");
         hr.className = "pick-divider injured";
-        hr.textContent = "부상";
+        hr.textContent = L("부상", "Injured");
         list.append(hr);
       }
       const b = document.createElement("button");
@@ -1353,7 +1392,7 @@
         const s = document.createElement("small");
         s.textContent = spots[at][0];
         b.append(s);
-        b.title = `${spots[at][0]}에서 이 자리로 옮깁니다`;
+        b.title = L(`${spots[at][0]}에서 이 자리로 옮깁니다`, `Moves from ${spots[at][0]} to this spot`);
       }
       b.addEventListener("click", () => { if (id !== cur) placeMember(i, id); });
       list.append(b);
@@ -1361,7 +1400,7 @@
     if (!members.length) {
       const p = document.createElement("div");
       p.className = "picker-empty";
-      p.textContent = "등록된 회원이 없습니다. 회원 관리에서 회원을 추가해 주세요.";
+      p.textContent = L("등록된 회원이 없습니다. 회원 관리에서 회원을 추가해 주세요.", "No members yet. Add members in the Members tab.");
       list.append(p);
     }
     picker.append(sum, head, list);
@@ -1377,7 +1416,7 @@
     }
     S.confirmClearGame = null;
     const date = S.date, team = S.team;
-    write(() => dbClearTeamGame(date, team, g), (n) => `${g}경기 참석 ${n}명을 초기화했습니다.`);
+    write(() => dbClearTeamGame(date, team, g), (n) => L(`${g}경기 참석 ${n}명을 초기화했습니다.`, `Cleared ${n} check-ins for game ${g}.`));
   }
 
   // 출석판에 보이는 경기 수: 기본 4경기, 기록이 있거나 직접 추가한 경기까지 (최대 6)
@@ -1405,8 +1444,9 @@
     const canAdd = games.length < GAMES.length;
     const canRemove = games.length > BASE_GAMES && games.length > usedGames();
     const head = document.createElement("tr");
-    head.innerHTML = `<th class="name">이름</th>${games.map((g, i) =>
-      `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}`;
+    // 영어는 칸이 좁아 "G1"처럼 줄여 쓴다
+    head.innerHTML = `<th class="name">${L("이름", "Name")}</th>${games.map((g, i) =>
+      `<th>${L(`${g}경기`, `G${g}`)}<span class="cnt num">${counts[i]}</span></th>`).join("")}`;
     // 경기별 참석 초기화: 체크된 사람이 있을 때만 작게 표시, 한 번 더 눌러야 실행
     games.forEach((g, i) => {
       if (!counts[i]) return;
@@ -1415,9 +1455,9 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "game-reset" + (confirming ? " confirm" : "");
-      b.textContent = confirming ? "확인" : "↺";
-      b.title = `${g}경기 참석 모두 해제`;
-      b.setAttribute("aria-label", confirming ? `${g}경기 참석 초기화 확인` : `${g}경기 참석 초기화`);
+      b.textContent = confirming ? L("확인", "OK") : "↺";
+      b.title = L(`${g}경기 참석 모두 해제`, `Uncheck everyone in game ${g}`);
+      b.setAttribute("aria-label", confirming ? L(`${g}경기 참석 초기화 확인`, `Confirm clearing game ${g}`) : L(`${g}경기 참석 초기화`, `Clear game ${g}`));
       b.addEventListener("click", () => clearGame(g, key));
       head.children[i + 1].append(b);
     });
@@ -1429,7 +1469,7 @@
         add.type = "button";
         add.className = "game-add";
         add.textContent = "+";
-        add.title = `${games.length + 1}경기 추가`;
+        add.title = L(`${games.length + 1}경기 추가`, `Add game ${games.length + 1}`);
         add.setAttribute("aria-label", add.title);
         add.addEventListener("click", () => {
           S.shownGames.set(shownKey(), games.length + 1);
@@ -1442,7 +1482,7 @@
         rm.type = "button";
         rm.className = "game-add minus";
         rm.textContent = "−";
-        rm.title = `${games.length}경기 칸 닫기`;
+        rm.title = L(`${games.length}경기 칸 닫기`, `Hide game ${games.length} column`);
         rm.setAttribute("aria-label", rm.title);
         rm.addEventListener("click", () => {
           S.shownGames.set(shownKey(), games.length - 1);
@@ -1459,14 +1499,14 @@
     const empty = $("attEmpty");
     if (S.mode !== "live" && !list.length) {
       empty.hidden = false;
-      $("emptyTitle").textContent = S.mode === "loading" ? "기록을 불러오는 중입니다" : "기록을 불러오지 못했습니다";
+      $("emptyTitle").textContent = S.mode === "loading" ? L("기록을 불러오는 중입니다", "Loading records") : L("기록을 불러오지 못했습니다", "Couldn't load records");
       $("emptyText").textContent = "";
       return;
     }
     if (!list.length) {
       empty.hidden = false;
-      $("emptyTitle").textContent = `${tn(S.team)}에 등록된 회원이 없습니다`;
-      $("emptyText").textContent = "회원 탭에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다.";
+      $("emptyTitle").textContent = L(`${tn(S.team)}에 등록된 회원이 없습니다`, `${tn(S.team)} has no members yet`);
+      $("emptyText").textContent = L("회원 탭에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다.", "Add names in the Members tab to create this team's attendance board.");
       return;
     }
     empty.hidden = true;
@@ -1487,20 +1527,20 @@
         tr.classList.add("injured");
         const tag = document.createElement("span");
         tag.className = "inj-tag";
-        tag.textContent = "부상";
+        tag.textContent = L("부상", "Inj.");
         nm.append(tag);
-        nm.title = `${m.name} (부상)`;
+        nm.title = `${m.name} (${L("부상", "injured")})`;
       }
       const sub = document.createElement("span");
       sub.className = "sub";
       // 몇 경기 나왔는지는 동그라미로 보이므로, 아래 줄에는 "전 경기" 버튼만 둔다
-      sub.title = n ? `${n}경기 출전` : "불참";
+      sub.title = n ? L(`${n}경기 출전`, `Played ${n} game${n === 1 ? "" : "s"}`) : L("불참", "Absent");
       // "전 경기"는 지금 보이는 경기만 체크/해제한다
       const all = document.createElement("button");
       all.className = "all-link";
       const full = games.every((g) => attended(S.date, id, g));
-      all.textContent = full ? "전체 해제" : "전 경기";
-      all.setAttribute("aria-label", `${m.name} ${full ? "보이는 경기 모두 해제" : "보이는 경기 모두 참석"}`);
+      all.textContent = full ? L("전체 해제", "Clear all") : L("전 경기", "All games");
+      all.setAttribute("aria-label", `${m.name} ${full ? L("보이는 경기 모두 해제", "uncheck all shown games") : L("보이는 경기 모두 참석", "check all shown games")}`);
       all.addEventListener("click", () => setGames(id, games, !full));
       sub.append(all);
       tdName.append(nm, sub);
@@ -1515,7 +1555,8 @@
         b.className = "cell" + (pos ? " pos" : "");
         b.textContent = on ? pos || "" : g;
         b.setAttribute("aria-pressed", on);
-        b.setAttribute("aria-label", `${m.name} ${g}경기 ${on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`);
+        b.setAttribute("aria-label", L(`${m.name} ${g}경기 ${on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`,
+          `${m.name} game ${g} ${on ? "present" + (pos ? ` ${pos}` : "") : "absent"}`));
         b.addEventListener("click", () => toggleCell(id, g));
         td.append(b);
         tr.append(td);
@@ -1551,17 +1592,18 @@
     const empty = people.size === 0;
     const copy = $("copyBtn");
     copy.disabled = empty || S.mode !== "live";
-    copy.title = empty ? "이날 기록이 없어 복사할 명단이 없습니다" : "";
+    copy.title = empty ? L("이날 기록이 없어 복사할 명단이 없습니다", "No records on this day to copy") : "";
     if (empty) {
       $("copyFallback").hidden = true;
       const msg = document.createElement("div");
       msg.className = "roster-empty";
       const strong = document.createElement("strong");
-      strong.textContent = "아직 기록 없음";
+      strong.textContent = L("아직 기록 없음", "No records yet");
       const sub = document.createElement("span");
       sub.textContent = S.mode === "live"
-        ? `${label(S.date, true)} ${tn(S.team)}의 출석 기록이 아직 없습니다. 출석 탭에서 체크하면 여기에 경기별 명단이 나옵니다.`
-        : "기록을 불러오는 중입니다.";
+        ? L(`${label(S.date, true)} ${tn(S.team)}의 출석 기록이 아직 없습니다. 출석 탭에서 체크하면 여기에 경기별 명단이 나옵니다.`,
+            `No attendance for ${tn(S.team)} on ${label(S.date, true)} yet. Check people in the Attendance tab to see each game's roster here.`)
+        : L("기록을 불러오는 중입니다.", "Loading records.");
       msg.append(strong, sub);
       r.append(msg);
       return;
@@ -1570,10 +1612,10 @@
       const div = document.createElement("div");
       const gs = document.createElement("span");
       gs.className = "g";
-      gs.textContent = `${g}경기 ${p.length}명`;
+      gs.textContent = L(`${g}경기 ${p.length}명`, `Game ${g} · ${p.length}`);
       const txt = document.createElement("span");
       if (p.length) txt.textContent = p.join(", ");
-      else { txt.textContent = "기록 없음"; txt.className = "none"; }
+      else { txt.textContent = L("기록 없음", "No records"); txt.className = "none"; }
       div.append(gs, " ", txt);
       r.append(div);
     }
@@ -1583,10 +1625,10 @@
     ab.className = "absent";
     const as = document.createElement("span");
     as.className = "g";
-    as.textContent = `불참 ${absent.length}명`;
+    as.textContent = L(`불참 ${absent.length}명`, `Absent · ${absent.length}`);
     const at = document.createElement("span");
     if (absent.length) at.textContent = absent.join(", ");
-    else { at.textContent = "없음"; at.className = "none"; }
+    else { at.textContent = L("없음", "None"); at.className = "none"; }
     ab.append(as, " ", at);
     r.append(ab);
   }
@@ -1604,14 +1646,14 @@
     if (!has) {
       if (S.confirmDeleteDay === key) S.confirmDeleteDay = null;
       btn.classList.remove("confirm");
-      btn.textContent = "이 날짜에 지울 기록이 없습니다";
+      btn.textContent = L("이 날짜에 지울 기록이 없습니다", "Nothing to delete on this date");
       return;
     }
     const confirming = S.confirmDeleteDay === key;
     btn.classList.toggle("confirm", confirming);
     btn.textContent = confirming
-      ? `정말 삭제할까요? ${label(S.date, true)} ${tn(S.team)} ${peopleCount}명 기록`
-      : `${label(S.date, true)} ${tn(S.team)} 기록 삭제`;
+      ? L(`정말 삭제할까요? ${label(S.date, true)} ${tn(S.team)} ${peopleCount}명 기록`, `Really delete? ${tn(S.team)} ${label(S.date, true)}, ${peopleCount} people`)
+      : L(`${label(S.date, true)} ${tn(S.team)} 기록 삭제`, `Delete ${tn(S.team)} records for ${label(S.date, true)}`);
   }
 
   function deleteDay() {
@@ -1627,19 +1669,20 @@
     write(() => {
       dbDeleteTeamDay(date, team);
       S.shownGames.delete(`${date}|${team}`);
-    }, `${when} ${tn(team)} 기록을 삭제했습니다.`);
+    }, L(`${when} ${tn(team)} 기록을 삭제했습니다.`, `Deleted ${tn(team)} records for ${when}.`));
   }
 
   function rosterText() {
     const { games, people } = dayRoster(S.date);
-    const lines = [`[${label(S.date, true)} ${tn(S.team)} 출석]`];
-    for (const { g, people: p } of games) if (p.length) lines.push(`${g}경기 (${p.length}명): ${p.join(", ")}`);
-    lines.push(`총 참석 ${people.size}명`);
+    const lines = [L(`[${label(S.date, true)} ${tn(S.team)} 출석]`, `[${tn(S.team)} attendance ${label(S.date, true)}]`)];
+    for (const { g, people: p } of games) if (p.length) lines.push(L(`${g}경기 (${p.length}명): ${p.join(", ")}`, `Game ${g} (${p.length}): ${p.join(", ")}`));
+    lines.push(L(`총 참석 ${people.size}명`, `Total present: ${people.size}`));
     return lines.join("\n");
   }
 
   // ---------- 통계: 팀별 탭으로 나눈 날짜별 출석자 명단을 엑셀(.xlsx)로 내보내기 ----------
   const PERIOD_LABEL = { month: "이번달", "3m": "최근3개월", year: "올해", all: "전체" };
+  const PERIOD_LABEL_EN = { month: "this-month", "3m": "last-3-months", year: "this-year", all: "all" };
   let xlsxLoading = null;
   function loadXlsx() {
     if (window.XLSX) return Promise.resolve(window.XLSX);
@@ -1662,14 +1705,14 @@
         .map(memberName).sort((a, b) => a.localeCompare(b, "ko"));
       if (!names.length) continue;
       const day = parseYmd(d);
-      rows.push([`${d} (${WD[day.getDay()]})`, names.length, names.join(", ")]);
+      rows.push([`${d} (${wd(day.getDay())})`, names.length, names.join(", ")]);
     }
     return rows;
   }
 
   async function exportAttendance() {
     const btn = $("exportBtn");
-    if (S.mode !== "live") { toast("기록을 불러온 뒤에 다시 눌러 주세요."); return; }
+    if (S.mode !== "live") { toast(L("기록을 불러온 뒤에 다시 눌러 주세요.", "Please try again after records load.")); return; }
     btn.disabled = true;
     try {
       const XLSX = await loadXlsx();
@@ -1679,7 +1722,8 @@
       for (const [t] of activeTeams()) {
         const rows = teamExportRows(t);
         total += rows.length;
-        const ws = XLSX.utils.aoa_to_sheet([["날짜", "인원", "출석자 명단"], ...(rows.length ? rows : [["(이 기간 기록 없음)", "", ""]])]);
+        const ws = XLSX.utils.aoa_to_sheet([L(["날짜", "인원", "출석자 명단"], ["Date", "Count", "Attendees"]),
+          ...(rows.length ? rows : [[L("(이 기간 기록 없음)", "(no records in this period)"), "", ""]])]);
         ws["!cols"] = [{ wch: 16 }, { wch: 6 }, { wch: 80 }];
         // 시트 이름: 엑셀 규칙(31자, 금지 문자) 맞추고 겹치지 않게
         let name = tn(t).replace(/[\\/?*[\]:]/g, " ").slice(0, 31).trim() || t;
@@ -1687,10 +1731,10 @@
         used.add(name);
         XLSX.utils.book_append_sheet(wb, ws, name);
       }
-      if (!total) { toast("이 기간에는 내보낼 출석 기록이 없습니다."); return; }
+      if (!total) { toast(L("이 기간에는 내보낼 출석 기록이 없습니다.", "No attendance records to export in this period.")); return; }
       const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const file = `출석명단_${PERIOD_LABEL[S.period] || ""}_${ymd(new Date())}.xlsx`;
+      const file = `${L("출석명단", "attendance")}_${(lang === "ko" ? PERIOD_LABEL : PERIOD_LABEL_EN)[S.period] || ""}_${ymd(new Date())}.xlsx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -1699,9 +1743,9 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
-      toast(`${file} 파일을 저장했습니다. 휴대폰은 '다운로드' 폴더에서 찾을 수 있습니다.`);
+      toast(L(`${file} 파일을 저장했습니다. 휴대폰은 '다운로드' 폴더에서 찾을 수 있습니다.`, `Saved ${file}. On a phone, look in the Downloads folder.`));
     } catch (e) {
-      toast("엑셀 파일을 만들지 못했습니다. 잠시 후 다시 눌러 주세요.");
+      toast(L("엑셀 파일을 만들지 못했습니다. 잠시 후 다시 눌러 주세요.", "Couldn't create the Excel file. Please try again shortly."));
     } finally {
       btn.disabled = false;
     }
@@ -1744,7 +1788,8 @@
       td.className = "muted";
       td.style.textAlign = "center";
       td.style.padding = "18px 6px";
-      td.textContent = rows.length ? "이 기간에는 출석 기록이 없습니다." : "회원을 추가하고 출석을 체크하면 순위가 여기에 표시됩니다.";
+      td.textContent = rows.length ? L("이 기간에는 출석 기록이 없습니다.", "No attendance records in this period.")
+        : L("회원을 추가하고 출석을 체크하면 순위가 여기에 표시됩니다.", "Add members and check attendance to see the rankings here.");
       tr.append(td);
       body.append(tr);
       return;
@@ -1772,7 +1817,7 @@
       btn.type = "button";
       btn.className = "name-btn";
       btn.textContent = r.name;
-      btn.title = `${r.name} 최근 모임 10번 보기`;
+      btn.title = L(`${r.name} 최근 모임 10번 보기`, `Show ${r.name}'s last 10 meetings`);
       btn.setAttribute("aria-expanded", open);
       btn.addEventListener("click", () => toggleRecentRow(tr, btn, r.id));
       tr.children[1].append(btn);
@@ -1831,18 +1876,18 @@
       const c = document.createElement("span");
       if (!day) {
         c.className = "c none";
-        c.title = "모임 기록 없음";
+        c.title = L("모임 기록 없음", "No meeting");
       } else {
         const played = GAMES.filter((g) => attended(day, mid, g)).length;
         if (played) hit++;
         const d = parseYmd(day);
         c.className = "c " + (played ? "in" : "out");
         const m = document.createElement("small");
-        m.textContent = `${d.getMonth() + 1}월`;
+        m.textContent = monthName(d.getMonth());
         const dd = document.createElement("b");
         dd.textContent = d.getDate();
         c.append(m, dd);
-        c.title = `${label(day, true)} ${played ? `참석 (${played}경기)` : "불참"}`;
+        c.title = `${label(day, true)} ${played ? L(`참석 (${played}경기)`, `present (${played} game${played === 1 ? "" : "s"})`) : L("불참", "absent")}`;
         c.setAttribute("aria-label", c.title);
       }
       strip.append(c);
@@ -1853,14 +1898,14 @@
       const range = document.createElement("span");
       range.textContent = `${label(dates[0], true)} → ${label(dates[dates.length - 1], true)}`;
       const sum = document.createElement("b");
-      sum.textContent = `최근 모임 ${dates.length}번 중 ${hit}번 참석`;
+      sum.textContent = L(`최근 모임 ${dates.length}번 중 ${hit}번 참석`, `Attended ${hit} of the last ${dates.length} meetings`);
       meta.append(sum, range);
     } else {
-      meta.textContent = "아직 이 팀의 모임 기록이 없습니다.";
+      meta.textContent = L("아직 이 팀의 모임 기록이 없습니다.", "This team has no meetings yet.");
     }
     const legend = document.createElement("div");
     legend.className = "legend";
-    legend.innerHTML = `<span><i class="c in"></i>참석 (그날 1경기 이상)</span><span><i class="c out"></i>불참</span>`;
+    legend.innerHTML = `<span><i class="c in"></i>${L("참석 (그날 1경기 이상)", "Present (1+ game that day)")}</span><span><i class="c out"></i>${L("불참", "Absent")}</span>`;
     wrap.append(meta, strip, legend);
     td.append(wrap);
     tr.append(td);
@@ -1895,7 +1940,7 @@
     const inactive = [...S.members.entries()]
       .filter(([, m]) => m.active === false)
       .sort((a, b) => a[1].name.localeCompare(b[1].name, "ko"));
-    $("memberCount").textContent = `${active.length}명`;
+    $("memberCount").textContent = L(`${active.length}명`, `${active.length}`);
 
     const list = $("memberList");
     // 목록은 따로 스크롤되는 상자라, 다시 그려도 보던 위치를 유지한다 (아래쪽 회원의 부상·삭제를 눌러도 위로 튀지 않게)
@@ -1904,7 +1949,7 @@
     if (!active.length) {
       const li = document.createElement("li");
       li.className = "empty-row";
-      li.textContent = S.mode === "loading" ? "불러오는 중" : "등록된 회원이 없습니다";
+      li.textContent = S.mode === "loading" ? L("불러오는 중", "Loading") : L("등록된 회원이 없습니다", "No members yet");
       list.append(li);
     }
     for (const [id, m] of active) {
@@ -1920,21 +1965,21 @@
         const caret = hadFocus ? document.activeElement.selectionStart : null;
         input.value = S.editDraft ?? m.name;
         input.className = "edit-input";
-        input.setAttribute("aria-label", `${m.name} 새 이름`);
+        input.setAttribute("aria-label", L(`${m.name} 새 이름`, `New name for ${m.name}`));
         input.addEventListener("input", () => { S.editDraft = input.value; });
         const sel = document.createElement("select");
         sel.className = "team-sel";
         sel.id = "editTeam-" + id;
-        sel.setAttribute("aria-label", `${m.name} 소속 팀`);
+        sel.setAttribute("aria-label", L(`${m.name} 소속 팀`, `${m.name}'s team`));
         activeTeams().forEach(([t]) => sel.add(new Option(`${tn(t)}`, t)));
         sel.value = S.editTeam ?? m.team;
         sel.addEventListener("change", () => { S.editTeam = sel.value; });
         const save = document.createElement("button");
         save.className = "row-btn";
-        save.textContent = "저장";
+        save.textContent = L("저장", "Save");
         const cancel = document.createElement("button");
         cancel.className = "row-btn";
-        cancel.textContent = "취소";
+        cancel.textContent = L("취소", "Cancel");
         const doSave = () => saveMember(id, input.value, sel.value);
         const doCancel = () => { S.editId = null; S.editDraft = null; S.editTeam = null; renderMembers(); };
         save.addEventListener("click", doSave);
@@ -1960,21 +2005,21 @@
       name.textContent = m.name;
       const edit = document.createElement("button");
       edit.className = "row-btn";
-      edit.textContent = "수정";
-      edit.setAttribute("aria-label", `${m.name} 이름 수정`);
+      edit.textContent = L("수정", "Edit");
+      edit.setAttribute("aria-label", L(`${m.name} 이름 수정`, `Edit ${m.name}`));
       edit.addEventListener("click", () => {
         S.editId = id; S.editDraft = null; S.editTeam = null; S.confirmDel = null;
         renderMembers();
       });
-      const del = confirmButton("삭제", "정말 삭제할까요?", "confirmDel", id, () => removeMember(id));
-      del.setAttribute("aria-label", `${m.name} 삭제`);
+      const del = confirmButton(L("삭제", "Remove"), L("정말 삭제할까요?", "Really remove?"), "confirmDel", id, () => removeMember(id));
+      del.setAttribute("aria-label", L(`${m.name} 삭제`, `Remove ${m.name}`));
       // 부상: 누르면 빨갛게 켜지고, 출석판에서 이름이 흐려진다
       const hurt = isInjured(id);
       const inj = document.createElement("button");
       inj.className = "row-btn injury" + (hurt ? " on" : "");
-      inj.textContent = "부상";
+      inj.textContent = L("부상", "Injured");
       inj.setAttribute("aria-pressed", hurt);
-      inj.setAttribute("aria-label", `${m.name} 부상 ${hurt ? "해제" : "표시"}`);
+      inj.setAttribute("aria-label", L(`${m.name} 부상 ${hurt ? "해제" : "표시"}`, `${hurt ? "Unmark" : "Mark"} ${m.name} as injured`));
       inj.addEventListener("click", () => toggleInjured(id));
       const btns = document.createElement("div");
       btns.className = "row-actions";
@@ -1985,7 +2030,7 @@
 
     list.scrollTop = listTop;
     $("inactiveBox").hidden = !inactive.length;
-    $("inactiveCount").textContent = `${inactive.length}명`;
+    $("inactiveCount").textContent = L(`${inactive.length}명`, `${inactive.length}`);
     const il = $("inactiveList");
     il.replaceChildren();
     for (const [id, m] of inactive) {
@@ -1994,10 +2039,10 @@
       name.textContent = m.name;
       const btn = document.createElement("button");
       btn.className = "row-btn";
-      btn.textContent = "복구";
+      btn.textContent = L("복구", "Restore");
       btn.addEventListener("click", () => restoreMember(id));
-      const purge = confirmButton("완전 삭제", "기록까지 지울까요?", "confirmPurge", id, () => purgeMember(id));
-      purge.setAttribute("aria-label", `${m.name} 완전 삭제`);
+      const purge = confirmButton(L("완전 삭제", "Delete forever"), L("기록까지 지울까요?", "Erase records too?"), "confirmPurge", id, () => purgeMember(id));
+      purge.setAttribute("aria-label", L(`${m.name} 완전 삭제`, `Permanently delete ${m.name}`));
       const btns = document.createElement("div");
       btns.className = "row-actions";
       btns.append(btn, purge);
@@ -2042,7 +2087,7 @@
   function renderCalendar() {
     if (!calView) return;
     const y = calView.getFullYear(), m = calView.getMonth();
-    $("calTitle").textContent = `${y}년 ${m + 1}월`;
+    $("calTitle").textContent = L(`${y}년 ${m + 1}월`, `${MON_EN[m]} ${y}`);
     const grid = $("calGrid");
     grid.replaceChildren();
     const lead = new Date(y, m, 1).getDay();
@@ -2056,9 +2101,10 @@
       b.type = "button";
       b.className = "cal-day-btn" + (met ? " met" : "") + (ds === S.date ? " sel" : "") + (ds === today ? " today" : "");
       b.textContent = n;
-      const wd = new Date(y, m, n).getDay();
-      if (wd === 0) b.classList.add("sun");
-      b.setAttribute("aria-label", `${m + 1}월 ${n}일 (${WD[wd]})${met ? ", 모임 있음" : ""}${ds === today ? ", 오늘" : ""}`);
+      const dow = new Date(y, m, n).getDay();
+      if (dow === 0) b.classList.add("sun");
+      b.setAttribute("aria-label", L(`${m + 1}월 ${n}일 (${wd(dow)})${met ? ", 모임 있음" : ""}${ds === today ? ", 오늘" : ""}`,
+        `${wd(dow)}, ${MON_EN[m]} ${n}${met ? ", meeting" : ""}${ds === today ? ", today" : ""}`));
       if (ds === S.date) b.setAttribute("aria-current", "date");
       b.addEventListener("click", () => { closeCalendar(); setDate(ds); });
       grid.append(b);
@@ -2115,7 +2161,7 @@
 
   $("addForm").addEventListener("submit", (e) => {
     e.preventDefault();
-    if (S.mode !== "live") { toast("기록을 불러온 뒤에 다시 시도해 주세요."); return; }
+    if (S.mode !== "live") { toast(L("기록을 불러온 뒤에 다시 시도해 주세요.", "Please try again after records load.")); return; }
     const names = [...new Set($("addInput").value.split(/[,\n、·]+/).map((s) => s.trim()).filter(Boolean))].slice(0, 60);
     if (!names.length) return;
     $("addInput").value = "";
@@ -2148,9 +2194,9 @@
   $("copyBtn").addEventListener("click", () => {
     const text = rosterText();
     const fb = $("copyFallback");
-    const fallback = () => { fb.value = text; fb.hidden = false; fb.focus(); fb.select(); toast("자동 복사가 막혀 있어요. 아래 글을 직접 복사해 주세요."); };
+    const fallback = () => { fb.value = text; fb.hidden = false; fb.focus(); fb.select(); toast(L("자동 복사가 막혀 있어요. 아래 글을 직접 복사해 주세요.", "Automatic copy is blocked. Copy the text below yourself.")); };
     try {
-      navigator.clipboard.writeText(text).then(() => { fb.hidden = true; toast("명단을 복사했습니다. 단톡방에 붙여넣으세요."); }, fallback);
+      navigator.clipboard.writeText(text).then(() => { fb.hidden = true; toast(L("명단을 복사했습니다. 단톡방에 붙여넣으세요.", "Roster copied. Paste it into your group chat.")); }, fallback);
     } catch (e) { fallback(); }
   });
 
@@ -2170,7 +2216,73 @@
     else if (!$("backupModal").hidden) closeBackup();
   });
 
+  // ---------- 설정: 언어 · 화면 모드 ----------
+  // index.html의 고정 문구: data-en(내용), data-en-aria-label·placeholder·title·alt(속성)에 영어를 두고,
+  // 처음 바꿀 때 원래 한국어를 data-ko(-속성)에 보관해 두었다가 되돌린다
+  function applyStaticLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-en]").forEach((el) => {
+      if (el.dataset.ko === undefined) el.dataset.ko = el.innerHTML;
+      el.innerHTML = lang === "ko" ? el.dataset.ko : el.dataset.en;
+    });
+    for (const a of ["aria-label", "placeholder", "title", "alt"]) {
+      document.querySelectorAll(`[data-en-${a}]`).forEach((el) => {
+        if (!el.hasAttribute(`data-ko-${a}`)) el.setAttribute(`data-ko-${a}`, el.getAttribute(a) || "");
+        el.setAttribute(a, el.getAttribute(`data-${lang === "ko" ? "ko" : "en"}-${a}`));
+      });
+    }
+  }
+
+  // 화면 모드: 고른 적이 없으면 휴대폰 설정(라이트/다크)을 따른다
+  function effectiveTheme() {
+    const t = document.documentElement.dataset.theme;
+    if (t === "light" || t === "dark") return t;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function renderSettings() {
+    document.querySelectorAll("#langSeg [data-lang]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+    const th = effectiveTheme();
+    document.querySelectorAll("#themeSeg [data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === th));
+  }
+
+  function setLang(v) {
+    lang = v === "ko" ? "ko" : "en";
+    try { localStorage.setItem(LANG_KEY, lang); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+    applyStaticLang();
+    if (noticeMsg) showNotice(noticeMsg);
+    renderAll();
+    if (!$("calModal").hidden) renderCalendar();
+    renderSettings();
+  }
+
+  function setTheme(v) {
+    const t = v === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+    renderSettings();
+  }
+
+  function openSettings() {
+    renderSettings();
+    $("setModal").hidden = false;
+    document.body.classList.add("modal-open");
+    $("setClose").focus();
+  }
+  function closeSettings() {
+    $("setModal").hidden = true;
+    document.body.classList.remove("modal-open");
+    $("setBtn").focus({ preventScroll: true });
+  }
+  $("setBtn").addEventListener("click", openSettings);
+  $("setClose").addEventListener("click", closeSettings);
+  $("setModal").addEventListener("click", (e) => { if (e.target === $("setModal")) closeSettings(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("setModal").hidden) closeSettings(); });
+  $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
+  $("themeSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-theme-set]"); if (b) setTheme(b.dataset.themeSet); });
+
   // ---------- 시작 ----------
+  applyStaticLang();
   // 팀: 주소의 #faith/#hope/#love → 이 브라우저에서 마지막으로 고른 팀 → 믿음팀
   let savedTeam = null;
   try { savedTeam = localStorage.getItem(TEAM_KEY); } catch (e) { savedTeam = null; }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -17,7 +17,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="local.css?v=16">
+  <link rel="stylesheet" href="local.css?v=17">
+  <script>
+    // 설정에서 고른 화면 모드(라이트/다크)를 그리기 전에 적용해 깜빡임을 막는다
+    try { const t = localStorage.getItem("soccer-local-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
 </head>
 <body data-view="check">
 <!-- 앱 실행 화면: 처음 열 때 잠깐 보였다가 사라진다 -->
@@ -50,41 +54,48 @@
   })();
 </script>
 <div class="wrap">
-  <header class="board" aria-label="모임 날짜">
+  <header class="board" aria-label="모임 날짜" data-en-aria-label="Meeting date">
     <div class="board-top">
       <div class="board-title">
         <div class="eyebrow">Best Line-up</div>
         <div class="date-big" id="dateBig">-</div>
       </div>
       <div class="date-nav">
-        <button id="prevDay" aria-label="이전 날짜">‹</button>
+        <button id="prevDay" aria-label="이전 날짜" data-en-aria-label="Previous day">‹</button>
         <button type="button" class="cal-btn" id="calBtn" aria-label="달력 열기" aria-haspopup="dialog">
           <span class="cal-tile" aria-hidden="true"><span class="cal-month" id="calMonth"></span><span class="cal-day" id="calDay"></span></span>
           <span class="cal-desk" id="calDesk" aria-hidden="true"></span>
         </button>
-        <input type="date" id="datePick" aria-label="모임 날짜 선택" hidden>
-        <button id="nextDay" aria-label="다음 날짜">›</button>
+        <input type="date" id="datePick" aria-label="모임 날짜 선택" data-en-aria-label="Choose meeting date" hidden>
+        <button id="nextDay" aria-label="다음 날짜" data-en-aria-label="Next day">›</button>
       </div>
     </div>
-    <div class="teams" id="teamTabs" role="group" aria-label="팀 선택"></div>
+    <div class="team-row">
+      <div class="teams" id="teamTabs" role="group" aria-label="팀 선택" data-en-aria-label="Choose team"></div>
+      <button type="button" class="set-btn" id="setBtn" aria-label="설정" data-en-aria-label="Settings" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2L5.5 5.5"/><circle cx="12" cy="12" r="6.6"/></svg>
+      </button>
+    </div>
     <div class="recent" id="recent"></div>
+    <!-- 구장 아래쪽을 굴러가는 작은 축구공 (장식) -->
+    <span class="ball-roll" aria-hidden="true"></span>
   </header>
 
   <div class="notice" id="notice" hidden></div>
 
   <section class="panel view" data-view="lineup" aria-labelledby="lineupTitle">
     <div class="panel-head">
-      <h2 id="lineupTitle">포지션 배치</h2>
-      <span class="muted head-note">포지션에 넣은 회원은 그 경기 출석이 자동으로 체크됩니다</span>
+      <h2 id="lineupTitle" data-en="Lineup">포지션 배치</h2>
+      <span class="muted head-note" data-en="Placing a member in a position checks their attendance for that game">포지션에 넣은 회원은 그 경기 출석이 자동으로 체크됩니다</span>
     </div>
     <div class="lineup-tools">
-      <div class="game-tabs" id="gameTabs" role="group" aria-label="경기 선택"></div>
-      <label class="muted formation-label">포메이션
-        <select id="formationSel" aria-label="포메이션"></select>
+      <div class="game-tabs" id="gameTabs" role="group" aria-label="경기 선택" data-en-aria-label="Choose game"></div>
+      <label class="muted formation-label"><span data-en="Formation">포메이션</span>
+        <select id="formationSel" aria-label="포메이션" data-en-aria-label="Formation"></select>
       </label>
       <button class="btn-ghost save-img" type="button" id="saveLineupBtn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
-        그림 저장
+        <span data-en="Save image">그림 저장</span>
       </button>
     </div>
     <div class="lineup">
@@ -100,8 +111,8 @@
   <div class="main">
     <section class="panel view" data-view="check">
       <div class="panel-head">
-        <h2>경기별 출석 체크</h2>
-        <span class="muted head-note">동그라미를 누르면 해당 경기 참석으로 표시됩니다</span>
+        <h2 data-en="Attendance by game">경기별 출석 체크</h2>
+        <span class="muted head-note" data-en="Tap a circle to mark that member present for the game">동그라미를 누르면 해당 경기 참석으로 표시됩니다</span>
       </div>
       <div class="table-scroll">
         <table class="att" id="attTable">
@@ -117,53 +128,53 @@
 
     <aside class="side">
       <section class="panel view" data-view="summary">
-        <div class="panel-head"><h2>이날 요약</h2></div>
+        <div class="panel-head"><h2 data-en="Day summary">이날 요약</h2></div>
         <div class="tiles">
-          <div class="tile"><b class="num" id="tPeople">0</b><span>참석 인원</span></div>
-          <div class="tile"><b class="num" id="tGames">0</b><span>진행 경기</span></div>
+          <div class="tile"><b class="num" id="tPeople">0</b><span data-en="Present">참석 인원</span></div>
+          <div class="tile"><b class="num" id="tGames">0</b><span data-en="Games played">진행 경기</span></div>
         </div>
         <div class="roster" id="roster"></div>
         <div class="copy-row">
-          <button class="btn-ghost" id="copyBtn">명단 텍스트 복사</button>
+          <button class="btn-ghost" id="copyBtn" data-en="Copy roster text">명단 텍스트 복사</button>
         </div>
         <textarea id="copyFallback" class="copy-fallback" hidden readonly></textarea>
         <div class="danger-zone">
           <button type="button" class="btn-danger" id="deleteDayBtn">이 날짜 기록 삭제</button>
-          <p class="hint muted" id="deleteDayHint">선택한 날짜의 이 팀 출석·포지션 기록을 지웁니다. 다른 팀 기록은 그대로입니다.</p>
+          <p class="hint muted" id="deleteDayHint" data-en="Deletes this team's attendance and lineup for the selected date. Other teams' records stay.">선택한 날짜의 이 팀 출석·포지션 기록을 지웁니다. 다른 팀 기록은 그대로입니다.</p>
         </div>
       </section>
 
       <section class="panel view" data-view="members" id="memberPanel">
         <div class="panel-head">
-          <h2>회원 관리 <span class="muted num member-count" id="memberCount"></span></h2>
+          <h2><span data-en="Members">회원 관리</span> <span class="muted num member-count" id="memberCount"></span></h2>
         </div>
         <div class="team-name-row" id="teamNameRow"></div>
         <div class="team-name-row team-tools" id="teamTools"></div>
         <form class="add-form" id="addForm" autocomplete="off">
-          <input id="addInput" type="text" maxlength="200" placeholder="이름 (여러 명은 쉼표로: 홍길동, 이순신)" aria-label="추가할 회원 이름">
-          <button class="btn" type="submit">추가</button>
+          <input id="addInput" type="text" maxlength="200" placeholder="이름 (여러 명은 쉼표로: 홍길동, 이순신)" data-en-placeholder="Name (separate several with commas: Alex, Sam)" aria-label="추가할 회원 이름" data-en-aria-label="Member names to add">
+          <button class="btn" type="submit" data-en="Add">추가</button>
         </form>
         <ul class="mlist" id="memberList"></ul>
         <details class="inactive" id="inactiveBox" hidden>
-          <summary>명단에서 뺀 회원 <span class="num" id="inactiveCount"></span></summary>
+          <summary><span data-en="Removed members">명단에서 뺀 회원</span> <span class="num" id="inactiveCount"></span></summary>
           <ul class="mlist" id="inactiveList"></ul>
         </details>
-        <p class="hint muted">삭제해도 지난 출석 기록과 통계는 남고 복구할 수 있습니다. "명단에서 뺀 회원"에서 한 번 더 삭제하면 기록까지 완전히 지워지며 되돌릴 수 없습니다.</p>
+        <p class="hint muted" data-en="Removing a member keeps their past attendance and stats, and you can restore them. Deleting again under &quot;Removed members&quot; erases their records for good.">삭제해도 지난 출석 기록과 통계는 남고 복구할 수 있습니다. "명단에서 뺀 회원"에서 한 번 더 삭제하면 기록까지 완전히 지워지며 되돌릴 수 없습니다.</p>
       </section>
 
       <section class="panel view" data-view="members" id="dataPanel" aria-labelledby="dataTitle">
         <div class="panel-head">
-          <h2 id="dataTitle">백업 · 데이터</h2>
+          <h2 id="dataTitle" data-en="Backup · Data">백업 · 데이터</h2>
         </div>
-        <p class="data-note">모든 기록은 <b>이 폰에만</b> 저장됩니다. 앱을 지우거나 브라우저 데이터를 지우면 함께 사라지니, 백업 파일을 자주 저장해 카톡·드라이브 등에 보관하세요.</p>
+        <p class="data-note" data-en="All records are saved <b>only on this phone</b>. Deleting the app or browser data erases them, so save a backup file often and keep it in a chat app or cloud drive.">모든 기록은 <b>이 폰에만</b> 저장됩니다. 앱을 지우거나 브라우저 데이터를 지우면 함께 사라지니, 백업 파일을 자주 저장해 카톡·드라이브 등에 보관하세요.</p>
         <dl class="data-stat">
-          <div><dt>마지막 백업</dt><dd id="lastBackup">-</dd></div>
-          <div><dt>저장된 기록</dt><dd id="dataCount">-</dd></div>
-          <div><dt>저장 공간</dt><dd id="persistState">확인 중</dd></div>
+          <div><dt data-en="Last backup">마지막 백업</dt><dd id="lastBackup">-</dd></div>
+          <div><dt data-en="Saved records">저장된 기록</dt><dd id="dataCount">-</dd></div>
+          <div><dt data-en="Storage">저장 공간</dt><dd id="persistState">확인 중</dd></div>
         </dl>
         <div class="data-actions">
-          <button type="button" class="btn" id="backupBtn">백업 파일 저장</button>
-          <button type="button" class="btn-ghost" id="importBtn">백업 불러오기</button>
+          <button type="button" class="btn" id="backupBtn" data-en="Save backup">백업 파일 저장</button>
+          <button type="button" class="btn-ghost" id="importBtn" data-en="Restore backup">백업 불러오기</button>
           <input type="file" id="importFile" accept=".json,.txt,application/json,text/plain" hidden>
         </div>
       </section>
@@ -172,53 +183,53 @@
 
   <section class="panel view" data-view="stats">
     <div class="panel-head">
-      <h2>참석 통계</h2>
+      <h2 data-en="Attendance stats">참석 통계</h2>
       <div class="chips" id="periodChips">
-        <button class="chip" data-period="month" aria-pressed="true">이번 달</button>
-        <button class="chip" data-period="3m" aria-pressed="false">최근 3개월</button>
-        <button class="chip" data-period="year" aria-pressed="false">올해</button>
+        <button class="chip" data-period="month" aria-pressed="true" data-en="This month">이번 달</button>
+        <button class="chip" data-period="3m" aria-pressed="false" data-en="Last 3 months">최근 3개월</button>
+        <button class="chip" data-period="year" aria-pressed="false" data-en="This year">올해</button>
       </div>
     </div>
     <div class="stats-bar">
       <button type="button" class="btn-ghost export-btn" id="exportBtn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
-        엑셀로 내보내기
+        <span data-en="Export to Excel">엑셀로 내보내기</span>
       </button>
-      <div class="seg" id="rankSort" role="group" aria-label="정렬">
-        <button type="button" data-sort="rate" aria-pressed="true">참석률순</button>
-        <button type="button" data-sort="name" aria-pressed="false">이름순</button>
+      <div class="seg" id="rankSort" role="group" aria-label="정렬" data-en-aria-label="Sort">
+        <button type="button" data-sort="rate" aria-pressed="true" data-en="By rate">참석률순</button>
+        <button type="button" data-sort="name" aria-pressed="false" data-en="By name">이름순</button>
       </div>
     </div>
     <div class="rank-scroll">
       <table class="rank">
-        <thead><tr><th class="pos">#</th><th>이름</th><th class="r" title="참석한 모임 날짜 / 기간 중 전체 모임 날짜">참석/전체</th><th>참석률</th></tr></thead>
+        <thead><tr><th class="pos">#</th><th data-en="Name">이름</th><th class="r" title="참석한 모임 날짜 / 기간 중 전체 모임 날짜" data-en-title="Days attended / team meeting days in the period" data-en="Days">참석/전체</th><th data-en="Rate">참석률</th></tr></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
-    <p class="hint muted">참석률 = 참석한 모임 날짜 수 ÷ 기간 중 팀의 전체 모임 날짜 수 (그날 한 경기라도 나오면 참석으로 셉니다)</p>
+    <p class="hint muted" data-en="Rate = days attended ÷ the team's meeting days in the period (playing at least one game that day counts as present)">참석률 = 참석한 모임 날짜 수 ÷ 기간 중 팀의 전체 모임 날짜 수 (그날 한 경기라도 나오면 참석으로 셉니다)</p>
   </section>
 </div>
 
-<nav class="tabbar" id="tabbar" aria-label="화면 전환">
+<nav class="tabbar" id="tabbar" aria-label="화면 전환" data-en-aria-label="Switch screen">
   <button type="button" data-tab="check">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg>
-    <span>출석</span>
+    <span data-en="Attend">출석</span>
   </button>
   <button type="button" data-tab="lineup">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16"/><circle cx="12" cy="12" r="3"/></svg>
-    <span>포지션</span>
+    <span data-en="Lineup">포지션</span>
   </button>
   <button type="button" data-tab="summary">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
-    <span>요약</span>
+    <span data-en="Summary">요약</span>
   </button>
   <button type="button" data-tab="stats">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>
-    <span>통계</span>
+    <span data-en="Stats">통계</span>
   </button>
   <button type="button" data-tab="members">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.8 4.7 4.7"/></svg>
-    <span>회원</span>
+    <span data-en="Members">회원</span>
   </button>
 </nav>
 
@@ -226,13 +237,13 @@
   <div class="img-card">
     <div class="img-head">
       <b id="imgModalTitle">포지션 배치 그림</b>
-      <button type="button" class="btn-ghost" id="imgCloseBtn">닫기</button>
+      <button type="button" class="btn-ghost" id="imgCloseBtn" data-en="Close">닫기</button>
     </div>
     <p class="img-tip" id="imgTip">그림을 <b>길게 눌러</b> 사진에 저장하세요.</p>
-    <div class="img-wrap"><img id="imgPreview" alt="포지션 배치 그림"></div>
+    <div class="img-wrap"><img id="imgPreview" alt="포지션 배치 그림" data-en-alt="Lineup image"></div>
     <div class="img-actions">
-      <button type="button" class="btn" id="imgDownloadBtn">파일로 저장</button>
-      <button type="button" class="btn-ghost" id="imgShareBtn" hidden>공유하기</button>
+      <button type="button" class="btn" id="imgDownloadBtn" data-en="Save file">파일로 저장</button>
+      <button type="button" class="btn-ghost" id="imgShareBtn" hidden data-en="Share">공유하기</button>
     </div>
   </div>
 </div>
@@ -241,12 +252,12 @@
   <div class="img-card">
     <div class="img-head">
       <b id="backupModalTitle">백업 파일</b>
-      <button type="button" class="btn-ghost" id="backupCloseBtn">닫기</button>
+      <button type="button" class="btn-ghost" id="backupCloseBtn" data-en="Close">닫기</button>
     </div>
     <p class="img-tip" id="backupTip"></p>
     <div class="img-actions">
-      <button type="button" class="btn" id="backupDownloadBtn">파일로 저장</button>
-      <button type="button" class="btn-ghost" id="backupShareBtn" hidden>공유하기 (카톡·드라이브)</button>
+      <button type="button" class="btn" id="backupDownloadBtn" data-en="Save file">파일로 저장</button>
+      <button type="button" class="btn-ghost" id="backupShareBtn" hidden data-en="Share (chat · drive)">공유하기 (카톡·드라이브)</button>
     </div>
   </div>
 </div>
@@ -257,8 +268,38 @@
     <div class="img-head"><b id="askTitle">확인</b></div>
     <p class="img-tip" id="askText"></p>
     <div class="img-actions">
-      <button type="button" class="btn-ghost" id="askCancel">취소</button>
+      <button type="button" class="btn-ghost" id="askCancel" data-en="Cancel">취소</button>
       <button type="button" class="btn ask-ok" id="askOk">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 설정: 언어 · 화면 모드 -->
+<div class="img-modal" id="setModal" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="img-card set-card">
+    <div class="img-head">
+      <b id="setTitle" data-en="Settings">설정</b>
+      <button type="button" class="btn-ghost" id="setClose" data-en="Close">닫기</button>
+    </div>
+    <div class="set-group">
+      <span class="set-label" id="langLabel" data-en="Language">언어</span>
+      <div class="seg" id="langSeg" role="group" aria-labelledby="langLabel">
+        <button type="button" data-lang="en" lang="en">English</button>
+        <button type="button" data-lang="ko" lang="ko">한국어</button>
+      </div>
+    </div>
+    <div class="set-group">
+      <span class="set-label" id="themeLabel" data-en="Display">화면 모드</span>
+      <div class="seg" id="themeSeg" role="group" aria-labelledby="themeLabel">
+        <button type="button" data-theme-set="light">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M21.5 12h-2.2M4.7 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9L5.3 5.3"/></svg>
+          <span data-en="Light">라이트</span>
+        </button>
+        <button type="button" data-theme-set="dark">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+          <span data-en="Dark">다크</span>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -266,17 +307,17 @@
 <div class="cal-modal" id="calModal" hidden role="dialog" aria-modal="true" aria-labelledby="calTitle">
   <div class="cal-card">
     <div class="cal-head">
-      <button type="button" class="cal-nav" id="calPrev" aria-label="이전 달">‹</button>
+      <button type="button" class="cal-nav" id="calPrev" aria-label="이전 달" data-en-aria-label="Previous month">‹</button>
       <b id="calTitle"></b>
-      <button type="button" class="cal-nav" id="calNext" aria-label="다음 달">›</button>
+      <button type="button" class="cal-nav" id="calNext" aria-label="다음 달" data-en-aria-label="Next month">›</button>
     </div>
-    <div class="cal-week" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+    <div class="cal-week" aria-hidden="true"><span data-en="S">일</span><span data-en="M">월</span><span data-en="T">화</span><span data-en="W">수</span><span data-en="T">목</span><span data-en="F">금</span><span data-en="S">토</span></div>
     <div class="cal-grid" id="calGrid" role="grid"></div>
     <div class="cal-foot">
-      <span class="cal-legend"><i class="dot-met"></i>모임 있던 날</span>
+      <span class="cal-legend"><i class="dot-met"></i><span data-en="Meeting days">모임 있던 날</span></span>
       <span class="cal-actions">
-        <button type="button" class="btn-ghost" id="calToday">오늘</button>
-        <button type="button" class="btn-ghost" id="calClose">닫기</button>
+        <button type="button" class="btn-ghost" id="calToday" data-en="Today">오늘</button>
+        <button type="button" class="btn-ghost" id="calClose" data-en="Close">닫기</button>
       </span>
     </div>
   </div>
@@ -284,7 +325,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=17"></script>
+<script src="local.js?v=18"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {
