@@ -158,13 +158,21 @@
     };
   }
 
+  const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+  const RESERVED_IDS = new Set(["__proto__", "constructor", "prototype"]);
+  const MAX_MEMBERS = 2000;
+  const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+
   // 저장소·백업 파일에서 읽은 값을 검사해 메모리 형식으로 바꾼다. 형식이 아니면 null
   function parseData(o) {
     if (!o || typeof o !== "object" || !Array.isArray(o.members) || !o.days || typeof o.days !== "object") return null;
     const teams = new Set(TEAMS.map(([t]) => t));
     const members = new Map();
     for (const m of o.members) {
-      if (!m || typeof m.id !== "string" || typeof m.name !== "string" || !m.name.trim() || !teams.has(m.team)) continue;
+      // id는 객체 키로도 쓰이므로 형식을 제한한다 ("__proto__" 등으로 Object.prototype이 오염되는 것을 막음)
+      if (!m || typeof m.id !== "string" || !SAFE_ID.test(m.id) || RESERVED_IDS.has(m.id)) continue;
+      if (typeof m.name !== "string" || !m.name.trim() || !teams.has(m.team)) continue;
+      if (members.size >= MAX_MEMBERS) break;
       members.set(m.id, { name: m.name.trim().slice(0, 40), active: m.active !== false, team: m.team, injured: m.injured === true, created_at: m.created_at || null });
     }
     const days = new Map();
@@ -1107,6 +1115,7 @@
 
   async function importBackupFile(file) {
     if (S.mode !== "live") { toast("저장소를 열지 못해 불러올 수 없습니다."); return; }
+    if (file.size > MAX_BACKUP_BYTES) { toast("백업 파일이 너무 큽니다. 출석부 백업 파일이 맞는지 확인해 주세요."); return; }
     let parsed = null;
     try { parsed = parseData(JSON.parse(await file.text())); } catch (e) { parsed = null; }
     if (!parsed) { toast("출석부 백업 파일이 아닙니다. 백업 파일 저장으로 만든 파일을 골라 주세요."); return; }
@@ -1636,7 +1645,7 @@
     if (window.XLSX) return Promise.resolve(window.XLSX);
     xlsxLoading ||= new Promise((resolve, reject) => {
       const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      s.src = "xlsx.full.min.js?v=1"; // 외부 CDN 대신 이 폴더에 둔 SheetJS 0.18.5 (오프라인 동작, 외부 코드 실행 방지)
       s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error("xlsx")));
       s.onerror = () => { xlsxLoading = null; reject(new Error("xlsx")); };
       document.head.append(s);
@@ -1692,7 +1701,7 @@
       setTimeout(() => URL.revokeObjectURL(url), 4000);
       toast(`${file} 파일을 저장했습니다. 휴대폰은 '다운로드' 폴더에서 찾을 수 있습니다.`);
     } catch (e) {
-      toast("엑셀 파일을 만들지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.");
+      toast("엑셀 파일을 만들지 못했습니다. 잠시 후 다시 눌러 주세요.");
     } finally {
       btn.disabled = false;
     }
