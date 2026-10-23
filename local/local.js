@@ -520,7 +520,8 @@
     // 사람을 넣을 때는 안내 없이 바로 반영한다 (자리를 비울 때만 안내)
     const msg = mid ? null
                     : `${pos} 자리를 비웠습니다. 출석은 출석판에서 해제할 수 있습니다.`;
-    S.pickSlot = mid ? nextEmptySlot(lu.slots, slotIdx, mid) : slotIdx;
+    // 다 채워도 시트를 닫지 않는다 (닫히면 휴대폰에서 화면이 맨 위로 돌아감) — 닫기는 "닫기" 버튼으로
+    S.pickSlot = mid ? nextEmptySlot(lu.slots, slotIdx, mid) ?? slotIdx : slotIdx;
     write(() => dbPlace(date, t, g, slotIdx, mid || null, lu.formation), msg);
   }
 
@@ -1586,6 +1587,18 @@
       div.append(gs, " ", txt);
       r.append(div);
     }
+    // 맨 아래: 이날 한 경기도 안 나온 회원 (명단에서 뺀 회원 제외)
+    const absent = activeMembers().filter(([id]) => !GAMES.some((g) => attended(S.date, id, g))).map(([, m]) => m.name);
+    const ab = document.createElement("div");
+    ab.className = "absent";
+    const as = document.createElement("span");
+    as.className = "g";
+    as.textContent = `불참 ${absent.length}명`;
+    const at = document.createElement("span");
+    if (absent.length) at.textContent = absent.join(", ");
+    else { at.textContent = "없음"; at.className = "none"; }
+    ab.append(as, " ", at);
+    r.append(ab);
   }
 
   // ---------- 날짜 기록 삭제 (선택한 날짜, 지금 팀만) ----------
