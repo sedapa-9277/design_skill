@@ -1260,3 +1260,21 @@ body.locked #memberPanel > .hint { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .att .cell.pop { animation: none; }
 }
+
+/* 회원 관리: 팀 추가 / 팀 삭제 / 회원 전체 삭제 */
+.team-admin { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -4px 0 12px; }
+.team-admin .row-btn { min-height: 32px; }
+.team-admin .row-btn:disabled { opacity: .4; cursor: not-allowed; }
+.team-admin .edit-input {
+  flex: 1 1 140px;
+  min-width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--pitch);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.row-btn.danger.confirm,
+.row-btn.danger.confirm:hover { background: #c62828; border-color: #c62828; color: #ffffff; font-weight: 700; }
+body.locked #memberPanel .team-admin { display: none; }
