@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="local.css?v=6">
+  <link rel="stylesheet" href="local.css?v=7">
 </head>
 <body data-view="check">
 <!-- 앱 실행 화면: 처음 열 때 잠깐 보였다가 사라진다 -->
@@ -56,10 +56,11 @@
       </div>
       <div class="date-nav">
         <button id="prevDay" aria-label="이전 날짜">‹</button>
-        <label class="cal-btn">
+        <button type="button" class="cal-btn" id="calBtn" aria-label="달력 열기" aria-haspopup="dialog">
           <span class="cal-tile" aria-hidden="true"><span class="cal-month" id="calMonth"></span><span class="cal-day" id="calDay"></span></span>
-          <input type="date" id="datePick" aria-label="모임 날짜 선택">
-        </label>
+          <span class="cal-desk" id="calDesk" aria-hidden="true"></span>
+        </button>
+        <input type="date" id="datePick" aria-label="모임 날짜 선택" hidden>
         <button id="nextDay" aria-label="다음 날짜">›</button>
       </div>
     </div>
@@ -273,9 +274,28 @@
   </div>
 </div>
 
+<div class="cal-modal" id="calModal" hidden role="dialog" aria-modal="true" aria-labelledby="calTitle">
+  <div class="cal-card">
+    <div class="cal-head">
+      <button type="button" class="cal-nav" id="calPrev" aria-label="이전 달">‹</button>
+      <b id="calTitle"></b>
+      <button type="button" class="cal-nav" id="calNext" aria-label="다음 달">›</button>
+    </div>
+    <div class="cal-week" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+    <div class="cal-grid" id="calGrid" role="grid"></div>
+    <div class="cal-foot">
+      <span class="cal-legend"><i class="dot-met"></i>모임 있던 날</span>
+      <span class="cal-actions">
+        <button type="button" class="btn-ghost" id="calToday">오늘</button>
+        <button type="button" class="btn-ghost" id="calClose">닫기</button>
+      </span>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=7"></script>
+<script src="local.js?v=8"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {
