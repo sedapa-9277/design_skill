@@ -1280,3 +1280,13 @@ body.locked #memberPanel > .hint { display: none; }
 .row-btn.danger.confirm,
 .row-btn.danger.confirm:hover { background: #c62828; border-color: #c62828; color: #ffffff; font-weight: 700; }
 body.locked #memberPanel .team-admin { display: none; }
+
+/* ---- 포지션에 들어간 경기: 축구공 대신 포지션 이름 ---- */
+.att .cell.pos[aria-pressed="true"] {
+  background: var(--pitch);
+  border: 2px solid var(--pitch);
+  color: var(--chalk);
+  font-weight: 700;
+  font-size: .72rem;
+  letter-spacing: -.02em;
+}
