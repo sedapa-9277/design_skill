@@ -1398,6 +1398,7 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
 .set-label { font-size: .82rem; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
 .set-card .seg { display: flex; width: 100%; }
 .set-card .seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 0; font-size: .95rem; }
+.set-info { margin: 0; font-size: .75rem; text-align: center; overflow-wrap: anywhere; }
 .set-card .seg svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 
 /* 구장 아래쪽을 왼쪽에서 오른쪽으로 굴러가는 작은 축구공 */

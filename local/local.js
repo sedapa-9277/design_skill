@@ -2244,6 +2244,27 @@
     document.querySelectorAll("#langSeg [data-lang]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === lang));
     const th = effectiveTheme();
     document.querySelectorAll("#themeSeg [data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === th));
+    renderSetInfo();
+  }
+
+  // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
+  const APP_VERSION = 25; // sw.js의 VERSION과 같게 올린다
+  function browserName() {
+    const ua = navigator.userAgent;
+    let m;
+    if ((m = ua.match(/SamsungBrowser\/([\d.]+)/))) return `Samsung Internet ${m[1].split(".")[0]}`;
+    if (/; wv\)/.test(ua)) return `Android WebView ${(ua.match(/Chrome\/(\d+)/) || [])[1] || ""}`.trim();
+    if ((m = ua.match(/(?:Edg|EdgA)\/(\d+)/))) return `Edge ${m[1]}`;
+    if ((m = ua.match(/Chrome\/(\d+)/))) return `Chrome ${m[1]}`;
+    if ((m = ua.match(/Version\/([\d.]+).*Safari/))) return `Safari ${m[1].split(".")[0]}`;
+    return L("알 수 없음", "Unknown");
+  }
+  function renderSetInfo() {
+    const sys = window.matchMedia("(prefers-color-scheme: dark)").matches ? L("다크", "dark") : L("라이트", "light");
+    const standalone = window.matchMedia("(display-mode: standalone)").matches;
+    $("setInfo").textContent = L(
+      `버전 ${APP_VERSION} · ${browserName()}${standalone ? " (앱)" : ""} · 폰 설정 ${sys}`,
+      `Version ${APP_VERSION} · ${browserName()}${standalone ? " (app)" : ""} · Phone setting ${sys}`);
   }
 
   function setLang(v) {
