@@ -32,9 +32,10 @@
     mode: "loading",          // loading | live | offline
     pin: null,                // 잠금 해제된 PIN (이 브라우저 탭에서만 기억)
     team: "믿음",
-    members: new Map(),       // id -> {name, active, team}
+    members: new Map(),       // id -> {name, active, team, injured}
     days: new Map(),          // "YYYY-MM-DD" -> {att: {memberId: {g1:true,...}}, lineup: {팀: {g1: {formation, pos: {s0: memberId}}}}}
     pending: new Map(),       // "date|mid|gN" -> bool (낙관적 반영)
+    pendingInjured: new Map(), // memberId -> bool (부상 표시 낙관적 반영)
     pendingLineup: new Map(), // "date|팀|gN|sI" -> memberId|null, "date|팀|gN|form" -> 포메이션
     lineupGame: 1,
     pickSlot: null,
@@ -122,14 +123,14 @@
     const seq = ++loadSeq;
     try {
       const [members, att, lineups, slots, teamNames] = await Promise.all([
-        fetchAll("members", "id,name,active,team", ["created_at", "id"]),
+        fetchAll("members", "id,name,active,team,injured", ["created_at", "id"]),
         fetchAll("attendance", "day,member_id,game", ["day", "member_id", "game"]),
         fetchAll("lineups", "day,team,game,formation", ["day", "team", "game"]),
         fetchAll("lineup_slots", "day,team,game,slot,member_id", ["day", "team", "game", "slot"]),
         fetchAll("team_names", "team,name,active", ["team"]).catch(() => fetchAll("team_names", "team,name", ["team"]).catch(() => [])),
       ]);
       if (seq !== loadSeq) return;
-      S.members = new Map(members.map((m) => [m.id, { name: m.name, active: m.active, team: m.team }]));
+      S.members = new Map(members.map((m) => [m.id, { name: m.name, active: m.active, team: m.team, injured: !!m.injured }]));
       S.teamNames = Object.fromEntries(teamNames.map((t) => [t.team, t.name]));
       S.teamActive = Object.fromEntries(teamNames.map((t) => [t.team, t.active !== false]));
       if (S.teamActive[S.team] === false) { const first = activeTeams()[0]; if (first) setTeam(first[0]); }
@@ -236,8 +237,23 @@
         });
       }
     }
-    const msg = fromLineup ? `${memberName(mid)} 님을 포지션에서도 뺐습니다.` : null;
+    // 부상 중인 회원을 출석 체크하면 부상 표시를 푼다 (DB 함수가 처리)
+    const healed = on && isInjured(mid);
+    if (healed) pend.push([S.pendingInjured, mid, false]);
+    const msg = fromLineup ? `${memberName(mid)} 님을 포지션에서도 뺐습니다.`
+      : healed ? `${memberName(mid)} 님의 부상 표시를 풀었습니다.` : null;
     return write(date, pend, () => rpc("set_attendance", { p_day: date, p_member: mid, p_games: games, p_on: on }), msg);
+  }
+
+  function isInjured(id) {
+    return S.pendingInjured.has(id) ? S.pendingInjured.get(id) : !!S.members.get(id)?.injured;
+  }
+
+  function toggleInjured(id) {
+    if (needPin()) return;
+    const on = !isInjured(id);
+    write("members", [[S.pendingInjured, id, on]], () => rpc("set_member_injured", { p_id: id, p_injured: on }),
+      on ? `${memberName(id)} 님을 부상으로 표시했습니다.` : `${memberName(id)} 님의 부상 표시를 풀었습니다.`);
   }
 
   function toggleCell(mid, g) {
@@ -275,8 +291,10 @@
       lu.slots.forEach((v, i) => { if (v === mid && i !== slotIdx) pend.push([S.pendingLineup, `${date}|${t}|g${g}|s${i}`, null]); });
       pend.push([S.pending, `${date}|${mid}|g${g}`, true]);
     }
+    const healed = mid && isInjured(mid);
+    if (healed) pend.push([S.pendingInjured, mid, false]);
     const pos = FORMATIONS[lu.formation][slotIdx][0];
-    const msg = mid ? `${memberName(mid)} → ${g}경기 ${pos}, 출석 체크했습니다.`
+    const msg = mid ? `${memberName(mid)} → ${g}경기 ${pos}, 출석 체크했습니다.${healed ? " 부상 표시를 풀었습니다." : ""}`
                     : `${pos} 자리를 비웠습니다. 출석은 출석판에서 해제할 수 있습니다.`;
     // 다 채워도 시트를 닫지 않는다 (닫히면 휴대폰에서 화면이 맨 위로 돌아감) — 닫기는 "닫기" 버튼으로
     S.pickSlot = mid ? nextEmptySlot(lu.slots, slotIdx, mid) ?? slotIdx : slotIdx;
@@ -949,10 +967,13 @@
     const recent3 = [...S.days.keys()].filter((d) => d <= S.date && hasAny(d)).sort().slice(-3);
     const cameRecently = (id) => recent3.some((d) => GAMES.some((g) => attended(d, id, g)));
     const order = (a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko");
-    const all = activeMembers();
+    // 부상자는 맨 아래 따로 (이미 이 경기에 넣은 사람은 제외)
+    const hurt = ([id]) => isInjured(id) && !placedAt.has(id);
+    const all = activeMembers().filter((e) => !hurt(e));
+    const injured = activeMembers().filter(hurt);
     const regulars = recent3.length ? all.filter(([id]) => cameRecently(id) || placedAt.has(id)) : all;
     const rare = recent3.length ? all.filter(([id]) => !cameRecently(id) && !placedAt.has(id)) : [];
-    const members = [...regulars.sort(order), ...rare.sort(order)];
+    const members = [...regulars.sort(order), ...rare.sort(order), ...injured.sort(order)];
     for (const [id, m] of members) {
       if (rare.length && id === rare[0][0]) {
         const hr = document.createElement("div");
@@ -960,9 +981,16 @@
         hr.textContent = `최근 ${recent3.length}번 모임 불참`;
         list.append(hr);
       }
+      if (injured.length && id === injured[0][0]) {
+        const hr = document.createElement("div");
+        hr.className = "pick-divider injured";
+        hr.textContent = "부상";
+        list.append(hr);
+      }
       const b = document.createElement("button");
       const at = placedAt.get(id);
-      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "") + (rare.some(([rid]) => rid === id) ? " rare" : "");
+      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "")
+        + (rare.some(([rid]) => rid === id) ? " rare" : "") + (injured.some(([iid]) => iid === id) ? " injured" : "");
       b.textContent = m.name;
       if (at !== undefined && id !== cur) {
         const s = document.createElement("small");
@@ -1104,6 +1132,15 @@
       nm.className = "nm-main";
       nm.textContent = m.name;
       nm.title = m.name;
+      // 부상 중이면 이름을 흐리게 하고 옆에 "부상" 표시
+      if (isInjured(id)) {
+        tr.classList.add("injured");
+        const tag = document.createElement("span");
+        tag.className = "inj-tag";
+        tag.textContent = "부상";
+        nm.append(tag);
+        nm.title = `${m.name} (부상)`;
+      }
       const sub = document.createElement("span");
       sub.className = "sub";
       // 몇 경기 나왔는지는 동그라미로 보이므로, 아래 줄에는 "전 경기" 버튼만 둔다
@@ -1582,9 +1619,17 @@
       });
       const del = confirmButton("삭제", "정말 삭제할까요?", "confirmDel", id, () => removeMember(id));
       del.setAttribute("aria-label", `${m.name} 삭제`);
+      // 부상: 누르면 빨갛게 켜지고, 출석판에서 이름이 흐려진다
+      const hurt = isInjured(id);
+      const inj = document.createElement("button");
+      inj.className = "row-btn injury" + (hurt ? " on" : "");
+      inj.textContent = "부상";
+      inj.setAttribute("aria-pressed", hurt);
+      inj.setAttribute("aria-label", `${m.name} 부상 ${hurt ? "해제" : "표시"}`);
+      inj.addEventListener("click", () => toggleInjured(id));
       const btns = document.createElement("div");
       btns.className = "row-actions";
-      btns.append(edit, del);
+      btns.append(inj, edit, del);
       li.append(name, btns);
       list.append(li);
     }
