@@ -1767,7 +1767,7 @@
       const no = byName ? idx + 1 : r.pos;
       tr.className = (!byName && r.pos <= 3 && r.days > 0 ? "top " : "") + (open ? "open" : "");
       tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.days}/${meetingDays}</td>
-        <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
+        <td><div class="rate"><div class="bar" data-lv="${pct >= 70 ? "hi" : pct >= 40 ? "mid" : "lo"}"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "name-btn";
