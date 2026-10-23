@@ -482,6 +482,8 @@ body.locked .cell:not([aria-pressed="true"]) { opacity: .7; }
 /* ---- 공통: 터치 조작 ---- */
 button, select, input, .slot, .cell { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 html { -webkit-text-size-adjust: 100%; }
+/* 화면을 아래로 끌어도 새로고침(첫 화면 다시 로딩)되지 않게 — 크롬은 html에 걸어야 듣는다 */
+html, body { overscroll-behavior-y: none; }
 .wrap { padding-top: max(20px, env(safe-area-inset-top, 0px)); }
 .head-note { font-size: .82rem; }
 .formation-label { font-size: .85rem; }
