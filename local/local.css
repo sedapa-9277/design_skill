@@ -482,6 +482,8 @@ body.locked .cell:not([aria-pressed="true"]) { opacity: .7; }
 /* ---- 공통: 터치 조작 ---- */
 button, select, input, .slot, .cell { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 html { -webkit-text-size-adjust: 100%; }
+/* 화면을 아래로 끌어도 새로고침(첫 화면 다시 로딩)되지 않게 — 크롬은 html에 걸어야 듣는다 */
+html, body { overscroll-behavior-y: none; }
 .wrap { padding-top: max(20px, env(safe-area-inset-top, 0px)); }
 .head-note { font-size: .82rem; }
 .formation-label { font-size: .85rem; }
@@ -976,10 +978,6 @@ body.modal-open { overflow: hidden; }
 .btn-danger:disabled { background: transparent; border-color: var(--line); color: var(--muted); }
 
 /* ---- 내 폰 저장판: 백업 · 데이터 ---- */
-.backup-bar { border-color: var(--warn); }
-.backup-bar .badge { background: var(--warn); color: #fff; border-color: var(--warn); flex: none; white-space: nowrap; }
-.backup-bar .state { min-width: 0; }
-.backup-bar-text { font-size: .85rem; }
 .data-note { margin: 0 0 12px; font-size: .88rem; }
 .data-stat { margin: 0 0 14px; display: grid; gap: 6px; }
 .data-stat div { display: flex; justify-content: space-between; gap: 10px; font-size: .86rem; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
@@ -991,12 +989,6 @@ body.modal-open { overflow: hidden; }
 .data-actions button:disabled { opacity: .6; cursor: progress; }
 #askText { line-height: 1.6; }
 .ask-ok { background: var(--warn); }
-
-@media (max-width: 860px) {
-  .backup-bar { flex-wrap: nowrap; }
-  .backup-bar .btn-ghost { flex: none; padding: 8px 10px; }
-  body.picking .backup-bar { display: none; }
-}
 
 /* 삭제 확인 단계: 휴대폰에서 누른 뒤 남는 hover 상태가 빨간 배경을 덮지 않게 (흰 글씨가 안 보이던 문제) */
 .btn-danger.confirm,

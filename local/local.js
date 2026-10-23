@@ -1137,15 +1137,9 @@
     $("persistState").textContent = S.persisted === true ? "보호됨 (브라우저가 임의로 지우지 않음)"
       : S.persisted === false ? "보호 안 됨 (공간이 부족하면 지워질 수 있음)" : "확인할 수 없음";
     $("persistState").classList.toggle("warn", S.persisted === false);
-    // 기록이 있는데 14일 넘게 백업하지 않았으면 위에 알림줄
+    // 기록이 있는데 14일 넘게 백업하지 않았으면 백업 화면의 마지막 백업 날짜만 경고색 (첫 화면 알림줄은 없음)
     const due = S.mode === "live" && c.members > 0 && (!lb || ago >= BACKUP_REMIND_DAYS);
-    $("backupBar").hidden = !due;
     $("lastBackup").classList.toggle("warn", due);
-    if (due) {
-      $("backupBarText").textContent = lb
-        ? `마지막 백업이 ${ago}일 전입니다. 백업 파일을 저장해 두세요.`
-        : "아직 백업한 적이 없습니다. 기록은 이 폰에만 있어요.";
-    }
   }
 
   // ---------- 렌더 ----------
@@ -2149,10 +2143,6 @@
   });
 
   $("backupBtn").addEventListener("click", openBackup);
-  $("backupBarBtn").addEventListener("click", () => {
-    setView("members");
-    $("dataPanel").scrollIntoView({ block: "start" });
-  });
   $("backupCloseBtn").addEventListener("click", closeBackup);
   $("backupDownloadBtn").addEventListener("click", downloadBackup);
   $("backupShareBtn").addEventListener("click", shareBackup);
