@@ -1,6 +1,6 @@
 // 출석부 (내 폰) 서비스 워커 — local/ 폴더 전용. 앱 화면 파일을 캐시해 두고 캐시에서 먼저 연다(오프라인 동작).
 // local.css·local.js의 ?v=N을 올리면 아래 SHELL과 VERSION도 함께 올린다.
-const VERSION = 3;
+const VERSION = 4;
 const PREFIX = 'soccer-local-shell-';
 const CACHE = PREFIX + VERSION;
 const FONT_CACHE = 'soccer-local-fonts';
