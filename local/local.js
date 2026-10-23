@@ -517,7 +517,8 @@
     const date = S.date, g = S.lineupGame, t = S.team;
     const lu = lineupOf(date, g);
     const pos = FORMATIONS[lu.formation][slotIdx][0];
-    const msg = mid ? `${memberName(mid)} → ${g}경기 ${pos}, 출석 체크했습니다.`
+    // 사람을 넣을 때는 안내 없이 바로 반영한다 (자리를 비울 때만 안내)
+    const msg = mid ? null
                     : `${pos} 자리를 비웠습니다. 출석은 출석판에서 해제할 수 있습니다.`;
     S.pickSlot = mid ? nextEmptySlot(lu.slots, slotIdx, mid) : slotIdx;
     write(() => dbPlace(date, t, g, slotIdx, mid || null, lu.formation), msg);
