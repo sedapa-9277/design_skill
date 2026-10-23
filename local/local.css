@@ -273,10 +273,10 @@ table.rank { width: 100%; border-collapse: collapse; font-size: .9rem; }
 /* 참석률 막대: 배경 칸을 또렷하게, 참석률(70%↑ 초록 · 40%↑ 노랑 · 그 아래 주황빨강)에 따라 색을 나눈다 */
 :root { --bar-track: #c5d3c8; --bar-mid: #d99a12; --bar-lo: #d2502a; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bar-track: #3a4d41; --bar-mid: #f2c53a; --bar-lo: #ef7a52; }
+  :root:not([data-theme="light"]) { --bar-track: #4d6355; --bar-edge: #ffffff24; --bar-mid: #f2c53a; --bar-lo: #ef7a52; }
 }
-:root[data-theme="dark"] { --bar-track: #3a4d41; --bar-mid: #f2c53a; --bar-lo: #ef7a52; }
-.rate .bar { flex: 1; height: 10px; background: var(--bar-track); border-radius: 999px; overflow: hidden; }
+:root[data-theme="dark"] { --bar-track: #4d6355; --bar-edge: #ffffff24; --bar-mid: #f2c53a; --bar-lo: #ef7a52; }
+.rate .bar { flex: 1; height: 10px; background: var(--bar-track); box-shadow: inset 0 0 0 1px var(--bar-edge, transparent); border-radius: 999px; overflow: hidden; }
 .rate .bar i { display: block; height: 100%; background: var(--pitch); border-radius: 999px; }
 .rate .bar[data-lv="mid"] i { background: var(--bar-mid); }
 .rate .bar[data-lv="lo"] i { background: var(--bar-lo); }
