@@ -154,7 +154,7 @@
       app: BACKUP_APP,
       version: 1,
       savedAt: new Date().toISOString(),
-      members: [...S.members].map(([id, m]) => ({ id, name: m.name, active: m.active !== false, team: m.team, created_at: m.created_at || null })),
+      members: [...S.members].map(([id, m]) => ({ id, name: m.name, active: m.active !== false, team: m.team, injured: !!m.injured, created_at: m.created_at || null })),
       teamNames: { ...S.teamNames },
       teamActive: Object.fromEntries(TEAMS.map(([t]) => [t, isActiveTeam(t)])),
       days,
@@ -168,7 +168,7 @@
     const members = new Map();
     for (const m of o.members) {
       if (!m || typeof m.id !== "string" || typeof m.name !== "string" || !m.name.trim() || !teams.has(m.team)) continue;
-      members.set(m.id, { name: m.name.trim().slice(0, 40), active: m.active !== false, team: m.team, created_at: m.created_at || null });
+      members.set(m.id, { name: m.name.trim().slice(0, 40), active: m.active !== false, team: m.team, injured: m.injured === true, created_at: m.created_at || null });
     }
     const days = new Map();
     for (const [d, v] of Object.entries(o.days)) {
@@ -316,9 +316,10 @@
     return day.lineup[team]?.[`g${g}`]?.pos || {};
   }
 
-  // 출석 해제 시 그 경기 포지션에서도 함께 뺀다
+  // 출석 해제 시 그 경기 포지션에서도 함께 뺀다. 출석 체크하면 부상 표시를 푼다
   function dbSetAttendance(date, mid, games, on) {
     if (!S.members.has(mid)) fail("no_member");
+    if (on) S.members.get(mid).injured = false;
     const day = dayOf(S.days, date);
     for (const g of games) {
       if (on) { (day.att[mid] ||= {})[`g${g}`] = true; continue; }
@@ -337,11 +338,12 @@
     return lu;
   }
 
-  // 포지션에 넣으면 그 경기 출석도 체크한다. 한 경기에서 한 회원은 한 자리에만
+  // 포지션에 넣으면 그 경기 출석도 체크하고 부상 표시를 푼다. 한 경기에서 한 회원은 한 자리에만
   function dbPlace(date, team, g, slot, mid, formation) {
     if (mid && S.members.get(mid)?.team !== team) fail("wrong_team");
     const lu = lineupEntry(date, team, g, formation);
     if (mid) {
+      S.members.get(mid).injured = false;
       for (const [s, v] of Object.entries(lu.pos)) if (v === mid) delete lu.pos[s];
       lu.pos[`s${slot}`] = mid;
       (S.days.get(date).att[mid] ||= {})[`g${g}`] = true;
@@ -401,6 +403,12 @@
     if (!m) fail("no_member");
     if (active && nameTakenBy(m.name, id)) fail("duplicate_name");
     m.active = active;
+  }
+
+  function dbSetInjured(id, injured) {
+    const m = S.members.get(id);
+    if (!m) fail("no_member");
+    m.injured = injured;
   }
 
   // 완전 삭제: 명단에서 뺀 회원만. 출석·포지션 기록까지 모두 지운다
@@ -492,8 +500,20 @@
   function setGames(mid, games, on) {
     const date = S.date;
     const fromLineup = !on && games.some((g) => lineupOf(date, g).slots.includes(mid));
-    const msg = fromLineup ? `${memberName(mid)} 님을 포지션에서도 뺐습니다.` : null;
+    const healed = on && isInjured(mid);
+    const msg = fromLineup ? `${memberName(mid)} 님을 포지션에서도 뺐습니다.`
+      : healed ? `${memberName(mid)} 님의 부상 표시를 풀었습니다.` : null;
     return write(() => dbSetAttendance(date, mid, games, on), msg);
+  }
+
+  function isInjured(id) {
+    return !!S.members.get(id)?.injured;
+  }
+
+  function toggleInjured(id) {
+    const on = !isInjured(id);
+    write(() => dbSetInjured(id, on),
+      on ? `${memberName(id)} 님을 부상으로 표시했습니다.` : `${memberName(id)} 님의 부상 표시를 풀었습니다.`);
   }
 
   function toggleCell(mid, g) {
@@ -1127,7 +1147,9 @@
     let parsed = null;
     try {
       const [members, att, lineups, slots, teamRows] = await Promise.all([
-        fetchTable("members", "id,name,active,team,created_at", "created_at,id"),
+        // 부상 열이 없던 때의 DB여도 가져올 수 있게
+        fetchTable("members", "id,name,active,team,injured,created_at", "created_at,id")
+          .catch(() => fetchTable("members", "id,name,active,team,created_at", "created_at,id")),
         fetchTable("attendance", "day,member_id,game", "day,member_id,game"),
         fetchTable("lineups", "day,team,game,formation", "day,team,game"),
         fetchTable("lineup_slots", "day,team,game,slot,member_id", "day,team,game,slot"),
@@ -1363,10 +1385,13 @@
     const recent3 = [...S.days.keys()].filter((d) => d <= S.date && hasAny(d)).sort().slice(-3);
     const cameRecently = (id) => recent3.some((d) => GAMES.some((g) => attended(d, id, g)));
     const order = (a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko");
-    const all = activeMembers();
+    // 부상자는 맨 아래 따로 (이미 이 경기에 넣은 사람은 제외)
+    const hurt = ([id]) => isInjured(id) && !placedAt.has(id);
+    const all = activeMembers().filter((e) => !hurt(e));
+    const injured = activeMembers().filter(hurt);
     const regulars = recent3.length ? all.filter(([id]) => cameRecently(id) || placedAt.has(id)) : all;
     const rare = recent3.length ? all.filter(([id]) => !cameRecently(id) && !placedAt.has(id)) : [];
-    const members = [...regulars.sort(order), ...rare.sort(order)];
+    const members = [...regulars.sort(order), ...rare.sort(order), ...injured.sort(order)];
     for (const [id, m] of members) {
       if (rare.length && id === rare[0][0]) {
         const hr = document.createElement("div");
@@ -1374,9 +1399,16 @@
         hr.textContent = `최근 ${recent3.length}번 모임 불참`;
         list.append(hr);
       }
+      if (injured.length && id === injured[0][0]) {
+        const hr = document.createElement("div");
+        hr.className = "pick-divider injured";
+        hr.textContent = "부상";
+        list.append(hr);
+      }
       const b = document.createElement("button");
       const at = placedAt.get(id);
-      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "") + (rare.some(([rid]) => rid === id) ? " rare" : "");
+      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "")
+        + (rare.some(([rid]) => rid === id) ? " rare" : "") + (injured.some(([iid]) => iid === id) ? " injured" : "");
       b.textContent = m.name;
       if (at !== undefined && id !== cur) {
         const s = document.createElement("small");
@@ -1511,6 +1543,15 @@
       nm.className = "nm-main";
       nm.textContent = m.name;
       nm.title = m.name;
+      // 부상 중이면 이름을 흐리게 하고 옆에 "부상" 표시
+      if (isInjured(id)) {
+        tr.classList.add("injured");
+        const tag = document.createElement("span");
+        tag.className = "inj-tag";
+        tag.textContent = "부상";
+        nm.append(tag);
+        nm.title = `${m.name} (부상)`;
+      }
       const sub = document.createElement("span");
       sub.className = "sub";
       // 몇 경기 나왔는지는 동그라미로 보이므로, 아래 줄에는 "전 경기" 버튼만 둔다
@@ -1986,9 +2027,17 @@
       });
       const del = confirmButton("삭제", "정말 삭제할까요?", "confirmDel", id, () => removeMember(id));
       del.setAttribute("aria-label", `${m.name} 삭제`);
+      // 부상: 누르면 빨갛게 켜지고, 출석판에서 이름이 흐려진다
+      const hurt = isInjured(id);
+      const inj = document.createElement("button");
+      inj.className = "row-btn injury" + (hurt ? " on" : "");
+      inj.textContent = "부상";
+      inj.setAttribute("aria-pressed", hurt);
+      inj.setAttribute("aria-label", `${m.name} 부상 ${hurt ? "해제" : "표시"}`);
+      inj.addEventListener("click", () => toggleInjured(id));
       const btns = document.createElement("div");
       btns.className = "row-actions";
-      btns.append(edit, del);
+      btns.append(inj, edit, del);
       li.append(name, btns);
       list.append(li);
     }

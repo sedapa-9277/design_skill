@@ -1291,3 +1291,24 @@ body.locked #memberPanel > .hint { display: none; }
 
 /* ---- 포지션에 들어간 경기: "참" 대신 포지션 이름 ---- */
 .att .cell.pos[aria-pressed="true"] { font-size: .72rem; letter-spacing: -.02em; }
+
+/* ---- 부상: 회원 관리 버튼은 빨갛게, 출석판 이름은 흐리게 + "부상" 표시 ---- */
+.row-btn.injury.on { background: #d93a3a; border-color: #d93a3a; color: #fff; font-weight: 700; }
+body.locked #memberPanel .row-actions:has(.injury.on) { display: flex; }
+body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { display: none; }
+.att tr.injured td.name .nm-main { color: var(--muted); }
+.att .inj-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: #d93a3a;
+  color: #fff;
+  font-size: .64rem;
+  font-weight: 700;
+  line-height: 1.5;
+  vertical-align: 1px;
+}
+.pick-divider.injured { color: #d93a3a; }
+.pick.injured { opacity: .45; }
+.pick.injured:hover, .pick.injured:focus-visible { opacity: .8; }
