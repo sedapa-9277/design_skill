@@ -1189,3 +1189,6 @@ body.locked #memberPanel > .hint { display: none; }
 .team-tools .row-btn.danger.confirm,
 .team-tools .row-btn.danger.confirm:hover,
 .team-tools .row-btn.danger.confirm:active { background: #c62828; border-color: #c62828; color: #fff; }
+
+/* 안내 메시지는 그림·백업 미리보기 창보다 위에 보이게 */
+.toast { z-index: 60; }

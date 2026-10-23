@@ -702,6 +702,7 @@
     if (!shot) return;
     try {
       await navigator.share({ files: [new File([shot.blob], shot.name, { type: "image/png" })], title: shot.name });
+      toast("그림을 공유했습니다.");
     } catch (e) {
       if (e?.name !== "AbortError") toast("공유하지 못했습니다. 그림을 길게 눌러 저장해 주세요.");
     }
