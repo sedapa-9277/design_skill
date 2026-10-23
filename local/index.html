@@ -3,26 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Soccer line-up (내 폰)</title>
+  <title>Best Line-up</title>
   <meta name="theme-color" content="#1d6e3a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Soccer (내 폰)">
+  <meta name="apple-mobile-web-app-title" content="Best Line-up">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="../icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="../icon-192.png">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="local.css?v=2">
+  <link rel="stylesheet" href="local.css?v=3">
 </head>
 <body data-view="check">
+<!-- 앱 실행 화면: 처음 열 때 잠깐 보였다가 사라진다 -->
+<div class="splash" id="splash" aria-hidden="true">
+  <img src="icon-512.png" alt="" width="128" height="128">
+  <b>Best Line-up</b>
+  <span>내 폰 출석부 · 포지션 배치</span>
+</div>
+<style>
+  .splash {
+    position: fixed; inset: 0; z-index: 100;
+    display: grid; place-content: center; justify-items: center; gap: 10px;
+    background: radial-gradient(circle at 50% 38%, #2fae5a 0%, #0f5a2e 70%);
+    color: #fff; text-align: center;
+    transition: opacity .45s ease, transform .45s ease;
+  }
+  .splash img { width: 128px; height: 128px; border-radius: 28px; box-shadow: 0 12px 30px #0006; animation: splashIn .6s cubic-bezier(.3, 1.5, .5, 1) both; }
+  .splash b { font-family: "Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif; font-weight: 400; font-size: 2rem; letter-spacing: .02em; margin-top: 8px; }
+  .splash span { font-size: .9rem; opacity: .85; }
+  .splash.hide { opacity: 0; transform: scale(1.04); pointer-events: none; }
+  @keyframes splashIn { from { transform: scale(.6) rotate(-12deg); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .splash img { animation: none; } .splash { transition: none; } }
+</style>
+<script>
+  (() => {
+    const s = document.getElementById("splash");
+    const hide = () => { if (!s.isConnected || s.classList.contains("hide")) return; s.classList.add("hide"); setTimeout(() => s.remove(), 500); };
+    // 최소 0.9초 보여 주고, 화면 준비가 끝나면 사라진다 (늦어도 3초 뒤에는 닫힘)
+    addEventListener("load", () => setTimeout(hide, Math.max(0, 900 - performance.now())));
+    setTimeout(hide, 3000);
+  })();
+</script>
 <div class="wrap">
   <header class="board" aria-label="모임 날짜">
     <div class="board-top">
       <div class="board-title">
-        <div class="eyebrow">Soccer line-up · 내 폰 저장</div>
+        <div class="eyebrow">Best Line-up · 내 폰 저장</div>
         <div class="date-big" id="dateBig">-</div>
       </div>
       <div class="date-nav">
@@ -245,7 +275,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=2"></script>
+<script src="local.js?v=3"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {
