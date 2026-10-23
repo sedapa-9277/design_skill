@@ -2259,6 +2259,8 @@
   function setTheme(v) {
     const t = v === "dark" ? "dark" : "light";
     document.documentElement.dataset.theme = t;
+    // 라이트는 "라이트 전용"으로 알려 브라우저의 강제 다크 변환을 막는다 (index.html 머리말과 같은 규칙)
+    $("colorSchemeMeta").content = t === "light" ? "only light" : "dark";
     try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
     renderSettings();
   }

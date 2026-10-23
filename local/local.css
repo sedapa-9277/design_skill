@@ -32,6 +32,8 @@
   --grass: #1f5c32; --grass-2: #1b532d; --chalk-line: #ffffff99; --keeper: #f2c53a;
   color-scheme: dark;
 }
+/* 설정에서 라이트를 고르면 "라이트 전용"이라고 알려, 브라우저가 강제로 어둡게 바꾸지 못하게 한다 */
+:root[data-theme="light"] { color-scheme: only light; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
