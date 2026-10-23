@@ -1501,10 +1501,10 @@
         const td = document.createElement("td");
         const b = document.createElement("button");
         const on = attended(S.date, id, g);
-        // 포지션에 들어간 경기는 "참" 대신 포지션 이름을 보여 준다
+        // 포지션에 들어간 경기는 포지션 이름, 참석만 체크한 경기는 축구공 그림
         const pos = on ? posLabel(S.date, id, g) : null;
         b.className = "cell" + (pos ? " pos" : "");
-        b.textContent = on ? pos || "참" : g;
+        b.textContent = on ? pos || "" : g;
         b.setAttribute("aria-pressed", on);
         b.setAttribute("aria-label", `${m.name} ${g}경기 ${on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`);
         b.addEventListener("click", () => toggleCell(id, g));
@@ -1889,6 +1889,8 @@
     $("memberCount").textContent = `${active.length}명`;
 
     const list = $("memberList");
+    // 목록은 따로 스크롤되는 상자라, 다시 그려도 보던 위치를 유지한다 (아래쪽 회원의 부상·삭제를 눌러도 위로 튀지 않게)
+    const listTop = list.scrollTop;
     list.replaceChildren();
     if (!active.length) {
       const li = document.createElement("li");
@@ -1972,6 +1974,7 @@
       list.append(li);
     }
 
+    list.scrollTop = listTop;
     $("inactiveBox").hidden = !inactive.length;
     $("inactiveCount").textContent = `${inactive.length}명`;
     const il = $("inactiveList");
