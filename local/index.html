@@ -201,11 +201,11 @@
     </div>
     <div class="rank-scroll">
       <table class="rank">
-        <thead><tr><th class="pos">#</th><th>이름</th><th class="r">경기</th><th class="r">일수</th><th>참석률</th></tr></thead>
+        <thead><tr><th class="pos">#</th><th>이름</th><th class="r" title="참석한 모임 날짜 / 기간 중 전체 모임 날짜">참석/전체</th><th>참석률</th></tr></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
-    <p class="hint muted">참석률 = 참석한 경기 수 ÷ 기간 중 진행된 경기 수 (한 명이라도 체크된 경기만 진행으로 셉니다)</p>
+    <p class="hint muted">참석률 = 참석한 모임 날짜 수 ÷ 기간 중 팀의 전체 모임 날짜 수 (그날 한 경기라도 나오면 참석으로 셉니다)</p>
   </section>
 </div>
 
@@ -275,7 +275,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=6"></script>
+<script src="local.js?v=7"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {

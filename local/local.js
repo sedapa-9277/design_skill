@@ -1715,15 +1715,11 @@
   function renderStats() {
     const dates = [...S.days.keys()].filter((d) => inPeriod(d) && hasAny(d)).sort();
     const ids = activeMembers().map(([id]) => id);
-    const allIds = teamMembers(true).map(([id]) => id);
 
-    let playedGames = 0;
+    // 참석률 = 참석한 모임 날짜 수 ÷ 기간 중 팀의 전체 모임 날짜 수 (그날 한 경기라도 나오면 참석)
+    const meetingDays = dates.length;
     const stat = new Map(ids.map((id) => [id, { games: 0, days: 0 }]));
     for (const d of dates) {
-      for (const g of GAMES) {
-        const c = allIds.filter((id) => attended(d, id, g)).length;
-        if (c) playedGames++;
-      }
       for (const id of ids) {
         const n = GAMES.filter((g) => attended(d, id, g)).length;
         const s = stat.get(id);
@@ -1733,13 +1729,13 @@
     }
 
     const rows = ids.map((id) => ({ id, name: S.members.get(id).name, ...stat.get(id) }))
-      .sort((a, b) => b.games - a.games || b.days - a.days || a.name.localeCompare(b.name, "ko"));
+      .sort((a, b) => b.days - a.days || b.games - a.games || a.name.localeCompare(b.name, "ko"));
     const body = $("rankBody");
     body.replaceChildren();
     if (!rows.length || !dates.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 5;
+      td.colSpan = 4;
       td.className = "muted";
       td.style.textAlign = "center";
       td.style.padding = "18px 6px";
@@ -1751,7 +1747,7 @@
     // 참석률순: # 는 참석률 순위(동점은 같은 순위). 이름순: # 는 1번부터 차례대로
     let pos = 0, prev = null;
     rows.forEach((r, i) => {
-      if (r.games !== prev) { pos = i + 1; prev = r.games; }
+      if (r.days !== prev) { pos = i + 1; prev = r.days; }
       r.pos = pos;
     });
     const shown = S.rankSort === "name"
@@ -1760,12 +1756,12 @@
     const recent = S.rankOpen ? recentTeamGames(10) : [];
     const byName = S.rankSort === "name";
     shown.forEach((r, idx) => {
-      const pct = playedGames ? Math.round((r.games / playedGames) * 100) : 0;
+      const pct = meetingDays ? Math.round((r.days / meetingDays) * 100) : 0;
       const open = S.rankOpen === r.id;
       const tr = document.createElement("tr");
       const no = byName ? idx + 1 : r.pos;
-      tr.className = (!byName && r.pos <= 3 && r.games > 0 ? "top " : "") + (open ? "open" : "");
-      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}</td>
+      tr.className = (!byName && r.pos <= 3 && r.days > 0 ? "top " : "") + (open ? "open" : "");
+      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.days}/${meetingDays}</td>
         <td><div class="rate"><div class="bar"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
       const btn = document.createElement("button");
       btn.type = "button";
@@ -1819,7 +1815,7 @@
     const tr = document.createElement("tr");
     tr.className = "recent-row";
     const td = document.createElement("td");
-    td.colSpan = 5;
+    td.colSpan = 4;
     const wrap = document.createElement("div");
     wrap.className = "recent10";
     const strip = document.createElement("div");
