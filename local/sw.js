@@ -1,6 +1,6 @@
 // 출석부 (내 폰) 서비스 워커 — local/ 폴더 전용. 앱 화면 파일을 캐시해 두고 캐시에서 먼저 연다(오프라인 동작).
 // local.css·local.js의 ?v=N을 올리면 아래 SHELL과 VERSION도 함께 올린다.
-const VERSION = 13;
+const VERSION = 14;
 const PREFIX = 'soccer-local-shell-';
 const CACHE = PREFIX + VERSION;
 const FONT_CACHE = 'soccer-local-fonts';
@@ -8,7 +8,7 @@ const XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
 const SHELL = [
   './',
   'local.css?v=10',
-  'local.js?v=11',
+  'local.js?v=12',
   'manifest.webmanifest',
   'icon-192.png',
   'icon-512.png',
@@ -66,7 +66,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fromCacheOrNet(req, XLSX_URL, FONT_CACHE));
     return;
   }
-  if (url.origin !== self.location.origin) return; // 공유 DB 가져오기(Supabase)는 항상 네트워크로
+  if (url.origin !== self.location.origin) return; // 다른 출처(CDN 등)는 항상 네트워크로
 
   // 화면 열기: 주소 뒤 ?·#와 상관없이 index를 캐시에서
   const page = url.origin + url.pathname;

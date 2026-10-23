@@ -173,10 +173,6 @@
           <button type="button" class="btn-ghost" id="importBtn">백업 불러오기</button>
           <input type="file" id="importFile" accept=".json,.txt,application/json,text/plain" hidden>
         </div>
-        <div class="data-actions">
-          <button type="button" class="btn-ghost" id="cloudImportBtn">공유 DB에서 가져오기</button>
-        </div>
-        <p class="hint muted">"공유 DB에서 가져오기"는 기존 온라인 출석부의 기록을 한 번 읽어 와 이 폰에 넣습니다. 온라인 출석부는 바뀌지 않습니다.</p>
       </section>
     </aside>
   </div>
@@ -295,7 +291,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=11"></script>
+<script src="local.js?v=12"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {

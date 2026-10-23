@@ -1,8 +1,5 @@
 (() => {
   // 내 폰 저장판: 모든 기록은 이 기기의 IndexedDB에만 저장한다 (서버 없음)
-  // 공유 DB(Supabase)는 "공유 DB에서 가져오기"로 한 번 읽어 올 때만 쓴다 (읽기 전용, 공개용 anon 키)
-  const SUPABASE_URL = "https://ldektmvedvhumdvrdbxj.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZWt0bXZlZHZodW1kdnJkYnhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1NTQ0NTEsImV4cCI6MjEwODEzMDQ1MX0.2ZazwLYXhTwTF1bs9NSFhoSjQlZmvaSRuAEi3FkUyDQ";
   // 온라인 출석부와 같은 주소(origin)를 쓰므로 localStorage 키가 겹치지 않게 따로 둔다
   const TEAM_KEY = "soccer-local-team";
   const DB_NAME = "soccer-attendance-local";
@@ -1081,7 +1078,7 @@
     r(ok);
   }
 
-  // 이 폰의 기록 전체를 바꾼다 (백업 불러오기, 공유 DB 가져오기)
+  // 이 폰의 기록 전체를 바꾼다 (백업 불러오기)
   async function replaceAll(parsed, okMsg) {
     applyData(parsed);
     S.editTeamName = false;
@@ -1116,67 +1113,6 @@
     const c = countData(parsed);
     const ok = await askConfirm("백업 불러오기", overwriteText(`파일: ${esc(file.name)}`, c), "덮어쓰기");
     if (ok) await replaceAll(parsed, `백업을 불러왔습니다. ${countText(c)}`);
-  }
-
-  // ---------- 공유 DB(온라인 출석부)에서 한 번 가져오기: 읽기만 한다 ----------
-  async function fetchTable(table, cols, order) {
-    const out = [];
-    for (let from = 0; ; from += 1000) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}&order=${order}`, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          "Range-Unit": "items",
-          Range: `${from}-${from + 999}`,
-        },
-      });
-      if (res.status === 416) return out; // 딱 1000의 배수일 때 다음 쪽이 없음
-      if (!res.ok) throw new Error(`http_${res.status}`);
-      const rows = await res.json();
-      out.push(...rows);
-      if (rows.length < 1000) return out;
-    }
-  }
-
-  async function importFromCloud() {
-    if (S.mode !== "live") { toast("저장소를 열지 못해 가져올 수 없습니다."); return; }
-    const btn = $("cloudImportBtn");
-    const was = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "공유 DB 읽는 중…";
-    let parsed = null;
-    try {
-      const [members, att, lineups, slots, teamRows] = await Promise.all([
-        // 부상 열이 없던 때의 DB여도 가져올 수 있게
-        fetchTable("members", "id,name,active,team,injured,created_at", "created_at,id")
-          .catch(() => fetchTable("members", "id,name,active,team,created_at", "created_at,id")),
-        fetchTable("attendance", "day,member_id,game", "day,member_id,game"),
-        fetchTable("lineups", "day,team,game,formation", "day,team,game"),
-        fetchTable("lineup_slots", "day,team,game,slot,member_id", "day,team,game,slot"),
-        // 팀 이름·사용 여부: active 열이 없으면 이름만, 표가 없으면 빈 목록
-        fetchTable("team_names", "team,name,active", "team")
-          .catch(() => fetchTable("team_names", "team,name", "team"))
-          .catch(() => []),
-      ]);
-      const days = {};
-      const day = (d) => (days[d] ||= { att: {}, lineup: {} });
-      for (const r of att) (day(r.day).att[r.member_id] ||= {})[`g${r.game}`] = true;
-      const lu = (r) => ((day(r.day).lineup[r.team] ||= {})[`g${r.game}`] ||= { pos: {} });
-      for (const r of lineups) lu(r).formation = r.formation;
-      for (const r of slots) lu(r).pos[`s${r.slot}`] = r.member_id;
-      const teamNames = Object.fromEntries(teamRows.map((r) => [r.team, r.name]));
-      const teamActive = Object.fromEntries(teamRows.filter((r) => r.active === false).map((r) => [r.team, false]));
-      parsed = parseData({ members, days, teamNames, teamActive });
-    } catch (e) {
-      parsed = null;
-    } finally {
-      btn.disabled = false;
-      btn.textContent = was;
-    }
-    if (!parsed) { toast("공유 DB를 읽지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요."); return; }
-    const c = countData(parsed);
-    const ok = await askConfirm("공유 DB에서 가져오기", overwriteText("온라인 출석부의 현재 기록", c), "가져오기");
-    if (ok) await replaceAll(parsed, `공유 DB에서 가져왔습니다. ${countText(c)}`);
   }
 
   // ---------- 저장 공간 보호 (브라우저가 공간 부족 때 임의로 지우지 않도록 요청) ----------
@@ -1527,7 +1463,7 @@
     if (!list.length) {
       empty.hidden = false;
       $("emptyTitle").textContent = `${tn(S.team)}에 등록된 회원이 없습니다`;
-      $("emptyText").textContent = "회원 탭에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다. 온라인 출석부 기록이 있다면 회원 탭의 \"공유 DB에서 가져오기\"로 한 번에 옮길 수 있습니다.";
+      $("emptyText").textContent = "회원 탭에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다.";
       return;
     }
     empty.hidden = true;
@@ -2223,7 +2159,6 @@
   $("backupModal").addEventListener("click", (e) => { if (e.target === $("backupModal")) closeBackup(); });
   $("importBtn").addEventListener("click", () => { $("importFile").value = ""; $("importFile").click(); });
   $("importFile").addEventListener("change", (e) => { const f = e.target.files?.[0]; if (f) importBackupFile(f); });
-  $("cloudImportBtn").addEventListener("click", importFromCloud);
   $("askOk").addEventListener("click", () => closeAsk(true));
   $("askCancel").addEventListener("click", () => closeAsk(false));
   $("askModal").addEventListener("click", (e) => { if (e.target === $("askModal")) closeAsk(false); });
