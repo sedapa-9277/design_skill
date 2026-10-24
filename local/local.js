@@ -174,7 +174,7 @@
       app: BACKUP_APP,
       version: 1,
       savedAt: new Date().toISOString(),
-      members: [...S.members].map(([id, m]) => ({ id, name: m.name, active: m.active !== false, team: m.team, injured: !!m.injured, created_at: m.created_at || null })),
+      members: [...S.members].map(([id, m]) => ({ id, name: m.name, active: m.active !== false, team: m.team, injured: !!m.injured, ...(m.healedOn ? { healedOn: m.healedOn } : {}), created_at: m.created_at || null })),
       teamNames: { ...S.teamNames },
       teamActive: Object.fromEntries(TEAMS.map(([t]) => [t, isActiveTeam(t)])),
       days,
@@ -196,7 +196,9 @@
       if (!m || typeof m.id !== "string" || !SAFE_ID.test(m.id) || RESERVED_IDS.has(m.id)) continue;
       if (typeof m.name !== "string" || !m.name.trim() || !teams.has(m.team)) continue;
       if (members.size >= MAX_MEMBERS) break;
-      members.set(m.id, { name: m.name.trim().slice(0, 40), active: m.active !== false, team: m.team, injured: m.injured === true, created_at: m.created_at || null });
+      const mem = { name: m.name.trim().slice(0, 40), active: m.active !== false, team: m.team, injured: m.injured === true, created_at: m.created_at || null };
+      if (typeof m.healedOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(m.healedOn)) mem.healedOn = m.healedOn;
+      members.set(m.id, mem);
     }
     const days = new Map();
     for (const [d, v] of Object.entries(o.days)) {
@@ -329,7 +331,8 @@
       await revert();
       return false;
     }
-    if (okMsg) toast(typeof okMsg === "function" ? okMsg(r) : okMsg);
+    const okText = typeof okMsg === "function" ? okMsg(r) : okMsg;
+    if (okText) toast(okText);
     return true;
   }
 
@@ -347,10 +350,26 @@
     return day.lineup[team]?.[`g${g}`]?.pos || {};
   }
 
+  // 출석 체크로 부상 표시를 풀 때, 어느 날짜 체크로 풀었는지 기억해 둔다 (그 체크를 되돌리면 부상 표시도 되돌린다)
+  function healInjury(m, date) {
+    if (!m.injured) return;
+    m.injured = false;
+    m.healedOn = date;
+  }
+  // 이 날짜 체크로 부상이 풀렸는데, 그날 출석이 하나도 남지 않으면 아직 뛰지 않은 것이므로 다시 부상으로
+  function restoreInjuryIfUnplayed(m, mid, date) {
+    if (m.healedOn !== date) return false;
+    if (GAMES.some((g) => attended(date, mid, g))) return false;
+    m.injured = true;
+    delete m.healedOn;
+    return true;
+  }
+
   // 출석 해제 시 그 경기 포지션에서도 함께 뺀다. 출석 체크하면 부상 표시를 푼다
   function dbSetAttendance(date, mid, games, on) {
-    if (!S.members.has(mid)) fail("no_member");
-    if (on) S.members.get(mid).injured = false;
+    const m = S.members.get(mid);
+    if (!m) fail("no_member");
+    if (on) healInjury(m, date);
     const day = dayOf(S.days, date);
     for (const g of games) {
       if (on) { (day.att[mid] ||= {})[`g${g}`] = true; continue; }
@@ -361,6 +380,7 @@
       }
     }
     tidyDay(date);
+    return !on && restoreInjuryIfUnplayed(m, mid, date);
   }
 
   function lineupEntry(date, team, g, formation) {
@@ -374,7 +394,7 @@
     if (mid && S.members.get(mid)?.team !== team) fail("wrong_team");
     const lu = lineupEntry(date, team, g, formation);
     if (mid) {
-      S.members.get(mid).injured = false;
+      healInjury(S.members.get(mid), date);
       for (const [s, v] of Object.entries(lu.pos)) if (v === mid) delete lu.pos[s];
       lu.pos[`s${slot}`] = mid;
       (S.days.get(date).att[mid] ||= {})[`g${g}`] = true;
@@ -440,6 +460,7 @@
     const m = S.members.get(id);
     if (!m) fail("no_member");
     m.injured = injured;
+    delete m.healedOn; // 직접 바꾸면 출석 체크와의 연결은 끊는다
   }
 
   // 완전 삭제: 명단에서 뺀 회원만. 출석·포지션 기록까지 모두 지운다
@@ -569,8 +590,12 @@
     const date = S.date;
     const fromLineup = !on && games.some((g) => lineupOf(date, g).slots.includes(mid));
     const healed = on && isInjured(mid);
-    const msg = fromLineup ? L(`${memberName(mid)} 님을 포지션에서도 뺐습니다.`, `${memberName(mid)} was also removed from the lineup.`)
+    const base = fromLineup ? L(`${memberName(mid)} 님을 포지션에서도 뺐습니다.`, `${memberName(mid)} was also removed from the lineup.`)
       : healed ? L(`${memberName(mid)} 님의 부상 표시를 풀었습니다.`, `${memberName(mid)} is no longer marked injured.`) : null;
+    // 해제로 부상 표시가 되돌아오면 그 안내를 보여 준다 (dbSetAttendance가 true를 돌려줌)
+    const msg = (reinjured) => reinjured
+      ? L(`${memberName(mid)} 님은 아직 경기에 나오지 않아 다시 부상으로 표시했습니다.`, `${memberName(mid)} hasn't played yet, so they're marked injured again.`)
+      : base;
     return write(() => dbSetAttendance(date, mid, games, on), msg);
   }
 
@@ -2236,6 +2261,35 @@
   // 삭제한 팀 링크로 오면 지금 팀 주소로 되돌린다
   window.addEventListener("hashchange", () => { const t = teamFromHash(); if (!t) setTeam(S.team); else if (t !== S.team) setTeam(t); });
 
+  // 휴대폰: 회원 고르기 시트를 맨 위에서 아래로 끌어내리면 닫고 구장을 다시 크게 보여 준다
+  (() => {
+    const sheet = $("picker");
+    const CLOSE_AT = 70; // 이만큼(px) 내리면 닫힘
+    let drag = null;
+    const reset = () => { sheet.style.transform = ""; sheet.classList.remove("dragging"); };
+    sheet.addEventListener("touchstart", (e) => {
+      // 목록을 이미 아래로 스크롤해 둔 상태에서는 평소처럼 스크롤만 한다
+      drag = sheet.classList.contains("sheet") && sheet.scrollTop <= 0 ? { y: e.touches[0].clientY, dy: 0 } : null;
+    }, { passive: true });
+    sheet.addEventListener("touchmove", (e) => {
+      if (!drag) return;
+      const dy = e.touches[0].clientY - drag.y;
+      if (dy <= 0 || sheet.scrollTop > 0) { drag = null; reset(); return; } // 위로 밀면 목록 스크롤
+      drag.dy = dy;
+      sheet.classList.add("dragging");
+      sheet.style.transform = `translateY(${Math.round(dy * 0.7)}px)`;
+    }, { passive: true });
+    const end = () => {
+      if (!drag) return;
+      const close = drag.dy > CLOSE_AT;
+      drag = null;
+      reset();
+      if (close) { S.pickSlot = null; renderLineup(); }
+    };
+    sheet.addEventListener("touchend", end);
+    sheet.addEventListener("touchcancel", end);
+  })();
+
   $("formationSel").addEventListener("change", (e) => {
     setFormation(e.target.value);
   });
@@ -2367,7 +2421,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 28; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 29; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

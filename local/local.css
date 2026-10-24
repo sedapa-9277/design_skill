@@ -1567,15 +1567,42 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 .set-hint { margin: 0; font-size: .78rem; line-height: 1.45; }
 .help-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
 .help-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-/* 설정 창이 길어지면 창 안에서 스크롤 */
-.set-card { max-height: 100%; overflow-y: auto; }
+/* 설정 창·설명서가 길어지면 창 안에서 스크롤 (화면 높이에 맞춰 높이를 고정해야 스크롤이 생긴다) */
+.set-card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
 
 /* ---- 사용 설명서 ---- */
 .help-modal { z-index: 45; }
-.help-card { grid-template-rows: auto minmax(0, 1fr); width: min(100%, 560px); }
-.help-body { overflow-y: auto; font-size: .9rem; line-height: 1.6; padding-right: 4px; }
+.help-card {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 560px);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+}
+.help-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  font-size: .9rem;
+  line-height: 1.6;
+  padding: 0 4px 8px 0;
+}
 .help-body h3 { margin: 14px 0 4px; font-size: .98rem; color: var(--pitch); }
 .help-body h3:first-child { margin-top: 0; }
 .help-body ul { margin: 0; padding-left: 18px; }
 .help-body li { margin: 3px 0; }
 :root[lang="en"] [data-lang-only="ko"], :root[lang="ko"] [data-lang-only="en"] { display: none; }
+
+/* ---- 회원 고르기 시트: 끌어내릴 때 손가락을 따라오고, 놓으면 부드럽게 제자리 ---- */
+.picker.sheet { transition: transform .18s ease-out; touch-action: pan-y; }
+.picker.sheet.dragging { transition: none; }
+/* "자리 비우기" · "닫기" 버튼: 그림자를 넣어 잘 보이게 */
+.picker-head .btn-ghost {
+  background: var(--surface-2);
+  border-color: var(--line);
+  font-weight: 700;
+  box-shadow: 0 2px 6px #00000033, inset 0 1px 0 #ffffff14;
+}
+.picker-head .btn-ghost:active { box-shadow: 0 1px 2px #00000033; transform: translateY(1px); }
