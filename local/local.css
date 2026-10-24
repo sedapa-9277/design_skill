@@ -1549,8 +1549,8 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
 /* 잠긴 지난 날짜: 출석 칸과 구장을 살짝 흐리게 */
 body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .field .slot { opacity: .72; }
 
-/* ---- 설정: 최근 모임 불참 기준 1~10 ---- */
-.num-seg { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+/* ---- 설정: 최근 모임 불참 기준 1~5 ---- */
+.num-seg { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .num-seg button {
   min-width: 0;
   padding: 9px 0;
@@ -1563,8 +1563,47 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
   cursor: pointer;
 }
 .num-seg button[aria-pressed="true"] { background: var(--pitch); border-color: var(--pitch); color: var(--chalk); }
-@media (max-width: 380px) { .num-seg { grid-template-columns: repeat(5, 1fr); } }
 .set-hint { margin: 0; font-size: .78rem; line-height: 1.45; }
+
+/* ---- 포지션: 구장 위 상대팀 이름 칸 (선택 입력) ---- */
+.opp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 420px;
+  margin: 0 0 10px;
+  padding: 4px 4px 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.opp-vs {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--pos-fwd);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: .9rem;
+  letter-spacing: .04em;
+}
+.opp-row input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-weight: 700;
+  padding: 6px 4px;
+  outline: none;
+}
+.opp-row input::placeholder { color: var(--muted); font-weight: 400; }
+.opp-row:focus-within { border-color: var(--pitch); box-shadow: 0 0 0 2px color-mix(in srgb, var(--pitch) 30%, transparent); }
+@media (max-width: 860px) { body.picking .opp-row { display: none; } }
 .help-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
 .help-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 /* 설정 창·설명서가 길어지면 창 안에서 스크롤 (화면 높이에 맞춰 높이를 고정해야 스크롤이 생긴다) */

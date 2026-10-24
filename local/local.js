@@ -71,7 +71,7 @@
     editDraft: null,
     editTeam: null,
     unlockDate: null,         // "수정"을 눌러 잠금을 푼 지난 날짜 (날짜를 바꾸면 다시 잠긴다)
-    absentN: 3,               // 포지션 회원 고르기에서 "최근 N번 모임 불참"으로 나누는 N (설정에서 1~10)
+    absentN: 3,               // 포지션 회원 고르기에서 "최근 N번 모임 불참"으로 나누는 N (설정에서 1~5)
   };
 
   function ymd(d) {
@@ -185,6 +185,7 @@
   const RESERVED_IDS = new Set(["__proto__", "constructor", "prototype"]);
   const MAX_MEMBERS = 2000;
   const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+  const OPP_MAX = 20; // 상대팀 이름 최대 글자 수
 
   // 저장소·백업 파일에서 읽은 값을 검사해 메모리 형식으로 바꾼다. 형식이 아니면 null
   function parseData(o) {
@@ -215,6 +216,7 @@
           if (!lu) continue;
           const out = { pos: {} };
           if (FORMATIONS[lu.formation]) out.formation = lu.formation;
+          if (typeof lu.opp === "string" && lu.opp.trim()) out.opp = lu.opp.trim().slice(0, OPP_MAX);
           for (let i = 0; i < 11; i++) {
             const mid = lu.pos?.[`s${i}`];
             if (members.has(mid)) out.pos[`s${i}`] = mid;
@@ -407,6 +409,13 @@
   function dbSetFormation(date, team, g, f) {
     if (!FORMATIONS[f]) fail("bad_formation");
     lineupEntry(date, team, g, f).formation = f;
+  }
+
+  // 상대팀 이름 (선택 입력): 그날 그 팀 그 경기에 붙는다. 비우면 지운다
+  function dbSetOpponent(date, team, g, name, formation) {
+    const lu = lineupEntry(date, team, g, formation);
+    if (name) lu.opp = name;
+    else delete lu.opp;
   }
 
   function newId() {
@@ -624,7 +633,17 @@
       const v = base.pos?.[`s${i}`];
       return v && S.members.get(v)?.team === t ? v : null;
     });
-    return { formation, slots };
+    return { formation, slots, opp: base.opp || "" };
+  }
+
+  function setOpponent(raw) {
+    const name = String(raw || "").trim().slice(0, OPP_MAX);
+    const date = S.date, g = S.lineupGame, t = S.team;
+    const lu = lineupOf(date, g);
+    if (name === lu.opp) return;
+    if (guardPast()) { renderLineup(); return; } // 입력한 글자를 원래대로 되돌린다
+    write(() => dbSetOpponent(date, t, g, name, lu.formation),
+      name ? L(`${g}경기 상대팀: ${name}`, `Game ${g} opponent: ${name}`) : L(`${g}경기 상대팀을 지웠습니다.`, `Cleared game ${g} opponent.`));
   }
 
   function placeMember(slotIdx, mid) {
@@ -696,8 +715,13 @@
     c.fillRect(0, 0, W, H);
     c.fillStyle = "#ffffff";
     c.textBaseline = "alphabetic";
-    c.font = `64px ${DISPLAY}`;
-    c.fillText(`${tn(S.team)} · ${L(`${g}경기`, `Game ${g}`)}`, PAD, 92);
+    // 제목: "팀 · 1경기 vs 상대팀" (상대팀을 넣었을 때만). 길면 글자를 줄여 한 줄에 맞춘다
+    const opp = lineupOf(S.date, g).opp;
+    const title = `${tn(S.team)} · ${L(`${g}경기`, `Game ${g}`)}${opp ? ` vs ${opp}` : ""}`;
+    let size = 64;
+    c.font = `${size}px ${DISPLAY}`;
+    while (size > 36 && c.measureText(title).width > W - PAD * 2) { size -= 4; c.font = `${size}px ${DISPLAY}`; }
+    c.fillText(title, PAD, 92, W - PAD * 2);
     c.font = `500 32px ${BODY}`;
     c.fillStyle = "#b9d7c2";
     c.fillText(`${label(S.date)}  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11${L("명", "")}`, PAD, 146);
@@ -818,7 +842,8 @@
       const touch = window.matchMedia("(pointer: coarse)").matches;
       const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       $("imgPreview").src = dataUrl;
-      $("imgModalTitle").textContent = `${tn(S.team)} · ${S.date} · ${L(`${S.lineupGame}경기`, `Game ${S.lineupGame}`)}`;
+      const opp = lineupOf(S.date, S.lineupGame).opp;
+      $("imgModalTitle").textContent = `${tn(S.team)} · ${S.date} · ${L(`${S.lineupGame}경기`, `Game ${S.lineupGame}`)}${opp ? ` vs ${opp}` : ""}`;
       $("imgTip").innerHTML = !touch
         ? L("<b>파일로 저장</b>을 누르면 PNG 파일로 내려받습니다.", "Tap <b>Save file</b> to download a PNG file.")
         : ios
@@ -1382,6 +1407,9 @@
     const sel = $("formationSel");
     if (!sel.options.length) Object.keys(FORMATIONS).forEach((f) => sel.add(new Option(f, f)));
     sel.value = formation;
+    // 상대팀 칸: 입력 중에는 덮어쓰지 않는다
+    const oppIn = $("oppInput");
+    if (document.activeElement !== oppIn) oppIn.value = lineupOf(S.date, g).opp;
 
     const field = $("field");
     field.querySelectorAll(".slot").forEach((el) => el.remove());
@@ -1460,7 +1488,7 @@
     const list = document.createElement("div");
     list.className = "picker-list";
     const placedAt = new Map(slots.map((v, k) => [v, k]).filter(([v]) => v));
-    // 최근 N번 모임(보고 있는 날짜까지, N은 설정에서 1~10) 중 한 번도 안 나온 회원은 구분선 아래로 보내고 흐리게
+    // 최근 N번 모임(보고 있는 날짜까지, N은 설정에서 1~5) 중 한 번도 안 나온 회원은 구분선 아래로 보내고 흐리게
     const recentN = [...S.days.keys()].filter((d) => d <= S.date && hasAny(d)).sort().slice(-S.absentN);
     const cameRecently = (id) => recentN.some((d) => GAMES.some((g) => attended(d, id, g)));
     const order = (a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko");
@@ -2290,6 +2318,10 @@
     sheet.addEventListener("touchcancel", end);
   })();
 
+  // 상대팀 이름: 입력을 마칠 때(칸을 벗어나거나 Enter) 저장
+  $("oppInput").addEventListener("change", (e) => setOpponent(e.target.value));
+  $("oppInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } });
+
   $("formationSel").addEventListener("change", (e) => {
     setFormation(e.target.value);
   });
@@ -2387,10 +2419,10 @@
     renderSetInfo();
   }
 
-  // 최근 모임 불참 기준 (1~10번, 기본 3번)
+  // 최근 모임 불참 기준 (1~5번, 기본 3번)
   const ABSENT_KEY = "soccer-local-absent";
   function setAbsentN(v) {
-    const n = Math.min(10, Math.max(1, Math.round(Number(v)) || 3));
+    const n = Math.min(5, Math.max(1, Math.round(Number(v)) || 3));
     S.absentN = n;
     try { localStorage.setItem(ABSENT_KEY, String(n)); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
     renderSettings();
@@ -2421,7 +2453,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 29; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 30; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -2489,7 +2521,8 @@
 
   // ---------- 시작 ----------
   applyStaticLang();
-  try { const n = Number(localStorage.getItem(ABSENT_KEY)); if (n >= 1 && n <= 10) S.absentN = n; } catch (e) { /* 기본 3번 */ }
+  // 예전(1~10)에 6 이상을 골랐으면 5로 맞춘다
+  try { const n = Number(localStorage.getItem(ABSENT_KEY)); if (n >= 1) S.absentN = Math.min(5, Math.round(n)); } catch (e) { /* 기본 3번 */ }
   // 팀: 주소의 #faith/#hope/#love → 이 브라우저에서 마지막으로 고른 팀 → 믿음팀
   let savedTeam = null;
   try { savedTeam = localStorage.getItem(TEAM_KEY); } catch (e) { savedTeam = null; }
