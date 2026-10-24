@@ -1516,3 +1516,66 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
 .set-legend .role-def { background: var(--pos-def); }
 .set-legend .role-gk { background: var(--pos-gk); }
 :root[data-poscolor="mono"] .set-legend { display: none; }
+
+/* ---- 지난 날짜 잠금: 출석·포지션 화면 위쪽 "수정 / 완료" 버튼 ---- */
+.panel-head .edit-lock { order: 2; margin-left: auto; }
+.panel-head .head-note { order: 3; }
+.edit-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--warn);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+  font-weight: 700;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.edit-lock[hidden] { display: none; }
+.edit-lock svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.edit-lock.open { border-color: var(--pitch); background: var(--pitch); color: var(--chalk); }
+/* 잠긴 상태에서 고치려 하면 버튼을 살짝 흔들어 위치를 알려 준다 */
+.edit-lock.nudge { animation: lockNudge .5s ease; }
+@keyframes lockNudge {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px) scale(1.06); }
+  40% { transform: translateX(4px) scale(1.06); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) { .edit-lock.nudge { animation: none; } }
+/* 잠긴 지난 날짜: 출석 칸과 구장을 살짝 흐리게 */
+body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .field .slot { opacity: .72; }
+
+/* ---- 설정: 최근 모임 불참 기준 1~10 ---- */
+.num-seg { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.num-seg button {
+  min-width: 0;
+  padding: 9px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--fg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.num-seg button[aria-pressed="true"] { background: var(--pitch); border-color: var(--pitch); color: var(--chalk); }
+@media (max-width: 380px) { .num-seg { grid-template-columns: repeat(5, 1fr); } }
+.set-hint { margin: 0; font-size: .78rem; line-height: 1.45; }
+.help-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.help-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* 설정 창이 길어지면 창 안에서 스크롤 */
+.set-card { max-height: 100%; overflow-y: auto; }
+
+/* ---- 사용 설명서 ---- */
+.help-modal { z-index: 45; }
+.help-card { grid-template-rows: auto minmax(0, 1fr); width: min(100%, 560px); }
+.help-body { overflow-y: auto; font-size: .9rem; line-height: 1.6; padding-right: 4px; }
+.help-body h3 { margin: 14px 0 4px; font-size: .98rem; color: var(--pitch); }
+.help-body h3:first-child { margin-top: 0; }
+.help-body ul { margin: 0; padding-left: 18px; }
+.help-body li { margin: 3px 0; }
+:root[lang="en"] [data-lang-only="ko"], :root[lang="ko"] [data-lang-only="en"] { display: none; }

@@ -70,6 +70,8 @@
     editId: null,
     editDraft: null,
     editTeam: null,
+    unlockDate: null,         // "수정"을 눌러 잠금을 푼 지난 날짜 (날짜를 바꾸면 다시 잠긴다)
+    absentN: 3,               // 포지션 회원 고르기에서 "최근 N번 모임 불참"으로 나누는 N (설정에서 1~10)
   };
 
   function ymd(d) {
@@ -525,8 +527,45 @@
     else S.teamNames[team] = name;
   }
 
+  // ---------- 지난 날짜 잠금: 오늘보다 이전 기록은 상단 "수정" 버튼을 눌러야 고칠 수 있다 ----------
+  function isPastDate(d) { return d < ymd(new Date()); }
+  function pastLocked() { return isPastDate(S.date) && S.unlockDate !== S.date; }
+  // 잠겨 있으면 안내하고 true (호출한 곳은 수정을 멈춘다)
+  function guardPast() {
+    if (!pastLocked()) return false;
+    toast(L("지난 날짜의 기록입니다. 위의 '수정' 버튼을 누른 뒤 고쳐 주세요.", "This is a past date. Tap the 'Edit' button above to make changes."));
+    document.querySelectorAll("[data-edit-lock]").forEach((b) => {
+      b.classList.remove("nudge");
+      void b.offsetWidth; // 애니메이션을 처음부터 다시
+      b.classList.add("nudge");
+    });
+    return true;
+  }
+  function toggleEditLock() {
+    S.unlockDate = pastLocked() ? S.date : null;
+    renderEditLock();
+    toast(S.unlockDate ? L("지난 기록을 수정할 수 있습니다. 다 고치면 '완료'를 눌러 주세요.", "You can now edit this past record. Tap 'Done' when finished.")
+                       : L("지난 기록을 다시 잠갔습니다.", "Past record locked again."));
+  }
+  function renderEditLock() {
+    const past = isPastDate(S.date);
+    const locked = pastLocked();
+    document.body.classList.toggle("past-locked", locked);
+    document.querySelectorAll("[data-edit-lock]").forEach((b) => {
+      b.hidden = !past;
+      b.setAttribute("aria-pressed", !locked);
+      b.classList.toggle("open", !locked);
+      const icon = locked
+        ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
+        : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-1.9"/></svg>';
+      b.innerHTML = `${icon}<span>${locked ? L("수정", "Edit") : L("완료", "Done")}</span>`;
+      b.title = locked ? L("지난 날짜 기록 수정하기", "Edit this past record") : L("수정을 마치고 다시 잠그기", "Finish and lock again");
+    });
+  }
+
   // ---------- 출석 ----------
   function setGames(mid, games, on) {
+    if (guardPast()) return Promise.resolve(false);
     const date = S.date;
     const fromLineup = !on && games.some((g) => lineupOf(date, g).slots.includes(mid));
     const healed = on && isInjured(mid);
@@ -564,6 +603,7 @@
   }
 
   function placeMember(slotIdx, mid) {
+    if (guardPast()) return;
     const date = S.date, g = S.lineupGame, t = S.team;
     const lu = lineupOf(date, g);
     const pos = FORMATIONS[lu.formation][slotIdx][0];
@@ -601,6 +641,7 @@
   }
 
   function setFormation(f) {
+    if (guardPast()) { renderLineup(); return; } // 고르던 포메이션을 원래대로 되돌린다
     const date = S.date, g = S.lineupGame, t = S.team;
     write(() => dbSetFormation(date, t, g, f));
   }
@@ -661,18 +702,42 @@
     c.lineWidth = 5;
     c.stroke();
 
-    // 선수
+    // 선수 (설정의 포지션 색상이 컬러면 화면과 같은 색으로)
+    const colored = posColorMode() === "color";
+    const css = getComputedStyle(document.documentElement);
+    const roleColor = (role) => css.getPropertyValue(`--pos-${role}`).trim();
+    const darkText = { gk: "#2b2100", def: css.getPropertyValue("--pos-def-fg").trim() || "#17320a" };
     c.textAlign = "center";
     spots.forEach(([pos, px, py], i) => {
       const cx = X + (PW * px) / 100, cy = Y + (PH * py) / 100;
       const mid = slots[i];
+      const role = posRole(pos);
       const R = 62;
       c.beginPath();
       c.arc(cx, cy, R, 0, Math.PI * 2);
-      if (mid) {
+      if (mid && colored) {
+        c.fillStyle = roleColor(role);
+        c.fill();
+        c.strokeStyle = "#ffffff";
+        c.lineWidth = 4;
+        c.stroke();
+        c.fillStyle = darkText[role] || "#ffffff";
+      } else if (mid) {
         c.fillStyle = i === 0 ? "#ffd23f" : "#ffffff";
         c.fill();
         c.fillStyle = i === 0 ? "#2b2100" : "#174f2b";
+      } else if (colored) {
+        c.save();
+        c.globalAlpha = 0.38;
+        c.fillStyle = roleColor(role);
+        c.fill();
+        c.restore();
+        c.setLineDash([10, 8]);
+        c.strokeStyle = roleColor(role);
+        c.lineWidth = 4;
+        c.stroke();
+        c.setLineDash([]);
+        c.fillStyle = "#ffffff";
       } else {
         c.fillStyle = "rgba(0,0,0,.22)";
         c.fill();
@@ -1311,6 +1376,7 @@
       nm.textContent = mid ? memberName(mid) : L("선택", "Pick");
       b.append(dot, nm);
       b.addEventListener("click", () => {
+        if (S.pickSlot !== i && guardPast()) return; // 지난 날짜는 잠금을 풀어야 회원을 고를 수 있다
         S.pickSlot = S.pickSlot === i ? null : i;
         renderLineup();
       });
@@ -1369,22 +1435,23 @@
     const list = document.createElement("div");
     list.className = "picker-list";
     const placedAt = new Map(slots.map((v, k) => [v, k]).filter(([v]) => v));
-    // 최근 3번 모임(보고 있는 날짜까지) 중 한 번도 안 나온 회원은 구분선 아래로 보내고 흐리게
-    const recent3 = [...S.days.keys()].filter((d) => d <= S.date && hasAny(d)).sort().slice(-3);
-    const cameRecently = (id) => recent3.some((d) => GAMES.some((g) => attended(d, id, g)));
+    // 최근 N번 모임(보고 있는 날짜까지, N은 설정에서 1~10) 중 한 번도 안 나온 회원은 구분선 아래로 보내고 흐리게
+    const recentN = [...S.days.keys()].filter((d) => d <= S.date && hasAny(d)).sort().slice(-S.absentN);
+    const cameRecently = (id) => recentN.some((d) => GAMES.some((g) => attended(d, id, g)));
     const order = (a, b) => (placedAt.has(a[0]) - placedAt.has(b[0])) || a[1].name.localeCompare(b[1].name, "ko");
     // 부상자는 맨 아래 따로 (이미 이 경기에 넣은 사람은 제외)
     const hurt = ([id]) => isInjured(id) && !placedAt.has(id);
     const all = activeMembers().filter((e) => !hurt(e));
     const injured = activeMembers().filter(hurt);
-    const regulars = recent3.length ? all.filter(([id]) => cameRecently(id) || placedAt.has(id)) : all;
-    const rare = recent3.length ? all.filter(([id]) => !cameRecently(id) && !placedAt.has(id)) : [];
+    const regulars = recentN.length ? all.filter(([id]) => cameRecently(id) || placedAt.has(id)) : all;
+    const rare = recentN.length ? all.filter(([id]) => !cameRecently(id) && !placedAt.has(id)) : [];
     const members = [...regulars.sort(order), ...rare.sort(order), ...injured.sort(order)];
     for (const [id, m] of members) {
       if (rare.length && id === rare[0][0]) {
         const hr = document.createElement("div");
         hr.className = "pick-divider";
-        hr.textContent = L(`최근 ${recent3.length}번 모임 불참`, `Missed the last ${recent3.length} meetings`);
+        hr.textContent = L(`최근 ${recentN.length}번 모임 불참`,
+          recentN.length === 1 ? "Missed the last meeting" : `Missed the last ${recentN.length} meetings`);
         list.append(hr);
       }
       if (injured.length && id === injured[0][0]) {
@@ -1418,6 +1485,7 @@
 
   // 한 경기의 이 팀 참석을 모두 해제 (그 경기 포지션 배치에서도 빠진다)
   function clearGame(g, key) {
+    if (guardPast()) return;
     if (S.confirmClearGame !== key) {
       S.confirmClearGame = key;
       renderGrid();
@@ -1667,6 +1735,7 @@
   }
 
   function deleteDay() {
+    if (guardPast()) return;
     const key = shownKey();
     if (S.confirmDeleteDay !== key) {
       S.confirmDeleteDay = key;
@@ -2074,6 +2143,7 @@
     renderMembers();
     renderStats();
     renderBackup();
+    renderEditLock();
     if (hadFocusInList && document.activeElement !== active) active.blur?.();
     if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
   }
@@ -2150,6 +2220,7 @@
   function setDate(d) {
     S.date = d;
     S.pickSlot = null;
+    S.unlockDate = null;
     renderAll();
   }
   $("prevDay").addEventListener("click", () => setDate(shiftDate(S.date, -1)));
@@ -2256,7 +2327,33 @@
     document.querySelectorAll("#themeSeg [data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === th));
     const pc = posColorMode();
     document.querySelectorAll("#posColorSeg [data-poscolor]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.poscolor === pc));
+    document.querySelectorAll("#absentSeg [data-absent]").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.absent) === S.absentN));
+    $("absentHint").textContent = L(`포지션에서 회원을 고를 때, 최근 ${S.absentN}번 모임에 한 번도 안 나온 회원을 아래쪽에 따로 모읍니다.`,
+      `When picking members for a position, those who missed all of the last ${S.absentN} meeting${S.absentN === 1 ? "" : "s"} are grouped at the bottom.`);
     renderSetInfo();
+  }
+
+  // 최근 모임 불참 기준 (1~10번, 기본 3번)
+  const ABSENT_KEY = "soccer-local-absent";
+  function setAbsentN(v) {
+    const n = Math.min(10, Math.max(1, Math.round(Number(v)) || 3));
+    S.absentN = n;
+    try { localStorage.setItem(ABSENT_KEY, String(n)); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+    renderSettings();
+    renderLineup();
+  }
+
+  // 사용 설명서 창
+  function openHelp() {
+    $("helpModal").hidden = false;
+    document.body.classList.add("modal-open");
+    $("helpClose").focus();
+  }
+  function closeHelp() {
+    $("helpModal").hidden = true;
+    // 설정 창 위에서 열었으므로 설정 창이 열려 있으면 화면 고정은 그대로 둔다
+    if ($("setModal").hidden) document.body.classList.remove("modal-open");
+    $("helpBtn").focus({ preventScroll: true });
   }
 
   // 포지션 색상: 컬러(기본) = 공격·미드·수비·골키퍼를 색으로 구분, 단색 = 예전처럼 한 가지 색
@@ -2270,7 +2367,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 27; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 28; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -2322,13 +2419,23 @@
   $("setBtn").addEventListener("click", openSettings);
   $("setClose").addEventListener("click", closeSettings);
   $("setModal").addEventListener("click", (e) => { if (e.target === $("setModal")) closeSettings(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("setModal").hidden) closeSettings(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!$("helpModal").hidden) closeHelp(); // 설명서가 위에 떠 있으면 그것부터 닫는다
+    else if (!$("setModal").hidden) closeSettings();
+  });
   $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
   $("themeSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-theme-set]"); if (b) setTheme(b.dataset.themeSet); });
   $("posColorSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-poscolor]"); if (b) setPosColor(b.dataset.poscolor); });
+  $("absentSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-absent]"); if (b) setAbsentN(b.dataset.absent); });
+  $("helpBtn").addEventListener("click", openHelp);
+  $("helpClose").addEventListener("click", closeHelp);
+  $("helpModal").addEventListener("click", (e) => { if (e.target === $("helpModal")) closeHelp(); });
+  document.querySelectorAll("[data-edit-lock]").forEach((b) => b.addEventListener("click", toggleEditLock));
 
   // ---------- 시작 ----------
   applyStaticLang();
+  try { const n = Number(localStorage.getItem(ABSENT_KEY)); if (n >= 1 && n <= 10) S.absentN = n; } catch (e) { /* 기본 3번 */ }
   // 팀: 주소의 #faith/#hope/#love → 이 브라우저에서 마지막으로 고른 팀 → 믿음팀
   let savedTeam = null;
   try { savedTeam = localStorage.getItem(TEAM_KEY); } catch (e) { savedTeam = null; }
