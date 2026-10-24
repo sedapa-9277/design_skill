@@ -1138,9 +1138,10 @@
     const box = $("teamTabs");
     box.replaceChildren();
     const teams = activeTeams();
-    // 팀이 1~2개면 팀 선택 칸을 세 팀일 때 폭의 절반으로 줄여, 버튼이 화면 가득 늘어나지 않게 한다
+    // 팀 2개는 줄을 반씩 나눠 이름이 잘리지 않게, 1개면 절반 폭만 차지 (CSS의 .few.one)
     box.style.gridTemplateColumns = `repeat(${teams.length}, 1fr)`;
     box.classList.toggle("few", teams.length < 3);
+    box.classList.toggle("one", teams.length === 1);
     for (const [t] of teams) {
       const b = document.createElement("button");
       b.type = "button";
@@ -1338,11 +1339,18 @@
     const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, 8);
     const box = $("recent");
     box.replaceChildren();
-    if (!dates.length) return;
     const lab = document.createElement("span");
     lab.className = "label";
     lab.textContent = L("최근 모임", "Recent");
     box.append(lab);
+    // 이 팀에 기록이 없어도 줄은 그대로 두어, 팀을 바꿀 때 상단 높이가 들썩이지 않게 한다
+    if (!dates.length) {
+      const none = document.createElement("span");
+      none.className = "none";
+      none.textContent = L("아직 기록 없음", "No meetings yet");
+      box.append(none);
+      return;
+    }
     for (const d of dates) {
       const b = document.createElement("button");
       b.textContent = label(d, true);
@@ -2453,7 +2461,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 30; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 31; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

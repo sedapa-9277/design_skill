@@ -1374,7 +1374,12 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
 .team-row { display: flex; align-items: center; gap: 8px; }
 .team-row .teams { flex: 1; min-width: 0; }
 @media (min-width: 861px) { .team-row .teams { flex: none; } .team-row .set-btn { margin-left: auto; } }
-@media (max-width: 860px) { .team-row .teams.few { flex: 0 1 calc((100% - 52px) / 2); } /* 52px = 설정 버튼 44px + 간격 8px */ .team-row .set-btn { margin-left: auto; } }
+/* 팀 2개는 줄 전체를 반씩 나눠 이름이 넉넉히 보이게, 1개만 남으면 절반 폭으로 (버튼 하나가 화면 가득 늘어나지 않게).
+   52px = 설정 버튼 44px + 간격 8px */
+@media (max-width: 860px) {
+  .team-row .teams.few.one { flex: 0 1 calc((100% - 52px) / 2); }
+  .team-row .set-btn { margin-left: auto; }
+}
 .set-btn {
   flex: none;
   display: grid;
@@ -1437,6 +1442,19 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
 
 /* 최근 모임: 얇은 유리 칩, 고른 날짜는 금색 */
 .recent .label { color: #ffffff99; letter-spacing: .02em; }
+/* 기록이 없을 때: 날짜 칩과 같은 높이의 흐린 안내 */
+.recent .none {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px dashed #ffffff33;
+  border-radius: 999px;
+  color: #ffffff80;
+  font-size: .8rem;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+@media (max-width: 860px) { .recent .none { padding: 5px 12px; } }
 .recent button {
   border: 1px solid #ffffff26;
   background: #ffffff0d;
