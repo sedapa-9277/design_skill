@@ -248,7 +248,7 @@
     return { members: data.members.size, days: data.days.size, att };
   }
   const countText = (c) => L(`회원 ${c.members}명 · 모임 ${c.days}일 · 출석 ${c.att}건`,
-    `${c.members} members · ${c.days} days · ${c.att} check-ins`);
+    `${c.members} member${c.members === 1 ? "" : "s"} · ${c.days} day${c.days === 1 ? "" : "s"} · ${c.att} check-in${c.att === 1 ? "" : "s"}`);
 
   function dayOf(map, d) {
     if (!map.has(d)) map.set(d, { att: {}, lineup: {} });
@@ -590,6 +590,14 @@
     const lu = lineupOf(date, g);
     const i = lu.slots.indexOf(mid);
     return i < 0 ? null : FORMATIONS[lu.formation][i][0];
+  }
+
+  // 포지션 구분 (색상용): 골키퍼 · 수비(…B) · 공격(ST·LW·RW) · 나머지는 미드필더
+  function posRole(pos) {
+    if (pos === "GK") return "gk";
+    if (/B$/.test(pos)) return "def";
+    if (/^(ST|LW|RW|CF)$/.test(pos)) return "fwd";
+    return "mid";
   }
 
   function setFormation(f) {
@@ -1204,6 +1212,7 @@
       y.textContent = `, ${d.getFullYear()}`;
       $("dateBig").replaceChildren(`${wd(d.getDay())}, ${MON_EN[d.getMonth()]} ${d.getDate()}`, y);
     }
+    $("calYear").textContent = d.getFullYear();
     $("calMonth").textContent = monthName(d.getMonth());
     $("calDay").textContent = d.getDate();
     $("datePick").value = S.date;
@@ -1288,7 +1297,7 @@
     spots.forEach(([pos, x, y], i) => {
       const mid = slots[i];
       const b = document.createElement("button");
-      b.className = "slot" + (mid ? " filled" : "") + (i === 0 ? " gk" : "");
+      b.className = "slot" + (mid ? " filled" : "") + (i === 0 ? " gk" : "") + ` role-${posRole(pos)}`;
       b.style.left = x + "%";
       b.style.top = y + "%";
       b.setAttribute("aria-pressed", S.pickSlot === i);
@@ -1552,7 +1561,7 @@
         const on = attended(S.date, id, g);
         // 포지션에 들어간 경기는 포지션 이름, 참석만 체크한 경기는 축구공 그림
         const pos = on ? posLabel(S.date, id, g) : null;
-        b.className = "cell" + (pos ? " pos" : "");
+        b.className = "cell" + (pos ? ` pos role-${posRole(pos)}` : "");
         b.textContent = on ? pos || "" : g;
         b.setAttribute("aria-pressed", on);
         b.setAttribute("aria-label", L(`${m.name} ${g}경기 ${on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`,
@@ -2244,11 +2253,23 @@
     document.querySelectorAll("#langSeg [data-lang]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === lang));
     const th = effectiveTheme();
     document.querySelectorAll("#themeSeg [data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === th));
+    const pc = posColorMode();
+    document.querySelectorAll("#posColorSeg [data-poscolor]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.poscolor === pc));
     renderSetInfo();
   }
 
+  // 포지션 색상: 컬러(기본) = 공격·미드·수비·골키퍼를 색으로 구분, 단색 = 예전처럼 한 가지 색
+  const POSCOLOR_KEY = "soccer-local-poscolor";
+  function posColorMode() { return document.documentElement.dataset.poscolor === "mono" ? "mono" : "color"; }
+  function setPosColor(v) {
+    const m = v === "mono" ? "mono" : "color";
+    document.documentElement.dataset.poscolor = m;
+    try { localStorage.setItem(POSCOLOR_KEY, m); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+    renderSettings();
+  }
+
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 25; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 26; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -2303,6 +2324,7 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("setModal").hidden) closeSettings(); });
   $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
   $("themeSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-theme-set]"); if (b) setTheme(b.dataset.themeSet); });
+  $("posColorSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-poscolor]"); if (b) setPosColor(b.dataset.poscolor); });
 
   // ---------- 시작 ----------
   applyStaticLang();

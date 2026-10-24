@@ -1450,3 +1450,65 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
   font-weight: 700;
   box-shadow: 0 2px 6px #0000004d;
 }
+
+/* ---- 달력 버튼 위에 작게 연도 (휴대폰의 달력 모양 버튼에서만, PC 날짜칸에는 연도가 이미 있음) ---- */
+.cal-year { display: none; }
+@media (max-width: 860px) {
+  .cal-year {
+    display: block;
+    position: absolute;
+    left: -6px; right: -6px;
+    bottom: calc(100% + 2px);
+    text-align: center;
+    font-size: .62rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .06em;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+}
+
+/* ---- 포지션 색상 (설정 → 포지션 색상 → 컬러): 공격 빨강 · 미드 청록 · 수비 파랑 · 골키퍼 노랑 ---- */
+:root { --pos-fwd: #e2483d; --pos-mid: #0f9fb4; --pos-def: #2f6fdb; --pos-gk: #f2c53a; }
+/* 구장: 빈 자리도 테두리와 옅은 바탕으로 구분, 채운 자리는 그 색으로 채운다 */
+:root[data-poscolor="color"] .slot.role-fwd { --role: var(--pos-fwd); }
+:root[data-poscolor="color"] .slot.role-mid { --role: var(--pos-mid); }
+:root[data-poscolor="color"] .slot.role-def { --role: var(--pos-def); }
+:root[data-poscolor="color"] .slot.role-gk { --role: var(--pos-gk); }
+:root[data-poscolor="color"] .slot:not(.filled) .dot {
+  border-color: var(--role);
+  background: color-mix(in srgb, var(--role) 38%, transparent);
+}
+:root[data-poscolor="color"] .slot.filled .dot,
+:root[data-poscolor="color"] .slot.gk.filled .dot {
+  background: var(--role);
+  border-color: #fff;
+  color: #fff;
+  text-shadow: 0 1px 1px #00000059;
+}
+:root[data-poscolor="color"] .slot.role-gk.filled .dot { color: #2b2100; text-shadow: none; }
+:root[data-poscolor="color"] .slot[aria-pressed="true"] .dot { box-shadow: 0 0 0 4px #fff; }
+/* 출석판: 포지션에 들어간 칸을 같은 색으로 */
+:root[data-poscolor="color"] .att .cell.pos[aria-pressed="true"].role-fwd { background: var(--pos-fwd); border-color: var(--pos-fwd); color: #fff; }
+:root[data-poscolor="color"] .att .cell.pos[aria-pressed="true"].role-mid { background: var(--pos-mid); border-color: var(--pos-mid); color: #fff; }
+:root[data-poscolor="color"] .att .cell.pos[aria-pressed="true"].role-def { background: var(--pos-def); border-color: var(--pos-def); color: #fff; }
+:root[data-poscolor="color"] .att .cell.pos[aria-pressed="true"].role-gk { background: var(--pos-gk); border-color: var(--pos-gk); color: #2b2100; }
+
+/* 설정 창: 단색/컬러 미리보기 점과 색 설명 */
+.pc-dots { display: inline-flex; gap: 2px; }
+.pc-dots i { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #ffffff99; }
+.pc-dots i:nth-child(1) { background: var(--pos-fwd); }
+.pc-dots i:nth-child(2) { background: var(--pos-mid); }
+.pc-dots i:nth-child(3) { background: var(--pos-def); }
+.pc-dots i:nth-child(4) { background: var(--pos-gk); }
+.pc-dots.mono i { background: var(--pitch); }
+.set-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin: 0; font-size: .75rem; }
+.set-legend > span { display: inline-flex; align-items: center; gap: 4px; }
+.set-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.set-legend .role-fwd { background: var(--pos-fwd); }
+.set-legend .role-mid { background: var(--pos-mid); }
+.set-legend .role-def { background: var(--pos-def); }
+.set-legend .role-gk { background: var(--pos-gk); }
+:root[data-poscolor="mono"] .set-legend { display: none; }
