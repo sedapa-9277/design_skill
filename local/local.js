@@ -1023,8 +1023,9 @@
     const box = $("teamTabs");
     box.replaceChildren();
     const teams = activeTeams();
-    // 팀이 하나뿐이어도 버튼이 화면 가득 넓어지지 않게 세 팀일 때 크기로 둔다
-    box.style.gridTemplateColumns = `repeat(${teams.length === 1 ? 3 : teams.length}, 1fr)`;
+    // 팀이 1~2개면 팀 선택 칸을 세 팀일 때 폭의 절반으로 줄여, 버튼이 화면 가득 늘어나지 않게 한다
+    box.style.gridTemplateColumns = `repeat(${teams.length}, 1fr)`;
+    box.classList.toggle("few", teams.length < 3);
     for (const [t] of teams) {
       const b = document.createElement("button");
       b.type = "button";
@@ -2269,7 +2270,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 26; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 27; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
