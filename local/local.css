@@ -1663,3 +1663,30 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
   box-shadow: 0 2px 6px #00000033, inset 0 1px 0 #ffffff14;
 }
 .picker-head .btn-ghost:active { box-shadow: 0 1px 2px #00000033; transform: translateY(1px); }
+
+/* ---- 상단 정리: 날짜 글씨는 달력 버튼에 있으므로 숨기고, 앱 이름은 화면 폭에 맞춰 한 줄로 ---- */
+.date-big { display: none; }
+.board-top .board-title { min-width: 0; }
+.board-top .eyebrow { white-space: nowrap; }
+@media (max-width: 860px) {
+  .board-top { align-items: center; }
+  /* 360px 폭(갤럭시 S25 등)에서도 날짜 버튼 옆에 한 줄로 들어가는 크기 */
+  .board-top .eyebrow { font-size: clamp(1.05rem, 5.6vw, 1.45rem); }
+  /* 달력 버튼: 월 · 날짜 · 요일 세 줄 */
+  .date-nav .cal-btn, .date-nav button { height: 48px; }
+  .cal-tile { grid-template-rows: 13px 1fr 12px; }
+  .cal-month { font-size: .58rem; }
+  .cal-day { font-size: 1.08rem; padding-top: 1px; }
+  .cal-wd {
+    display: grid;
+    place-items: start center;
+    color: #0e4024;
+    font-size: .56rem;
+    font-weight: 700;
+    line-height: 1;
+    opacity: .8;
+  }
+  .cal-wd.sun { color: #c62828; opacity: 1; }
+}
+.cal-wd { display: none; }
+@media (max-width: 860px) { .cal-tile .cal-wd { display: grid; } }

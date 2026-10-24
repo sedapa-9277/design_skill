@@ -1332,6 +1332,9 @@
     $("calYear").textContent = d.getFullYear();
     $("calMonth").textContent = monthName(d.getMonth());
     $("calDay").textContent = d.getDate();
+    // 달력 버튼 안에 작게 요일 (일요일은 빨강)
+    $("calWd").textContent = wd(d.getDay());
+    $("calWd").classList.toggle("sun", d.getDay() === 0);
     $("datePick").value = S.date;
     $("calDesk").textContent = `${S.date} (${wd(d.getDay())})`;
     $("calBtn").setAttribute("aria-label", L(`달력 열기, 지금 ${label(S.date)}`, `Open calendar, now ${label(S.date)}`));
@@ -2461,7 +2464,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 31; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 32; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
