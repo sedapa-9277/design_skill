@@ -1,20 +1,20 @@
 // 출석부 (내 폰) 서비스 워커 — local/ 폴더 전용. 앱 화면 파일을 캐시해 두고 캐시에서 먼저 연다(오프라인 동작).
 // local.css·local.js의 ?v=N을 올리면 아래 SHELL과 VERSION도 함께 올린다.
-const VERSION = 38;
+const VERSION = 39;
 const PREFIX = 'soccer-local-shell-';
 const CACHE = PREFIX + VERSION;
 const FONT_CACHE = 'soccer-local-fonts';
 const OLD_XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; // 예전에 CDN에서 받아 캐시한 사본 (지운다)
 const SHELL = [
   './',
-  'local.css?v=31',
-  'local.js?v=33',
+  'local.css?v=32',
+  'local.js?v=34',
   'xlsx.full.min.js?v=1',
   'manifest.webmanifest',
-  'icon-192.png',
-  'icon-512.png',
-  'icon-maskable-512.png',
-  'apple-touch-icon.png',
+  'icon-192.png?v=2',
+  'icon-512.png?v=2',
+  'icon-maskable-512.png?v=2',
+  'apple-touch-icon.png?v=2',
 ];
 const SCOPE = self.registration.scope;
 const SHELL_URLS = SHELL.map((p) => new URL(p, SCOPE).href);
