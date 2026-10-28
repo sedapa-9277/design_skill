@@ -28,6 +28,10 @@
   const monthName = (m) => L(`${m + 1}월`, MON_EN[m]); // m: 0~11
   // 기본 팀 이름(영어): 회원 관리에서 바꾼 이름이 있으면 그 이름을 쓴다
   const TEAM_EN = { 믿음: "Faith", 소망: "Hope", 사랑: "Love" };
+  // 처음 설치(저장된 기록 없음)는 "팀1" 한 팀만, 회원 없이 시작한다. 팀 초기화도 이 이름으로 되돌린다
+  const DEFAULT_TEAM_NAME = "팀1";
+  const FRESH_TEAM_NAMES = () => ({ 믿음: DEFAULT_TEAM_NAME });
+  const FRESH_TEAM_ACTIVE = () => ({ 믿음: true, 소망: false, 사랑: false });
 
   // 포메이션: [포지션, x%, y%] — 위쪽이 상대 골문, 첫 번째는 항상 GK
   const FORMATIONS = {
@@ -59,8 +63,8 @@
     shownGames: new Map(),    // "date|팀" -> 출석판에 직접 늘려 둔 경기 수
     confirmDeleteDay: null,   // "date|팀": 날짜 기록 삭제 확인 중
     confirmClearGame: null,   // "date|팀|gN": 경기 참석 초기화 확인 중
-    teamNames: {},            // 팀 구분값 -> 화면에 보이는 팀 이름
-    teamActive: { 믿음: true, 소망: true, 사랑: true }, // 팀 구분값 -> 사용 중인지 (최소 1팀)
+    teamNames: FRESH_TEAM_NAMES(),   // 팀 구분값 -> 화면에 보이는 팀 이름
+    teamActive: FRESH_TEAM_ACTIVE(), // 팀 구분값 -> 사용 중인지 (최소 1팀)
     addingTeam: false,        // 회원 관리에서 새 팀 이름 입력 중
     confirmTeamDel: null,     // 팀 삭제 확인 중인 팀
     confirmTeamPurge: null,   // 팀 회원 전체 삭제 확인 중인 팀
@@ -249,8 +253,8 @@
   function applyData(parsed) {
     S.members = parsed ? parsed.members : new Map();
     S.days = parsed ? parsed.days : new Map();
-    S.teamNames = parsed ? parsed.teamNames : {};
-    S.teamActive = parsed ? parsed.teamActive : Object.fromEntries(TEAMS.map(([t]) => [t, true]));
+    S.teamNames = parsed ? parsed.teamNames : FRESH_TEAM_NAMES();
+    S.teamActive = parsed ? parsed.teamActive : FRESH_TEAM_ACTIVE();
     S.addingTeam = false;
     S.confirmTeamDel = null;
     S.confirmTeamPurge = null;
@@ -531,7 +535,7 @@
   }
 
   // 팀 초기화 (마지막 한 팀일 때): 회원·출석·포지션을 모두 지우고 이름을 "팀1"로. 팀은 그대로 남는다
-  const RESET_TEAM_NAME = "팀1";
+  const RESET_TEAM_NAME = DEFAULT_TEAM_NAME;
   function dbResetTeam(team) {
     dbPurgeTeamMembers(team);
     for (const [date, day] of [...S.days]) {
@@ -2961,7 +2965,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 48; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 49; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
