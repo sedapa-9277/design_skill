@@ -2184,7 +2184,6 @@
     const shown = S.rankSort === "name"
       ? [...rows].sort((a, b) => a.name.localeCompare(b.name, "ko"))
       : rows;
-    const recent = S.rankOpen ? recentTeamGames(10) : [];
     const byName = S.rankSort === "name";
     shown.forEach((r, idx) => {
       const pct = meetingDays ? Math.round((r.days / meetingDays) * 100) : 0;
@@ -2214,7 +2213,7 @@
         tr.children[1].append(reg);
       }
       body.append(tr);
-      if (open) body.append(recentRow(r.id, recent));
+      if (open) body.append(recentRow(r.id, recentTeamGames(10, r.id)));
     });
   }
 
@@ -2232,7 +2231,7 @@
     if (opening) {
       tr.classList.add("open");
       btn.setAttribute("aria-expanded", "true");
-      detail = recentRow(mid, recentTeamGames(10));
+      detail = recentRow(mid, recentTeamGames(10, mid));
       tr.after(detail);
     }
     // 위쪽에서 닫힌 줄만큼 화면을 보정해 누른 이름이 제자리에 있게 한다
@@ -2248,9 +2247,17 @@
     btn.focus({ preventScroll: true });
   }
 
-  // 이 팀의 최근 모임 날짜 n개 (팀에서 한 명이라도 출석한 날), 오래된 순
-  function recentTeamGames(n) {
-    return [...S.days.keys()].filter(hasAny).sort().slice(-n);
+  // 이 팀의 최근 모임 날짜 n개 (팀에서 한 명이라도 출석한 날), 오래된 순.
+  // mid를 주면 그 회원의 등록일 이후 모임만 (등록 전 모임은 불참으로 치지 않는다)
+  function recentTeamGames(n, mid) {
+    const since = mid ? memberSince(mid) : null;
+    return [...S.days.keys()].filter((d) => hasAny(d) && (!since || d >= since)).sort().slice(-n);
+  }
+  // 회원 등록일 (YYYY-MM-DD, 이 폰의 날짜 기준). 예전 백업처럼 등록일이 없으면 null
+  function memberSince(mid) {
+    const made = S.members.get(mid)?.created_at;
+    const d = made ? new Date(made) : null;
+    return d && !isNaN(d) ? ymd(d) : null;
   }
 
   function recentRow(mid, dates) {
@@ -2293,7 +2300,9 @@
       sum.textContent = L(`최근 모임 ${dates.length}번 중 ${hit}번 참석`, `Attended ${hit} of the last ${dates.length} meetings`);
       meta.append(sum, range);
     } else {
-      meta.textContent = L("아직 이 팀의 모임 기록이 없습니다.", "This team has no meetings yet.");
+      meta.textContent = recentTeamGames(1).length
+        ? L("등록한 뒤로 아직 모임 기록이 없습니다.", "No meetings since this member was added.")
+        : L("아직 이 팀의 모임 기록이 없습니다.", "This team has no meetings yet.");
     }
     const legend = document.createElement("div");
     legend.className = "legend";
@@ -2837,7 +2846,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 43; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 44; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
