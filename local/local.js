@@ -1827,11 +1827,12 @@
       b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "") + (role ? ` role-${role}` : "")
         + (rare.some(([rid]) => rid === id) ? " rare" : "") + (injured.some(([iid]) => iid === id) ? " injured" : "");
       b.textContent = m.name;
-      if (at !== undefined && id !== cur) {
+      // 이미 넣은 회원은 그 포지션 이름을 옆에 (지금 고르는 자리의 회원도 그 자리 이름을)
+      if (at !== undefined) {
         const s = document.createElement("small");
         s.textContent = spots[at][0];
         b.append(s);
-        b.title = L(`${spots[at][0]}에서 이 자리로 옮깁니다`, `Moves from ${spots[at][0]} to this spot`);
+        if (id !== cur) b.title = L(`${spots[at][0]}에서 이 자리로 옮깁니다`, `Moves from ${spots[at][0]} to this spot`);
       }
       b.addEventListener("click", () => { if (id !== cur) placeMember(i, id); });
       list.append(b);
@@ -2972,7 +2973,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 51; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 52; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

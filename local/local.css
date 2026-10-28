@@ -411,6 +411,8 @@ table.rank { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .pick.placed { background: var(--pitch-soft); border-color: var(--pitch-soft); }
 .pick.placed small { color: var(--pitch); font-weight: 700; margin-left: 4px; }
 .pick.current { background: var(--pitch); color: var(--chalk); border-color: var(--pitch); }
+/* 지금 자리 회원의 포지션 이름: 칸 색 위에 살짝 어두운 알약 */
+.pick.current small { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 999px; background: #0000002e; color: inherit; font-weight: 700; }
 .picker-empty { color: var(--muted); font-size: .9rem; padding: 10px 0; }
 .lineup-sum { font-size: .85rem; color: var(--muted); }
 .lineup-sum b { color: var(--fg); font-variant-numeric: tabular-nums; }
