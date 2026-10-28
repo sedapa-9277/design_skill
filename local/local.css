@@ -261,6 +261,21 @@ table.att { width: 100%; border-collapse: separate; border-spacing: 0; }
   font-size: .82rem;
 }
 .chip[aria-pressed="true"] { background: var(--pitch); color: var(--chalk); border-color: var(--pitch); }
+/* 통계: 기간 직접 고르기 줄 */
+.range-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: -4px 0 12px; }
+.range-row[hidden] { display: none; }
+.range-row input {
+  flex: 1 1 130px;
+  min-width: 0;
+  font: inherit;
+  font-size: .9rem;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 8px;
+}
+.range-note { font-size: .75rem; flex-basis: 100%; }
 
 .stats-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; }
 .summary-line { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; font-size: .9rem; }

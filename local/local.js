@@ -2166,7 +2166,8 @@
       if (!total) { toast(L("이 기간에는 내보낼 출석 기록이 없습니다.", "No attendance records to export in this period.")); return; }
       const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
       const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const file = `${L("출석명단", "attendance")}_${(lang === "ko" ? PERIOD_LABEL : PERIOD_LABEL_EN)[S.period] || ""}_${ymd(new Date())}.xlsx`;
+      const span = S.period === "range" ? `${S.rangeFrom}~${S.rangeTo}` : (lang === "ko" ? PERIOD_LABEL : PERIOD_LABEL_EN)[S.period] || "";
+      const file = `${L("출석명단", "attendance")}_${span}_${ymd(new Date())}.xlsx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -2190,6 +2191,7 @@
     if (S.period === "year") return d.getFullYear() === today.getFullYear();
     if (S.period === "month") return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
     if (S.period === "3m") return d >= new Date(today.getFullYear(), today.getMonth() - 2, 1);
+    if (S.period === "range") return date >= S.rangeFrom && date <= S.rangeTo;
     return true;
   }
 
@@ -2660,8 +2662,47 @@
     if (!b) return;
     S.period = b.dataset.period;
     document.querySelectorAll("#periodChips .chip").forEach((c) => c.setAttribute("aria-pressed", c === b));
+    // "기간": 처음엔 최근 1개월로 채우고 날짜 칸을 보여 준다
+    if (S.period === "range" && !S.rangeFrom) {
+      const today = new Date();
+      S.rangeTo = ymd(today);
+      S.rangeFrom = ymd(new Date(today.getFullYear(), today.getMonth() - 1, today.getDate() + 1));
+    }
+    renderRange();
     renderStats();
   });
+
+  // 기간 직접 고르기: 시작 ≤ 끝, 길이는 최대 1년 (넘으면 반대쪽 날짜를 맞춘다)
+  function yearAfter(s) { const d = parseYmd(s); return ymd(new Date(d.getFullYear() + 1, d.getMonth(), d.getDate() - 1)); }
+  function yearBefore(s) { const d = parseYmd(s); return ymd(new Date(d.getFullYear() - 1, d.getMonth(), d.getDate() + 1)); }
+  function renderRange() {
+    const on = S.period === "range";
+    $("rangeRow").hidden = !on;
+    if (!on) return;
+    $("rangeFrom").value = S.rangeFrom;
+    $("rangeTo").value = S.rangeTo;
+    $("rangeFrom").max = S.rangeTo;
+    $("rangeTo").min = S.rangeFrom;
+    $("rangeTo").max = yearAfter(S.rangeFrom);
+  }
+  function setRange(which, v) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { renderRange(); return; }
+    let adjusted = false;
+    if (which === "from") {
+      S.rangeFrom = v;
+      if (S.rangeTo < v) S.rangeTo = v;
+      if (S.rangeTo > yearAfter(v)) { S.rangeTo = yearAfter(v); adjusted = true; }
+    } else {
+      S.rangeTo = v;
+      if (S.rangeFrom > v) S.rangeFrom = v;
+      if (S.rangeFrom < yearBefore(v)) { S.rangeFrom = yearBefore(v); adjusted = true; }
+    }
+    if (adjusted) toast(L("기간은 최대 1년까지 고를 수 있어 날짜를 맞췄습니다.", "The range can be up to 1 year, so the other date was adjusted."));
+    renderRange();
+    renderStats();
+  }
+  $("rangeFrom").addEventListener("change", (e) => setRange("from", e.target.value));
+  $("rangeTo").addEventListener("change", (e) => setRange("to", e.target.value));
 
   $("saveLineupBtn").addEventListener("click", saveLineupImage);
   $("saveAttBtn").addEventListener("click", saveAttendanceImage);
@@ -2897,7 +2938,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 45; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 46; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

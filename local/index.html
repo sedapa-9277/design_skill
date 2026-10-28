@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="local.css?v=36">
+  <link rel="stylesheet" href="local.css?v=37">
   <script>
     // 설정에서 고른 화면 모드(라이트/다크)를 그리기 전에 적용해 깜빡임을 막는다.
     // 고른 모드만 지원한다고 알려(라이트는 "only light") 브라우저의 강제 다크가 겹치지 않게 한다
@@ -170,7 +170,7 @@
 
       <section class="panel view" data-view="members" id="memberPanel">
         <div class="panel-head">
-          <h2><span data-en="Members">회원 관리</span> <span class="muted num member-count" id="memberCount"></span></h2>
+          <h2><span data-en="Teams &amp; Members">팀/회원 관리</span> <span class="muted num member-count" id="memberCount"></span></h2>
         </div>
         <div class="team-name-row" id="teamNameRow"></div>
         <div class="team-name-row team-tools" id="teamTools"></div>
@@ -212,7 +212,15 @@
         <button class="chip" data-period="month" aria-pressed="true" data-en="This month">이번 달</button>
         <button class="chip" data-period="3m" aria-pressed="false" data-en="Last 3 months">최근 3개월</button>
         <button class="chip" data-period="year" aria-pressed="false" data-en="This year">올해</button>
+        <button class="chip" data-period="range" aria-pressed="false" data-en="Range">기간</button>
       </div>
+    </div>
+    <!-- 기간 직접 고르기 (최대 1년): "기간"을 눌렀을 때만 보인다 -->
+    <div class="range-row" id="rangeRow" hidden>
+      <input type="date" id="rangeFrom" aria-label="시작 날짜" data-en-aria-label="Start date">
+      <span aria-hidden="true">~</span>
+      <input type="date" id="rangeTo" aria-label="끝 날짜" data-en-aria-label="End date">
+      <span class="muted range-note" data-en="Up to 1 year">최대 1년</span>
     </div>
     <div class="stats-bar">
       <button type="button" class="btn-ghost export-btn" id="exportBtn">
@@ -658,7 +666,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=40"></script>
+<script src="local.js?v=41"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {
