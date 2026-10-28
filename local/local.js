@@ -1278,15 +1278,19 @@
     if (activeTeams().length < TEAMS.length) {
       const add = document.createElement("button");
       add.type = "button";
-      add.className = "row-btn";
-      add.textContent = L("팀 추가", "Add team");
+      add.className = "row-btn add";
+      add.textContent = L("+ 팀 추가", "+ Team");
       add.addEventListener("click", () => { S.addingTeam = true; S.confirmTeamDel = null; S.confirmTeamPurge = null; renderTeamTools(); });
       box.append(add);
     }
     const n = teamMembers(true).length;
-    box.append(teamConfirmButton(L("회원 전체 삭제", "Delete all members"), L(`정말 ${n}명 모두 삭제할까요?`, `Really delete all ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers));
+    // 확인 문구도 한 줄에 들어가게 짧게 (자세한 내용은 버튼 설명으로)
+    const purge = teamConfirmButton(L("회원 전체 삭제", "Delete members"), L(`${n}명 삭제?`, `Delete ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers);
+    purge.title = L(`이 팀 회원 ${n}명을 모두 삭제합니다`, `Deletes all ${n} members of this team`);
+    box.append(purge);
     const last = activeTeams().length <= 1;
-    const del = teamConfirmButton(L("팀 삭제", "Delete team"), L("정말 삭제할까요? 회원·기록 모두 삭제", "Really delete? Members and records too"), "confirmTeamDel", last, deleteTeam);
+    const del = teamConfirmButton(L("팀 삭제", "Delete team"), L("팀·기록 삭제?", "Delete all?"), "confirmTeamDel", last, deleteTeam);
+    del.title = L("팀과 회원·기록을 모두 삭제합니다", "Deletes the team with its members and records");
     if (last) del.title = L("마지막 남은 팀은 삭제할 수 없습니다", "You can't delete the last remaining team");
     box.append(del);
   }
@@ -1544,15 +1548,23 @@
     $("calDesk").textContent = `${S.date} (${wd(d.getDay())})`;
     $("calBtn").setAttribute("aria-label", L(`달력 열기, 지금 ${label(S.date)}`, `Open calendar, now ${label(S.date)}`));
 
-    const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, S.recentShown);
+    // 맨 앞은 늘 "오늘" 버튼, 그 뒤로 최근 모임 날짜 (오늘은 겹치지 않게 뺀다)
+    const today = ymd(new Date());
+    const dates = [...S.days.keys()].filter((d) => d !== today && hasAny(d)).sort().reverse().slice(0, S.recentShown);
     const box = $("recent");
     box.replaceChildren();
     const lab = document.createElement("span");
     lab.className = "label";
     lab.textContent = L("최근 모임", "Recent");
-    box.append(lab);
+    const tb = document.createElement("button");
+    tb.className = "today";
+    tb.textContent = L("오늘", "Today");
+    tb.setAttribute("aria-pressed", S.date === today);
+    tb.addEventListener("click", () => setDate(today));
+    box.append(lab, tb);
     // 이 팀에 기록이 없어도 줄은 그대로 두어, 팀을 바꿀 때 상단 높이가 들썩이지 않게 한다
     if (!dates.length) {
+      if (hasAny(today)) return; // 오늘만 모임이 있으면 "오늘" 버튼으로 충분
       const none = document.createElement("span");
       none.className = "none";
       none.textContent = L("아직 기록 없음", "No meetings yet");
@@ -2001,20 +2013,42 @@
     }
     const confirming = S.confirmDeleteDay === key;
     btn.classList.toggle("confirm", confirming);
-    btn.textContent = confirming
-      ? L(`정말 삭제할까요? ${label(S.date, true)} ${tn(S.team)} ${peopleCount}명 기록`, `Really delete? ${tn(S.team)} ${label(S.date, true)}, ${peopleCount} people`)
-      : L(`${label(S.date, true)} ${tn(S.team)} 기록 삭제`, `Delete ${tn(S.team)} records for ${label(S.date, true)}`);
+    if (!confirming) {
+      btn.textContent = L(`${label(S.date, true)} ${tn(S.team)} 기록 삭제`, `Delete ${tn(S.team)} records for ${label(S.date, true)}`);
+      return;
+    }
+    // 확인 중: "정말 삭제할까요?" + 남은 시간 (한 번 더 누르면 삭제, 시간이 지나면 취소)
+    const left = document.createElement("span");
+    left.className = "left num";
+    left.textContent = deleteDayLeft();
+    btn.replaceChildren(L("정말 삭제할까요?", "Really delete?"), " ", left);
+  }
+  function deleteDayLeft() {
+    const s = Math.max(0, Math.ceil((S.deleteDayEnd - Date.now()) / 1000));
+    return L(`${s}초 남음`, `${s}s left`);
   }
 
+  let deleteDayTick = null;
   function deleteDay() {
     if (guardPast()) return;
     const key = shownKey();
     if (S.confirmDeleteDay !== key) {
       S.confirmDeleteDay = key;
+      S.deleteDayEnd = Date.now() + 4000;
       renderSide();
-      setTimeout(() => { if (S.confirmDeleteDay === key) { S.confirmDeleteDay = null; renderSide(); } }, 4000);
+      clearInterval(deleteDayTick);
+      deleteDayTick = setInterval(() => {
+        if (S.confirmDeleteDay !== key || Date.now() >= S.deleteDayEnd) {
+          clearInterval(deleteDayTick);
+          if (S.confirmDeleteDay === key) { S.confirmDeleteDay = null; renderSide(); }
+          return;
+        }
+        const el = $("deleteDayBtn").querySelector(".left");
+        if (el) el.textContent = deleteDayLeft();
+      }, 200);
       return;
     }
+    clearInterval(deleteDayTick);
     S.confirmDeleteDay = null;
     const date = S.date, team = S.team, when = label(date, true);
     write(() => {
@@ -2807,7 +2841,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 40; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 41; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

@@ -515,6 +515,10 @@ html, body { overscroll-behavior-y: none; }
 .member-count { font-family: var(--font-body); font-size: .85rem; }
 .rank-scroll { overflow-x: auto; }
 #memberPanel .add-form { margin-bottom: 12px; }
+/* 이름 칸과 추가 버튼은 폰에서도 한 줄 */
+#memberPanel .add-form { flex-wrap: nowrap; }
+#memberPanel .add-form input { flex: 1 1 0; }
+#memberPanel .add-form .btn { flex: none; white-space: nowrap; }
 .att td.name .row-btn { margin-top: 4px; }
 .tabbar { display: none; }
 
@@ -987,6 +991,8 @@ body.modal-open { overflow: hidden; }
 }
 .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--warn) 10%, transparent); }
 .btn-danger.confirm { background: var(--warn); color: #fff; }
+/* 삭제 확인 중 남은 시간: 작은 알약 */
+.btn-danger .left { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 999px; background: #ffffff33; font-size: .82em; font-weight: 700; }
 .btn-danger:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
 
 /* 이날 요약: 칸 2개 (참석 인원, 진행 경기) */
@@ -1203,8 +1209,12 @@ body.locked #memberPanel > .hint { display: none; }
 }
 
 /* 회원 관리: 팀 관리 (팀 추가 · 회원 전체 삭제 · 팀 삭제) */
-.team-tools { flex-wrap: wrap; }
-.team-tools > .muted { flex: 1; min-width: 4em; }
+/* 팀 관리: "팀 관리" 글자와 버튼 3개를 한 줄에. 좁으면 앞의 글자부터 줄어든다 */
+.team-tools { flex-wrap: nowrap; gap: 6px; }
+.team-tools > .muted { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-tools .row-btn { flex: none; white-space: nowrap; padding: 6px 9px; font-size: .78rem; border-radius: 999px; }
+.team-tools .row-btn.add { border-color: var(--pitch); color: var(--pitch); font-weight: 700; }
+.team-tools .edit-input { flex: 1 1 0; min-width: 0; }
 .team-tools .row-btn:disabled { opacity: .45; cursor: not-allowed; }
 .team-tools .row-btn.danger.confirm,
 .team-tools .row-btn.danger.confirm:hover,
@@ -1511,6 +1521,8 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
   font-variant-numeric: tabular-nums;
 }
 .recent button:hover { background: #ffffff1f; }
+/* "오늘" 버튼: 날짜 칩과 같은 모양, 굵은 글씨 */
+.recent button.today { font-weight: 700; }
 .recent button[aria-pressed="true"] {
   background: linear-gradient(180deg, #fff1c4 0%, var(--gold) 100%);
   color: #3b2a05;
