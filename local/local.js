@@ -1278,19 +1278,15 @@
     if (activeTeams().length < TEAMS.length) {
       const add = document.createElement("button");
       add.type = "button";
-      add.className = "row-btn add";
-      add.textContent = L("+ 팀 추가", "+ Team");
+      add.className = "row-btn";
+      add.textContent = L("팀 추가", "Add team");
       add.addEventListener("click", () => { S.addingTeam = true; S.confirmTeamDel = null; S.confirmTeamPurge = null; renderTeamTools(); });
       box.append(add);
     }
     const n = teamMembers(true).length;
-    // 확인 문구도 한 줄에 들어가게 짧게 (자세한 내용은 버튼 설명으로)
-    const purge = teamConfirmButton(L("회원 전체 삭제", "Delete members"), L(`${n}명 삭제?`, `Delete ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers);
-    purge.title = L(`이 팀 회원 ${n}명을 모두 삭제합니다`, `Deletes all ${n} members of this team`);
-    box.append(purge);
+    box.append(teamConfirmButton(L("회원 전체 삭제", "Delete all members"), L(`정말 ${n}명 모두 삭제할까요?`, `Really delete all ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers));
     const last = activeTeams().length <= 1;
-    const del = teamConfirmButton(L("팀 삭제", "Delete team"), L("팀·기록 삭제?", "Delete all?"), "confirmTeamDel", last, deleteTeam);
-    del.title = L("팀과 회원·기록을 모두 삭제합니다", "Deletes the team with its members and records");
+    const del = teamConfirmButton(L("팀 삭제", "Delete team"), L("정말 삭제할까요? 회원·기록 모두 삭제", "Really delete? Members and records too"), "confirmTeamDel", last, deleteTeam);
     if (last) del.title = L("마지막 남은 팀은 삭제할 수 없습니다", "You can't delete the last remaining team");
     box.append(del);
   }
@@ -2841,7 +2837,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 41; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 42; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
