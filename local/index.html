@@ -19,7 +19,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <!-- 글꼴은 앱 폴더에 넣어 둔 파일을 쓴다 (Google Fonts에 요청하지 않음) -->
   <link rel="stylesheet" href="fonts/fonts.css?v=1">
-  <link rel="stylesheet" href="local.css?v=40">
+  <link rel="stylesheet" href="local.css?v=42">
   <script src="boot.js?v=1"></script>
 </head>
 <body data-view="check">
@@ -368,6 +368,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="17.5" r="1.3"/><circle cx="8" cy="13.5" r="1.3"/><circle cx="16" cy="13.5" r="1.3"/><circle cx="9" cy="8" r="1.3"/><circle cx="15" cy="8" r="1.3"/></svg>
       <span data-en="Formations">포메이션 설명</span>
     </button>
+    <button type="button" class="btn-ghost help-btn" id="quizBtn" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><circle cx="12" cy="16.9" r=".6"/></svg>
+      <span data-en="Football quiz">축구 상식 퀴즈</span>
+    </button>
     <!-- 스토어 등록에 필요한 앱 정보: 개인정보처리방침과 문의처 -->
     <p class="set-links">
       <a href="privacy.html" data-en="Privacy policy">개인정보처리방침</a>
@@ -669,6 +673,17 @@
   </div>
 </div>
 
+<!-- 축구 상식 퀴즈 (경기 규칙 위주): 문제는 quiz.js, 화면은 local.js가 그린다 -->
+<div class="img-modal help-modal" id="quizModal" hidden role="dialog" aria-modal="true" aria-labelledby="quizTitle">
+  <div class="img-card help-card">
+    <div class="img-head">
+      <b id="quizTitle" data-en="Football quiz">축구 상식 퀴즈</b>
+      <button type="button" class="btn-ghost" id="quizClose" data-en="Close">닫기</button>
+    </div>
+    <div class="help-body quiz-body" id="quizBody" aria-live="polite"></div>
+  </div>
+</div>
+
 <!-- 포메이션별 설명: 내용은 local.js가 FORMATIONS 배치 그림과 함께 채운다 -->
 <div class="img-modal help-modal" id="formModal" hidden role="dialog" aria-modal="true" aria-labelledby="formTitle">
   <div class="img-card help-card">
@@ -701,6 +716,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=48"></script>
+<script src="quiz.js?v=1"></script>
+<script src="local.js?v=49"></script>
 </body>
 </html>

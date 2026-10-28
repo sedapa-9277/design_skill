@@ -2956,6 +2956,101 @@
     document.body.classList.add("modal-open");
     $("formClose").focus();
   }
+  // ---------- 축구 상식 퀴즈: 문제(quiz.js)에서 10개를 골라 하나씩 풀고, 고르면 바로 정답과 해설 ----------
+  const QUIZ_ROUND = 10;
+  let quiz = null; // {list: [문제…], i, score, picked: 고른 보기 번호 또는 null}
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function startQuiz() {
+    const all = Array.isArray(window.QUIZ_KO) ? window.QUIZ_KO : [];
+    // 보기 순서도 섞어서 같은 문제라도 정답 위치가 바뀌게 한다
+    const list = shuffle(all).slice(0, QUIZ_ROUND).map((x) => {
+      const order = shuffle(x.c.map((_, k) => k));
+      return { q: x.q, c: order.map((k) => x.c[k]), a: order.indexOf(x.a), e: x.e };
+    });
+    quiz = { list, i: 0, score: 0, picked: null };
+    renderQuiz();
+  }
+  function renderQuiz() {
+    const body = $("quizBody");
+    body.replaceChildren();
+    if (!quiz || !quiz.list.length) {
+      const p = document.createElement("p");
+      p.textContent = L("퀴즈 문제를 불러오지 못했습니다.", "Couldn't load the quiz.");
+      body.append(p);
+      return;
+    }
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
+    // 다 풀었으면 점수와 다시 하기
+    if (quiz.i >= quiz.list.length) {
+      const n = quiz.list.length;
+      const box = el("div", "quiz-end");
+      box.append(el("b", "quiz-score num", `${quiz.score} / ${n}`),
+        el("p", null, quiz.score === n ? L("만점! 규칙 박사네요.", "Perfect score!")
+          : quiz.score >= n * 0.7 ? L("잘했어요! 규칙을 잘 알고 있어요.", "Well done!")
+          : L("조금 더 알아볼까요? 다시 풀면 다른 문제가 나옵니다.", "Try again for a new set of questions.")));
+      const again = el("button", "btn", L("다시 하기", "Play again"));
+      again.type = "button";
+      again.addEventListener("click", startQuiz);
+      box.append(again);
+      body.append(box);
+      again.focus();
+      return;
+    }
+    const x = quiz.list[quiz.i];
+    const head = el("div", "quiz-head");
+    head.append(el("span", "quiz-no num", `${quiz.i + 1} / ${quiz.list.length}`), el("span", "quiz-pts num", L(`맞힌 문제 ${quiz.score}`, `Score ${quiz.score}`)));
+    const bar = el("div", "quiz-bar");
+    const fill = el("i");
+    fill.style.width = `${(quiz.i / quiz.list.length) * 100}%`;
+    bar.append(fill);
+    const q = el("p", "quiz-q", x.q);
+    const opts = el("div", "quiz-opts");
+    x.c.forEach((t, k) => {
+      const b = el("button", "quiz-opt");
+      b.type = "button";
+      b.append(el("span", "quiz-key", "①②③④"[k]), el("span", null, t));
+      if (quiz.picked !== null) {
+        b.disabled = true;
+        if (k === x.a) b.classList.add("right");
+        else if (k === quiz.picked) b.classList.add("wrong");
+      }
+      b.addEventListener("click", () => {
+        if (quiz.picked !== null) return;
+        quiz.picked = k;
+        if (k === x.a) quiz.score++;
+        renderQuiz();
+      });
+      opts.append(b);
+    });
+    body.append(head, bar, q, opts);
+    if (quiz.picked !== null) {
+      const ok = quiz.picked === x.a;
+      const ex = el("div", "quiz-ex " + (ok ? "ok" : "no"));
+      ex.append(el("b", null, ok ? L("정답!", "Correct!") : L("아쉬워요", "Not quite")), el("p", null, x.e));
+      const next = el("button", "btn", quiz.i + 1 < quiz.list.length ? L("다음 문제", "Next") : L("결과 보기", "See result"));
+      next.type = "button";
+      next.addEventListener("click", () => { quiz.i++; quiz.picked = null; renderQuiz(); body.scrollTop = 0; });
+      body.append(ex, next);
+      next.focus({ preventScroll: true });
+      ex.scrollIntoView({ block: "nearest" });
+    }
+  }
+  function openQuiz() {
+    startQuiz();
+    $("quizModal").hidden = false;
+    document.body.classList.add("modal-open");
+    $("quizClose").focus();
+  }
+  function closeQuiz() {
+    $("quizModal").hidden = true;
+    if ($("setModal").hidden) document.body.classList.remove("modal-open");
+    $("quizBtn").focus({ preventScroll: true });
+  }
+
   function closeForm() {
     $("formModal").hidden = true;
     if ($("setModal").hidden) document.body.classList.remove("modal-open");
@@ -2973,7 +3068,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 53; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 54; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -3034,6 +3129,7 @@
     if (!$("helpModal").hidden) closeHelp(); // 설명서가 위에 떠 있으면 그것부터 닫는다
     else if (!$("tacModal").hidden) closeTac();
     else if (!$("formModal").hidden) closeForm();
+    else if (!$("quizModal").hidden) closeQuiz();
     else if (!$("setModal").hidden) closeSettings();
   });
   $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
@@ -3050,6 +3146,9 @@
   $("formBtn").addEventListener("click", openForm);
   $("formClose").addEventListener("click", closeForm);
   $("formModal").addEventListener("click", (e) => { if (e.target === $("formModal")) closeForm(); });
+  $("quizBtn").addEventListener("click", openQuiz);
+  $("quizClose").addEventListener("click", closeQuiz);
+  $("quizModal").addEventListener("click", (e) => { if (e.target === $("quizModal")) closeQuiz(); });
   document.querySelectorAll("[data-edit-lock]").forEach((b) => b.addEventListener("click", toggleEditLock));
 
   // ---------- 휴대폰 뒤로가기: 앱이 바로 닫히지 않게 ----------
@@ -3066,6 +3165,7 @@
     if (!$("helpModal").hidden) { closeHelp(); return true; }
     if (!$("tacModal").hidden) { closeTac(); return true; }
     if (!$("formModal").hidden) { closeForm(); return true; }
+    if (!$("quizModal").hidden) { closeQuiz(); return true; }
     if (!$("imgModal").hidden) { closeImageModal(); return true; }
     if (!$("backupModal").hidden) { closeBackup(); return true; }
     if (!$("setModal").hidden) { closeSettings(); return true; }

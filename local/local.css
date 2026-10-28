@@ -1838,3 +1838,33 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 }
 .cal-wd { display: none; }
 @media (max-width: 860px) { .cal-tile .cal-wd { display: grid; } }
+
+/* ---- 축구 상식 퀴즈 ---- */
+.quiz-body { display: grid; gap: 12px; align-content: start; }
+.quiz-head { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); font-weight: 700; }
+.quiz-bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.quiz-bar i { display: block; height: 100%; background: var(--pitch); transition: width .2s; }
+.quiz-q { margin: 2px 0 0; font-size: 1.02rem; font-weight: 700; line-height: 1.5; }
+.quiz-opts { display: grid; gap: 8px; }
+.quiz-opt {
+  display: flex; align-items: flex-start; gap: 8px; width: 100%;
+  padding: 11px 12px; border: 1.5px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--fg); font: inherit; font-size: .92rem; text-align: left; line-height: 1.45; cursor: pointer;
+}
+.quiz-opt:hover:not(:disabled) { border-color: var(--pitch); }
+.quiz-opt:disabled { cursor: default; opacity: .6; }
+.quiz-opt.right { opacity: 1; border-color: var(--pitch); background: var(--pitch-soft); }
+.quiz-opt.wrong { opacity: 1; border-color: #d93a3a; background: color-mix(in srgb, #d93a3a 14%, var(--surface)); }
+.quiz-key { flex: none; font-weight: 700; color: var(--muted); }
+.quiz-opt.right .quiz-key { color: var(--pitch); }
+.quiz-opt.wrong .quiz-key { color: #d93a3a; }
+.quiz-ex { padding: 10px 12px; border-radius: 12px; background: var(--surface-2); font-size: .88rem; line-height: 1.55; }
+.quiz-ex b { display: block; margin-bottom: 2px; }
+.quiz-ex.ok b { color: var(--pitch); }
+.quiz-ex.no b { color: #d93a3a; }
+.quiz-ex p { margin: 0; }
+.quiz-end { display: grid; justify-items: center; gap: 10px; padding: 18px 0; text-align: center; }
+.quiz-score { font-family: var(--font-display); font-size: 2.6rem; color: var(--pitch); }
+.quiz-end p { margin: 0; }
+/* 문제마다 창 높이가 바뀌지 않게 고정 (긴 해설은 창 안에서 스크롤) */
+#quizModal .help-card { height: min(600px, calc(100dvh - 24px)); }
