@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
-  <link rel="stylesheet" href="local.css?v=27">
+  <link rel="stylesheet" href="local.css?v=28">
   <script>
     // 설정에서 고른 화면 모드(라이트/다크)를 그리기 전에 적용해 깜빡임을 막는다.
     // 고른 모드만 지원한다고 알려(라이트는 "only light") 브라우저의 강제 다크가 겹치지 않게 한다
@@ -255,6 +255,11 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c2.3.2 4 1.8 4.7 4.7"/></svg>
     <span data-en="Members">회원</span>
   </button>
+  <!-- 설정: 휴대폰은 상단 대신 여기서 연다 (화면 전환 탭이 아니라 설정 창을 띄운다) -->
+  <button type="button" id="setTabBtn" aria-haspopup="dialog">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2L5.5 5.5"/><circle cx="12" cy="12" r="6.6"/></svg>
+    <span data-en="Settings">설정</span>
+  </button>
 </nav>
 
 <div class="img-modal" id="imgModal" hidden role="dialog" aria-modal="true" aria-labelledby="imgModalTitle">
@@ -357,6 +362,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h9a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M17 7.5h2V20h-2M8.5 9h5M8.5 12.5h5"/></svg>
       <span data-en="User guide">사용 설명서</span>
     </button>
+    <button type="button" class="btn-ghost help-btn" id="tacBtn" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M12 4v16M3.5 12h17"/><circle cx="12" cy="12" r="2.6"/></svg>
+      <span data-en="Position tactics">포지션별 전술</span>
+    </button>
     <!-- 문제 확인용: 앱 버전과 화면을 그리는 브라우저 -->
     <p class="set-info muted" id="setInfo"></p>
   </div>
@@ -446,6 +455,172 @@
   </div>
 </div>
 
+<!-- 포지션별 간단한 전술 정보 (언어에 맞는 쪽만 보인다) -->
+<div class="img-modal help-modal" id="tacModal" hidden role="dialog" aria-modal="true" aria-labelledby="tacTitle">
+  <div class="img-card help-card">
+    <div class="img-head">
+      <b id="tacTitle" data-en="Position tactics">포지션별 전술</b>
+      <button type="button" class="btn-ghost" id="tacClose" data-en="Close">닫기</button>
+    </div>
+    <div class="help-body tac-body" data-lang-only="ko">
+      <h3><i class="role-fwd"></i>ST 스트라이커</h3>
+      <p class="tac-role">골을 넣는 마무리 담당</p>
+      <ul>
+        <li>수비수 등 뒤 빈 공간으로 뛰어들어 패스를 받습니다.</li>
+        <li>등지고 공을 지킨 뒤 올라오는 동료에게 내줍니다.</li>
+        <li>수비 때는 첫 번째 수비수: 상대 센터백을 압박해 롱패스를 막습니다.</li>
+      </ul>
+      <h3><i class="role-fwd"></i>LW · RW 윙어</h3>
+      <p class="tac-role">측면 돌파와 크로스</p>
+      <ul>
+        <li>터치라인 쪽으로 넓게 서서 수비 간격을 벌립니다.</li>
+        <li>1대1 돌파 후 크로스, 또는 안쪽으로 파고들어 슈팅합니다.</li>
+        <li>공을 잃으면 바로 상대 풀백을 압박합니다.</li>
+      </ul>
+      <h3><i class="role-mid"></i>CAM 공격형 미드필더</h3>
+      <p class="tac-role">찬스를 만드는 연결고리</p>
+      <ul>
+        <li>상대 미드필더와 수비 사이 공간에서 공을 받습니다.</li>
+        <li>스루패스로 공격수를 뛰게 하거나 직접 중거리 슈팅합니다.</li>
+        <li>수비 때는 상대 수비형 미드필더를 막습니다.</li>
+      </ul>
+      <h3><i class="role-mid"></i>CM 중앙 미드필더</h3>
+      <p class="tac-role">공격과 수비를 잇는 엔진</p>
+      <ul>
+        <li>계속 움직이며 패스 받을 각도를 만듭니다.</li>
+        <li>짧은 패스로 공을 돌려 빈 쪽으로 방향을 바꿉니다.</li>
+        <li>공을 잃으면 그 자리에서 바로 압박합니다.</li>
+      </ul>
+      <h3><i class="role-mid"></i>DM 수비형 미드필더</h3>
+      <p class="tac-role">수비 앞을 지키는 방패</p>
+      <ul>
+        <li>센터백 바로 앞 자리를 비우지 않습니다.</li>
+        <li>상대 역습을 가장 먼저 끊습니다.</li>
+        <li>공을 뺏으면 쉽고 안전한 패스로 공격을 시작합니다.</li>
+      </ul>
+      <h3><i class="role-mid"></i>LM · RM 측면 미드필더</h3>
+      <p class="tac-role">측면 공수 모두 담당</p>
+      <ul>
+        <li>공격 때는 넓게 벌려 공간을 만들고 크로스를 올립니다.</li>
+        <li>수비 때는 풀백 앞까지 내려와 측면 2대1을 막습니다.</li>
+      </ul>
+      <h3><i class="role-def"></i>LWB · RWB 윙백</h3>
+      <p class="tac-role">3-5-2에서 측면 전체를 책임</p>
+      <ul>
+        <li>수비 때는 내려와 5명 수비 라인을 만듭니다.</li>
+        <li>공격 때는 윙어처럼 끝까지 올라가 크로스합니다.</li>
+        <li>오르내림이 많아 체력이 좋은 사람이 맡으면 좋습니다.</li>
+      </ul>
+      <h3><i class="role-def"></i>LB · RB 풀백</h3>
+      <p class="tac-role">측면 수비, 기회가 되면 공격 가담</p>
+      <ul>
+        <li>상대 윙어가 안쪽으로 파고들지 못하게 바깥으로 몹니다.</li>
+        <li>앞의 동료 바깥으로 뛰어 올라가 크로스합니다 (오버래핑).</li>
+        <li>한쪽 풀백이 올라가면 반대쪽 풀백은 뒤에 남습니다.</li>
+      </ul>
+      <h3><i class="role-def"></i>CB 센터백</h3>
+      <p class="tac-role">골문 앞 중앙 수비, 공중볼</p>
+      <ul>
+        <li>두 센터백은 간격을 유지합니다. 한 명이 붙으면 한 명은 뒤를 커버합니다.</li>
+        <li>상대 공격수 등 뒤 공간을 늘 경계합니다.</li>
+        <li>위험할 땐 멀리 걷어내고, 여유 있을 땐 가까운 동료에게 연결합니다.</li>
+      </ul>
+      <h3><i class="role-gk"></i>GK 골키퍼</h3>
+      <p class="tac-role">마지막 수비이자 수비 라인의 지휘자</p>
+      <ul>
+        <li>크게 외쳐 수비수 위치를 정리합니다.</li>
+        <li>슈팅 때는 앞으로 나와 각도를 좁힙니다.</li>
+        <li>공을 잡으면 상대가 없는 쪽 측면으로 빠르게 연결합니다.</li>
+      </ul>
+      <h3>포메이션 한 줄 요약</h3>
+      <ul>
+        <li><b>4-4-2</b> 균형형. 두 줄 수비가 단단하고 투톱이 함께 압박합니다.</li>
+        <li><b>4-3-3</b> 공격형. 윙어로 측면을 넓게 쓰고 앞에서부터 압박합니다.</li>
+        <li><b>4-2-3-1</b> 안정형. 수비형 미드 두 명이 지키고 CAM이 공격을 풉니다.</li>
+        <li><b>3-5-2</b> 중원 장악형. 미드필더가 많고 윙백이 측면을 오르내립니다.</li>
+      </ul>
+    </div>
+    <div class="help-body tac-body" data-lang-only="en">
+      <h3><i class="role-fwd"></i>ST Striker</h3>
+      <p class="tac-role">Finishes chances</p>
+      <ul>
+        <li>Run into the space behind the defenders to receive passes.</li>
+        <li>Hold the ball with your back to goal and lay it off to teammates.</li>
+        <li>On defense you're the first defender: press their center backs to stop long balls.</li>
+      </ul>
+      <h3><i class="role-fwd"></i>LW · RW Winger</h3>
+      <p class="tac-role">Beats players on the flank</p>
+      <ul>
+        <li>Stay wide near the touchline to stretch the defense.</li>
+        <li>Take on your man and cross, or cut inside and shoot.</li>
+        <li>When the ball is lost, press their full back right away.</li>
+      </ul>
+      <h3><i class="role-mid"></i>CAM Attacking midfielder</h3>
+      <p class="tac-role">Creates chances</p>
+      <ul>
+        <li>Find space between their midfield and defense.</li>
+        <li>Play through balls for the forwards or shoot from distance.</li>
+        <li>On defense, mark their holding midfielder.</li>
+      </ul>
+      <h3><i class="role-mid"></i>CM Central midfielder</h3>
+      <p class="tac-role">Links defense and attack</p>
+      <ul>
+        <li>Keep moving to open passing angles.</li>
+        <li>Use short passes to switch play to the open side.</li>
+        <li>Press immediately where the ball is lost.</li>
+      </ul>
+      <h3><i class="role-mid"></i>DM Defensive midfielder</h3>
+      <p class="tac-role">Shields the back line</p>
+      <ul>
+        <li>Never leave the space just in front of the center backs.</li>
+        <li>Be the first to stop counterattacks.</li>
+        <li>After winning the ball, start attacks with simple, safe passes.</li>
+      </ul>
+      <h3><i class="role-mid"></i>LM · RM Wide midfielder</h3>
+      <p class="tac-role">Covers the flank both ways</p>
+      <ul>
+        <li>In attack, stay wide to make space and deliver crosses.</li>
+        <li>In defense, drop in front of the full back to stop 2-on-1s.</li>
+      </ul>
+      <h3><i class="role-def"></i>LWB · RWB Wing back</h3>
+      <p class="tac-role">Owns the whole flank in a 3-5-2</p>
+      <ul>
+        <li>Drop back to form a back five on defense.</li>
+        <li>Push all the way up like a winger in attack and cross.</li>
+        <li>Lots of running: give it to someone with good stamina.</li>
+      </ul>
+      <h3><i class="role-def"></i>LB · RB Full back</h3>
+      <p class="tac-role">Defends the flank, joins attacks when possible</p>
+      <ul>
+        <li>Force their winger toward the touchline, not inside.</li>
+        <li>Overlap outside the teammate in front of you and cross.</li>
+        <li>When one full back goes forward, the other stays back.</li>
+      </ul>
+      <h3><i class="role-def"></i>CB Center back</h3>
+      <p class="tac-role">Guards the middle, wins headers</p>
+      <ul>
+        <li>Keep the gap with your partner: one challenges, the other covers.</li>
+        <li>Always watch the space behind the striker you're marking.</li>
+        <li>Clear it long when in danger; pass to a nearby teammate when safe.</li>
+      </ul>
+      <h3><i class="role-gk"></i>GK Goalkeeper</h3>
+      <p class="tac-role">Last line and organizer of the defense</p>
+      <ul>
+        <li>Talk loudly to set the defenders' positions.</li>
+        <li>Come off your line to narrow the angle on shots.</li>
+        <li>After a save, release the ball quickly to the open flank.</li>
+      </ul>
+      <h3>Formations in one line</h3>
+      <ul>
+        <li><b>4-4-2</b> Balanced. Two solid banks of four and two forwards pressing together.</li>
+        <li><b>4-3-3</b> Attacking. Wingers stretch the pitch and the press starts up front.</li>
+        <li><b>4-2-3-1</b> Steady. Two holding midfielders protect, the CAM unlocks attacks.</li>
+        <li><b>3-5-2</b> Midfield control. Extra midfielders and wing backs running the flanks.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
 <div class="cal-modal" id="calModal" hidden role="dialog" aria-modal="true" aria-labelledby="calTitle">
   <div class="cal-card">
     <div class="cal-head">
@@ -467,7 +642,7 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=28"></script>
+<script src="local.js?v=29"></script>
 <script>
   // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
   if ('serviceWorker' in navigator) {

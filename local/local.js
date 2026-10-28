@@ -1292,6 +1292,8 @@
     box.style.gridTemplateColumns = `repeat(${teams.length}, 1fr)`;
     box.classList.toggle("few", teams.length < 3);
     box.classList.toggle("one", teams.length === 1);
+    // 고른 팀 이름이 길면 (휴대폰) 나머지 팀 글씨를 조금 줄인다
+    box.classList.toggle("long", teams.length > 1 && tn(S.team).length > 4);
     for (const [t] of teams) {
       const b = document.createElement("button");
       b.type = "button";
@@ -2616,6 +2618,18 @@
     $("helpBtn").focus({ preventScroll: true });
   }
 
+  // 포지션별 전술 창 (설명서처럼 설정 창 위에 뜬다)
+  function openTac() {
+    $("tacModal").hidden = false;
+    document.body.classList.add("modal-open");
+    $("tacClose").focus();
+  }
+  function closeTac() {
+    $("tacModal").hidden = true;
+    if ($("setModal").hidden) document.body.classList.remove("modal-open");
+    $("tacBtn").focus({ preventScroll: true });
+  }
+
   // 포지션 색상: 컬러(기본) = 공격·미드·수비·골키퍼를 색으로 구분, 단색 = 예전처럼 한 가지 색
   const POSCOLOR_KEY = "soccer-local-poscolor";
   function posColorMode() { return document.documentElement.dataset.poscolor === "mono" ? "mono" : "color"; }
@@ -2627,7 +2641,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 33; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 34; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -2665,7 +2679,10 @@
     renderSettings();
   }
 
-  function openSettings() {
+  // 설정 창은 PC는 상단 버튼, 휴대폰은 하단 탭에서 연다. 닫으면 연 버튼으로 돌아간다
+  let setOpener = null;
+  function openSettings(e) {
+    setOpener = e?.currentTarget || null;
     renderSettings();
     $("setModal").hidden = false;
     document.body.classList.add("modal-open");
@@ -2674,14 +2691,16 @@
   function closeSettings() {
     $("setModal").hidden = true;
     document.body.classList.remove("modal-open");
-    $("setBtn").focus({ preventScroll: true });
+    setOpener?.focus({ preventScroll: true });
   }
   $("setBtn").addEventListener("click", openSettings);
+  $("setTabBtn").addEventListener("click", openSettings);
   $("setClose").addEventListener("click", closeSettings);
   $("setModal").addEventListener("click", (e) => { if (e.target === $("setModal")) closeSettings(); });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (!$("helpModal").hidden) closeHelp(); // 설명서가 위에 떠 있으면 그것부터 닫는다
+    else if (!$("tacModal").hidden) closeTac();
     else if (!$("setModal").hidden) closeSettings();
   });
   $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
@@ -2691,6 +2710,9 @@
   $("helpBtn").addEventListener("click", openHelp);
   $("helpClose").addEventListener("click", closeHelp);
   $("helpModal").addEventListener("click", (e) => { if (e.target === $("helpModal")) closeHelp(); });
+  $("tacBtn").addEventListener("click", openTac);
+  $("tacClose").addEventListener("click", closeTac);
+  $("tacModal").addEventListener("click", (e) => { if (e.target === $("tacModal")) closeTac(); });
   document.querySelectorAll("[data-edit-lock]").forEach((b) => b.addEventListener("click", toggleEditLock));
 
   // ---------- 시작 ----------
