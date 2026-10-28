@@ -653,31 +653,36 @@
          : L(`${memberName(id)} 님의 부상 표시를 풀었습니다.`, `${memberName(id)} is no longer marked injured.`));
   }
 
-  // 출석 칸 누르기: 한 번 = 출석/해제, 빠르게 두 번 = 교체 표시 켜기/끄기.
-  // 해제는 두 번째 누름을 기다렸다가 실행한다 (두 번 누를 때 포지션에서 빠지지 않게)
+  // 출석 칸 누르기: 한 번 = 출석/해제 (바로 반영), 빠르게 두 번 = 교체 표시 켜기/끄기.
+  // 해제한 칸을 곧바로 한 번 더 누르면, 첫 누름으로 빠진 포지션 자리를 되돌리고 교체 표시를 바꾼다
   const DOUBLE_TAP_MS = 350;
-  let lastTap = null; // {key, at, wasSub, timer}
+  let lastTap = null; // {key, at, wasSub, slots: 첫 누름 전 그 회원이 있던 [팀, 자리] 목록}
   function toggleCell(mid, g) {
     const key = `${S.date}|${mid}|${g}`;
     const now = Date.now();
     if (lastTap && lastTap.key === key && now - lastTap.at < DOUBLE_TAP_MS) {
-      clearTimeout(lastTap.timer);
-      const wasSub = lastTap.wasSub;
+      const { wasSub, slots } = lastTap;
       lastTap = null;
-      return setSub(mid, g, !wasSub);
+      return setSub(mid, g, !wasSub, slots);
     }
-    const tap = { key, at: now, wasSub: isSub(S.date, mid, g), timer: null };
-    lastTap = tap;
-    if (!attended(S.date, mid, g)) return setGames(mid, [g], true);
-    tap.timer = setTimeout(() => {
-      if (lastTap === tap) lastTap = null;
-      setGames(mid, [g], false);
-    }, DOUBLE_TAP_MS);
+    const day = S.days.get(S.date);
+    const slots = day ? TEAMS.flatMap(([t]) => Object.entries(slotsOf(day, t, g)).filter(([, v]) => v === mid).map(([s]) => [t, s])) : [];
+    lastTap = { key, at: now, wasSub: isSub(S.date, mid, g), slots };
+    return setGames(mid, [g], !attended(S.date, mid, g));
   }
-  function setSub(mid, g, sub) {
+  function setSub(mid, g, sub, slots = []) {
     if (guardPast()) return Promise.resolve(false);
     const date = S.date;
-    return write(() => dbSetSub(date, mid, g, sub));
+    const done = write(() => {
+      dbSetSub(date, mid, g, sub);
+      for (const [t, s] of slots) {
+        const lu = S.days.get(date)?.lineup?.[t]?.[`g${g}`];
+        if (lu && !lu.pos[s]) lu.pos[s] = mid;
+      }
+    });
+    // 첫 누름의 "포지션에서도 뺐습니다" 안내는 자리를 되돌렸으니 지운다 (저장이 늦게 끝나 늦게 뜬 경우까지)
+    if (slots.length) { $("toast").hidden = true; done.then(() => { $("toast").hidden = true; }); }
+    return done;
   }
 
   // ---------- 포지션 배치 ----------
@@ -2967,7 +2972,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 50; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 51; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
