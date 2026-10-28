@@ -691,11 +691,17 @@
   }
 
   // ---------- 포지션 배치를 그림(PNG)으로 저장 ----------
+  // 그림(포지션·출석)에 쓰는 글꼴
+  const DISPLAY = '"Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif';
+  const BODY = '"IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+  async function loadImgFonts() {
+    try { await Promise.all([document.fonts.load(`60px ${DISPLAY}`), document.fonts.load(`700 30px ${BODY}`)]); } catch (e) { /* 기본 글꼴로 그린다 */ }
+  }
+
   async function drawLineupImage() {
     const g = S.lineupGame;
     const { formation, slots } = lineupOf(S.date, g);
     const spots = FORMATIONS[formation];
-    const d = parseYmd(S.date);
 
     const W = 1080, PAD = 22, HEAD = 190;
     const PW = W - PAD * 2, PH = Math.round(PW * 100 / 68);
@@ -704,9 +710,7 @@
     cv.width = W;
     cv.height = H;
     const c = cv.getContext("2d");
-    const DISPLAY = '"Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif';
-    const BODY = '"IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
-    try { await Promise.all([document.fonts.load(`60px ${DISPLAY}`), document.fonts.load(`700 30px ${BODY}`)]); } catch (e) { /* 기본 글꼴로 그린다 */ }
+    await loadImgFonts();
 
     const round = (x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
 
@@ -822,16 +826,162 @@
     return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
   }
 
+  // 출석판 그림: 회원별 줄에 출석판에 보이는 경기만큼 동그라미 (포지션이 있으면 포지션 이름)
+  async function drawAttendanceImage() {
+    const list = activeMembers();
+    const games = visibleGames();
+    const present = list.filter(([id]) => GAMES.some((g) => attended(S.date, id, g))).length;
+
+    const W = 1080, PAD = 22, HEAD = 190, TH = 70, ROW = 66, FOOT = 70;
+    const H = HEAD + TH + ROW * list.length + FOOT;
+    const NAME_W = 330;
+    const colW = (W - PAD * 2 - NAME_W) / games.length;
+    const cv = document.createElement("canvas");
+    cv.width = W;
+    cv.height = H;
+    const c = cv.getContext("2d");
+    await loadImgFonts();
+
+    const colored = posColorMode() === "color";
+    const css = getComputedStyle(document.documentElement);
+    const roleColor = (role) => css.getPropertyValue(`--pos-${role}`).trim();
+    const darkText = { gk: "#2b2100", def: css.getPropertyValue("--pos-def-fg").trim() || "#17320a" };
+
+    // 배경과 제목
+    c.fillStyle = "#0f1f15";
+    c.fillRect(0, 0, W, H);
+    c.fillStyle = "#ffffff";
+    c.textBaseline = "alphabetic";
+    const title = `${tn(S.team)} · ${L("출석", "Attendance")}`;
+    let size = 64;
+    c.font = `${size}px ${DISPLAY}`;
+    while (size > 36 && c.measureText(title).width > W - PAD * 2) { size -= 4; c.font = `${size}px ${DISPLAY}`; }
+    c.fillText(title, PAD, 92, W - PAD * 2);
+    c.font = `500 32px ${BODY}`;
+    c.fillStyle = "#b9d7c2";
+    c.fillText(`${label(S.date)}  ·  ${L(`참석 ${present}명 / ${list.length}명`, `Present ${present} / ${list.length}`)}`, PAD, 146, W - PAD * 2);
+
+    // 머리줄: 이름, 경기별 인원
+    const colX = (i) => PAD + NAME_W + colW * i + colW / 2;
+    let y = HEAD;
+    c.fillStyle = "#1b3a26";
+    c.beginPath();
+    c.roundRect(PAD, y, W - PAD * 2, TH, 14);
+    c.fill();
+    c.textBaseline = "middle";
+    c.fillStyle = "#ffffff";
+    c.textAlign = "left";
+    c.font = `700 30px ${BODY}`;
+    c.fillText(L("이름", "Name"), PAD + 22, y + TH / 2);
+    c.textAlign = "center";
+    games.forEach((g, i) => {
+      const n = list.filter(([id]) => attended(S.date, id, g)).length;
+      c.font = `700 28px ${BODY}`;
+      c.fillStyle = "#ffffff";
+      c.fillText(L(`${g}경기`, `G${g}`), colX(i), y + TH / 2 - 11);
+      c.font = `500 22px ${BODY}`;
+      c.fillStyle = "#b9d7c2";
+      c.fillText(L(`${n}명`, `${n}`), colX(i), y + TH / 2 + 18);
+    });
+    y += TH;
+
+    // 회원 줄
+    const R = Math.min(25, colW * 0.32);
+    list.forEach(([id, m], r) => {
+      if (r % 2) {
+        c.fillStyle = "rgba(255,255,255,.04)";
+        c.fillRect(PAD, y, W - PAD * 2, ROW);
+      }
+      const cy = y + ROW / 2;
+      const hurt = isInjured(id);
+      c.textAlign = "left";
+      c.font = `700 32px ${BODY}`;
+      c.fillStyle = hurt ? "rgba(255,255,255,.5)" : "#ffffff";
+      const nameMax = NAME_W - 30 - (hurt ? 64 : 0);
+      c.fillText(m.name, PAD + 22, cy + 1, nameMax);
+      if (hurt) {
+        const nw = Math.min(c.measureText(m.name).width, nameMax);
+        c.font = `700 20px ${BODY}`;
+        c.fillStyle = "#ff8a7a";
+        c.fillText(L("부상", "Inj."), PAD + 22 + nw + 10, cy + 2);
+      }
+      c.textAlign = "center";
+      games.forEach((g, i) => {
+        const cx = colX(i);
+        const on = attended(S.date, id, g);
+        const pos = on ? posLabel(S.date, id, g) : null;
+        c.beginPath();
+        c.arc(cx, cy, R, 0, Math.PI * 2);
+        if (!on) {
+          c.strokeStyle = "rgba(255,255,255,.22)";
+          c.lineWidth = 3;
+          c.stroke();
+          return;
+        }
+        const role = pos ? posRole(pos) : null;
+        c.fillStyle = pos && colored ? roleColor(role) : pos === "GK" ? "#ffd23f" : "#ffffff";
+        c.fill();
+        if (pos) {
+          c.fillStyle = colored ? darkText[role] || "#ffffff" : pos === "GK" ? "#2b2100" : "#174f2b";
+          c.font = `700 ${pos.length > 2 ? 17 : 20}px ${BODY}`;
+          c.fillText(pos, cx, cy + 1, R * 2 - 4);
+        } else {
+          // 참석만 체크: 초록 체크 표시
+          c.strokeStyle = "#1f7a3e";
+          c.lineWidth = 5;
+          c.lineCap = "round";
+          c.lineJoin = "round";
+          c.beginPath();
+          c.moveTo(cx - R * 0.42, cy + R * 0.02);
+          c.lineTo(cx - R * 0.1, cy + R * 0.34);
+          c.lineTo(cx + R * 0.45, cy - R * 0.3);
+          c.stroke();
+        }
+      });
+      y += ROW;
+      c.strokeStyle = "rgba(255,255,255,.08)";
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(PAD, y);
+      c.lineTo(W - PAD, y);
+      c.stroke();
+    });
+
+    // 바닥 글씨
+    c.textAlign = "right";
+    c.textBaseline = "alphabetic";
+    c.font = `500 24px ${BODY}`;
+    c.fillStyle = "#6f8f78";
+    c.fillText("Best Line-up", W - PAD, H - 26);
+
+    return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
+  }
+
+  function safeTeamName() { return tn(S.team).replace(/[\\/:*?"<>|\s]+/g, "_"); }
+
+  function saveLineupImage() {
+    const g = S.lineupGame;
+    const opp = lineupOf(S.date, g).opp;
+    return openShot($("saveLineupBtn"), drawLineupImage,
+      `${safeTeamName()}_${S.date}_${L(`${g}경기`, `game${g}`)}.png`,
+      `${tn(S.team)} · ${S.date} · ${L(`${g}경기`, `Game ${g}`)}${opp ? ` vs ${opp}` : ""}`);
+  }
+
+  function saveAttendanceImage() {
+    if (S.mode !== "live") { toast(L("기록을 불러온 뒤에 다시 눌러 주세요.", "Please try again after records load.")); return; }
+    if (!activeMembers().length) { toast(L("회원을 먼저 추가해 주세요.", "Add members first.")); return; }
+    return openShot($("saveAttBtn"), drawAttendanceImage,
+      `${safeTeamName()}_${S.date}_${L("출석", "attendance")}.png`,
+      `${tn(S.team)} · ${S.date} · ${L("출석", "Attendance")}`);
+  }
+
   // 그림을 화면에 띄운다. 휴대폰은 그림을 길게 눌러 사진에 저장하는 것이 가장 확실하다
   let shot = null; // {blob, name, dataUrl}
-  async function saveLineupImage() {
-    const btn = $("saveLineupBtn");
+  async function openShot(btn, draw, name, title) {
     btn.disabled = true;
     try {
-      const blob = await drawLineupImage();
+      const blob = await draw();
       if (!blob) throw new Error("no blob");
-      const safeTeam = tn(S.team).replace(/[\\/:*?"<>|\s]+/g, "_");
-      const name = `${safeTeam}_${S.date}_${L(`${S.lineupGame}경기`, `game${S.lineupGame}`)}.png`;
       const dataUrl = await new Promise((resolve, reject) => {
         const r = new FileReader();
         r.onload = () => resolve(r.result);
@@ -842,8 +992,8 @@
       const touch = window.matchMedia("(pointer: coarse)").matches;
       const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       $("imgPreview").src = dataUrl;
-      const opp = lineupOf(S.date, S.lineupGame).opp;
-      $("imgModalTitle").textContent = `${tn(S.team)} · ${S.date} · ${L(`${S.lineupGame}경기`, `Game ${S.lineupGame}`)}${opp ? ` vs ${opp}` : ""}`;
+      $("imgPreview").alt = title;
+      $("imgModalTitle").textContent = title;
       $("imgTip").innerHTML = !touch
         ? L("<b>파일로 저장</b>을 누르면 PNG 파일로 내려받습니다.", "Tap <b>Save file</b> to download a PNG file.")
         : ios
@@ -1724,6 +1874,7 @@
 
   function renderSide() {
     const { games, people } = dayRoster(S.date);
+    $("sumDate").textContent = label(S.date);
     $("tPeople").textContent = people.size;
     $("tGames").textContent = games.filter((x) => x.people.length).length;
     renderDeleteDay(people.size);
@@ -1964,6 +2115,17 @@
       btn.setAttribute("aria-expanded", open);
       btn.addEventListener("click", () => toggleRecentRow(tr, btn, r.id));
       tr.children[1].append(btn);
+      // 이름 아래 작게: 회원으로 등록한 날짜 (예전 백업처럼 날짜가 없으면 생략)
+      const made = S.members.get(r.id).created_at;
+      const md = made ? new Date(made) : null;
+      if (md && !isNaN(md)) {
+        const reg = document.createElement("small");
+        reg.className = "reg num";
+        const dd = `${String(md.getFullYear()).slice(2)}.${md.getMonth() + 1}.${md.getDate()}`;
+        reg.textContent = L(`${dd} 등록`, `Added ${dd}`);
+        reg.title = L(`${ymd(md)} 등록`, `Added ${ymd(md)}`);
+        tr.children[1].append(reg);
+      }
       body.append(tr);
       if (open) body.append(recentRow(r.id, recent));
     });
@@ -2355,6 +2517,7 @@
   });
 
   $("saveLineupBtn").addEventListener("click", saveLineupImage);
+  $("saveAttBtn").addEventListener("click", saveAttendanceImage);
   $("deleteDayBtn").addEventListener("click", deleteDay);
   $("imgCloseBtn").addEventListener("click", closeImageModal);
   $("imgDownloadBtn").addEventListener("click", downloadShot);
@@ -2464,7 +2627,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 32; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 33; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

@@ -870,6 +870,13 @@ html, body { overscroll-behavior-y: none; }
   .formation-label { width: auto; flex: 1; }
   .save-img { margin-left: 0; }
 }
+/* 출석 화면: 제목 줄 오른쪽 (지난 날짜 수정 버튼이 보이면 그 옆) */
+.panel-head .save-img { order: 2; margin-left: auto; }
+.panel-head .edit-lock:not([hidden]) ~ .save-img { margin-left: 0; }
+
+/* 요약 제목 옆 날짜, 통계 이름 아래 등록일 */
+.sum-date { margin-left: 4px; font-size: .82rem; font-weight: 500; color: var(--muted); }
+.rank td.nm .reg { display: block; margin-top: 1px; font-size: .68rem; color: var(--muted); }
 
 /* ---- 그림 저장 미리보기 ---- */
 body.modal-open { overflow: hidden; }
