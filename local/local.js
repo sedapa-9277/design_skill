@@ -1327,7 +1327,8 @@
     S.confirmPurge = null;
     try { localStorage.setItem(TEAM_KEY, team); } catch (e) { /* 저장 불가 시 무시 */ }
     const hash = "#" + TEAMS.find(([t]) => t === team)[1];
-    if (location.hash !== hash) history.replaceState(null, "", hash);
+    // 뒤로가기 막이 기록(history.state)은 그대로 두고 주소만 바꾼다
+    if (location.hash !== hash) history.replaceState(history.state, "", hash);
   }
 
   function setTeam(team) {
@@ -2806,7 +2807,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 37; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 38; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -2884,6 +2885,36 @@
   $("formClose").addEventListener("click", closeForm);
   $("formModal").addEventListener("click", (e) => { if (e.target === $("formModal")) closeForm(); });
   document.querySelectorAll("[data-edit-lock]").forEach((b) => b.addEventListener("click", toggleEditLock));
+
+  // ---------- 휴대폰 뒤로가기: 앱이 바로 닫히지 않게 ----------
+  // 기록에 "막이" 한 칸을 쌓아 두고, 뒤로가기가 오면 열린 창 → 회원 고르기 → 출석 화면 순서로 하나씩 되돌린다.
+  // 출석 화면에서 아무것도 안 열려 있으면 안내만 하고, 2초 안에 한 번 더 누르면 그때 닫힌다.
+  // 크롬은 사용자가 화면을 만지기 전에 쌓은 기록을 건너뛰므로, 막이는 터치·키 입력 때 다시 확인해 쌓는다
+  let backExitTimer = null;
+  function armBack() {
+    if (backExitTimer || history.state?.backGuard) return;
+    history.pushState({ backGuard: true }, "", location.href);
+  }
+  function backStep() {
+    if (!$("askModal").hidden) { closeAsk(false); return true; }
+    if (!$("helpModal").hidden) { closeHelp(); return true; }
+    if (!$("tacModal").hidden) { closeTac(); return true; }
+    if (!$("formModal").hidden) { closeForm(); return true; }
+    if (!$("imgModal").hidden) { closeImageModal(); return true; }
+    if (!$("backupModal").hidden) { closeBackup(); return true; }
+    if (!$("setModal").hidden) { closeSettings(); return true; }
+    if (!$("calModal").hidden) { closeCalendar(); return true; }
+    if (S.pickSlot !== null) { S.pickSlot = null; renderLineup(); return true; }
+    if (document.body.dataset.view !== "check" && window.matchMedia("(max-width: 860px)").matches) { setView("check"); return true; }
+    return false;
+  }
+  window.addEventListener("popstate", () => {
+    if (backExitTimer) return; // 안내 뒤 한 번 더 누름: 그대로 둔다 (앱이 닫힘)
+    if (backStep()) { armBack(); return; }
+    toast(L("뒤로 버튼을 한 번 더 누르면 앱이 닫힙니다.", "Press back again to close the app."));
+    backExitTimer = setTimeout(() => { backExitTimer = null; armBack(); }, 2000);
+  });
+  ["pointerdown", "keydown"].forEach((ev) => window.addEventListener(ev, armBack, { capture: true, passive: true }));
 
   // ---------- 시작 ----------
   applyStaticLang();
