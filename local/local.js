@@ -693,10 +693,31 @@
 
   // ---------- 포지션 배치를 그림(PNG)으로 저장 ----------
   // 그림(포지션·출석)에 쓰는 글꼴
-  const DISPLAY = '"Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif';
   const BODY = '"IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+  // 한 줄에 들어가는 가장 큰 글자 크기 (min까지만 줄인다). 고른 크기로 c.font를 맞춰 둔다
+  function fitFont(c, text, maxW, max, min) {
+    let size = max;
+    c.font = `700 ${size}px ${BODY}`;
+    while (size > min && c.measureText(text).width > maxW) { size -= 2; c.font = `700 ${size}px ${BODY}`; }
+    return size;
+  }
+  // 현재 c.font 기준으로 maxW에 맞게 줄을 나눈다 (띄어쓰기에서 먼저, 안 되면 글자 단위로)
+  function wrapText(c, text, maxW) {
+    const lines = [];
+    let line = "";
+    for (const word of text.split(/(\s+)/)) {
+      if (c.measureText(line + word).width <= maxW) { line += word; continue; }
+      if (line.trim()) { lines.push(line.trim()); line = ""; }
+      for (const ch of word.trimStart()) {
+        if (c.measureText(line + ch).width > maxW && line) { lines.push(line); line = ""; }
+        line += ch;
+      }
+    }
+    if (line.trim()) lines.push(line.trim());
+    return lines;
+  }
   async function loadImgFonts() {
-    try { await Promise.all([document.fonts.load(`60px ${DISPLAY}`), document.fonts.load(`700 30px ${BODY}`)]); } catch (e) { /* 기본 글꼴로 그린다 */ }
+    try { await Promise.all([document.fonts.load(`500 30px ${BODY}`), document.fonts.load(`700 30px ${BODY}`)]); } catch (e) { /* 기본 글꼴로 그린다 */ }
   }
 
   async function drawLineupImage() {
@@ -704,14 +725,32 @@
     const { formation, slots } = lineupOf(S.date, g);
     const spots = FORMATIONS[formation];
 
-    const W = 1080, PAD = 22, HEAD = 190;
-    const PW = W - PAD * 2, PH = Math.round(PW * 100 / 68);
-    const H = HEAD + PH + PAD + 50;
+    const W = 1080, PAD = 22, TW = W - PAD * 2;
     const cv = document.createElement("canvas");
-    cv.width = W;
-    cv.height = H;
     const c = cv.getContext("2d");
     await loadImgFonts();
+
+    // 제목 줄 나누기: 1줄 "팀 · 1경기", 상대팀이 있으면 다음 줄에 "VS 상대팀" (VS는 빨강).
+    // 길면 글자를 줄이고, 그래도 넘치면 두 줄까지 나눈다
+    const opp = lineupOf(S.date, g).opp;
+    const title = `${tn(S.team)} · ${L(`${g}경기`, `Game ${g}`)}`;
+    const tSize = fitFont(c, title, TW, 60, 40);
+    const VS = "VS ";
+    let oSize = 52, oppLines = [];
+    if (opp) {
+      oSize = fitFont(c, VS + opp, TW, 52, 40);
+      c.font = `700 ${oSize}px ${BODY}`;
+      oppLines = wrapText(c, opp, TW - c.measureText(VS).width).slice(0, 2);
+    }
+    const tY = 84;
+    const oY = tY + 14 + oSize;
+    const metaY = (opp ? oY + (oppLines.length - 1) * (oSize + 10) : tY) + 56;
+    const HEAD = metaY + 44;
+
+    const PW = W - PAD * 2, PH = Math.round(PW * 100 / 68);
+    const H = HEAD + PH + PAD + 50;
+    cv.width = W;
+    cv.height = H;
 
     const round = (x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
 
@@ -720,16 +759,19 @@
     c.fillRect(0, 0, W, H);
     c.fillStyle = "#ffffff";
     c.textBaseline = "alphabetic";
-    // 제목: "팀 · 1경기 vs 상대팀" (상대팀을 넣었을 때만). 길면 글자를 줄여 한 줄에 맞춘다
-    const opp = lineupOf(S.date, g).opp;
-    const title = `${tn(S.team)} · ${L(`${g}경기`, `Game ${g}`)}${opp ? ` vs ${opp}` : ""}`;
-    let size = 64;
-    c.font = `${size}px ${DISPLAY}`;
-    while (size > 36 && c.measureText(title).width > W - PAD * 2) { size -= 4; c.font = `${size}px ${DISPLAY}`; }
-    c.fillText(title, PAD, 92, W - PAD * 2);
+    c.font = `700 ${tSize}px ${BODY}`;
+    c.fillText(title, PAD, tY, TW);
+    if (opp) {
+      c.font = `700 ${oSize}px ${BODY}`;
+      const vsW = c.measureText(VS).width;
+      c.fillStyle = "#ff5a4e";
+      c.fillText(VS.trim(), PAD, oY);
+      c.fillStyle = "#ffffff";
+      oppLines.forEach((t, n) => c.fillText(t, PAD + vsW, oY + n * (oSize + 10), TW - vsW));
+    }
     c.font = `500 32px ${BODY}`;
     c.fillStyle = "#b9d7c2";
-    c.fillText(`${label(S.date)}  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11${L("명", "")}`, PAD, 146);
+    c.fillText(`${label(S.date)}  ·  ${formation}  ·  ${slots.filter(Boolean).length}/11${L("명", "")}`, PAD, metaY, TW);
 
     // 구장: 잔디 줄무늬와 라인
     const X = PAD, Y = HEAD;
@@ -854,9 +896,7 @@
     c.fillStyle = "#ffffff";
     c.textBaseline = "alphabetic";
     const title = `${tn(S.team)} · ${L("출석", "Attendance")}`;
-    let size = 64;
-    c.font = `${size}px ${DISPLAY}`;
-    while (size > 36 && c.measureText(title).width > W - PAD * 2) { size -= 4; c.font = `${size}px ${DISPLAY}`; }
+    fitFont(c, title, W - PAD * 2, 60, 40);
     c.fillText(title, PAD, 92, W - PAD * 2);
     c.font = `500 32px ${BODY}`;
     c.fillStyle = "#b9d7c2";
@@ -965,7 +1005,7 @@
     const opp = lineupOf(S.date, g).opp;
     return openShot($("saveLineupBtn"), drawLineupImage,
       `${safeTeamName()}_${S.date}_${L(`${g}경기`, `game${g}`)}.png`,
-      `${tn(S.team)} · ${S.date} · ${L(`${g}경기`, `Game ${g}`)}${opp ? ` vs ${opp}` : ""}`);
+      `${tn(S.team)} · ${S.date} · ${L(`${g}경기`, `Game ${g}`)}`, opp);
   }
 
   function saveAttendanceImage() {
@@ -978,7 +1018,7 @@
 
   // 그림을 화면에 띄운다. 휴대폰은 그림을 길게 눌러 사진에 저장하는 것이 가장 확실하다
   let shot = null; // {blob, name, dataUrl}
-  async function openShot(btn, draw, name, title) {
+  async function openShot(btn, draw, name, title, opp) {
     btn.disabled = true;
     try {
       const blob = await draw();
@@ -993,8 +1033,19 @@
       const touch = window.matchMedia("(pointer: coarse)").matches;
       const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       $("imgPreview").src = dataUrl;
-      $("imgPreview").alt = title;
-      $("imgModalTitle").textContent = title;
+      $("imgPreview").alt = opp ? `${title} vs ${opp}` : title;
+      // 창 제목: 상대팀이 있으면 다음 줄에 "VS 상대팀" (VS는 빨강)
+      const head = $("imgModalTitle");
+      head.replaceChildren(title);
+      if (opp) {
+        const line = document.createElement("span");
+        line.className = "img-opp";
+        const vs = document.createElement("span");
+        vs.className = "vs";
+        vs.textContent = "VS";
+        line.append(vs, ` ${opp}`);
+        head.append(line);
+      }
       $("imgTip").innerHTML = !touch
         ? L("<b>파일로 저장</b>을 누르면 PNG 파일로 내려받습니다.", "Tap <b>Save file</b> to download a PNG file.")
         : ios
@@ -2755,7 +2806,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 36; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 37; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

@@ -893,6 +893,8 @@ body.modal-open { overflow: hidden; }
 }
 .img-card {
   display: grid;
+  /* 긴 제목이 창 폭을 밀어내지 않게 한 칸을 화면 폭에 고정 */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 10px;
   width: min(100%, 460px);
@@ -904,6 +906,11 @@ body.modal-open { overflow: hidden; }
 }
 .img-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .img-head b { font-size: .95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 그림 미리보기 제목: 본문 글꼴 굵게, 상대팀은 다음 줄에 (길면 줄바꿈) */
+#imgModalTitle { font-family: var(--font-body); font-weight: 700; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; line-height: 1.35; }
+#imgModalTitle .img-opp { display: block; margin-top: 2px; }
+#imgModalTitle .vs { color: #e2483d; font-weight: 800; }
+.img-head .btn-ghost { flex: none; }
 .img-tip {
   margin: 0;
   padding: 8px 10px;
