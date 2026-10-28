@@ -207,7 +207,9 @@
       if (!m || typeof m.id !== "string" || !SAFE_ID.test(m.id) || RESERVED_IDS.has(m.id)) continue;
       if (typeof m.name !== "string" || !m.name.trim() || !teams.has(m.team)) continue;
       if (members.size >= MAX_MEMBERS) break;
-      const mem = { name: m.name.trim().slice(0, 40), active: m.active !== false, team: m.team, injured: m.injured === true, created_at: m.created_at || null };
+      // 등록일은 날짜로 읽히는 짧은 문자열만 받는다 (아니면 등록일 없음)
+      const made = typeof m.created_at === "string" && m.created_at.length <= 40 && !isNaN(Date.parse(m.created_at)) ? m.created_at : null;
+      const mem = { name: m.name.trim().slice(0, 40), active: m.active !== false, team: m.team, injured: m.injured === true, created_at: made };
       if (typeof m.healedOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(m.healedOn)) mem.healedOn = m.healedOn;
       members.set(m.id, mem);
     }
@@ -2965,7 +2967,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 49; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 50; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

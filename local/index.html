@@ -14,23 +14,13 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png?v=3" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=3">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+  <!-- 보안 정책: 이 앱 폴더의 파일만 불러오고 실행한다 (외부 서버로 나가는 요청 없음).
+       style 속성은 화면 그리기에 쓰여 허용, 그림 미리보기·다운로드는 data:/blob: 주소를 쓴다 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <!-- 글꼴은 앱 폴더에 넣어 둔 파일을 쓴다 (Google Fonts에 요청하지 않음) -->
+  <link rel="stylesheet" href="fonts/fonts.css?v=1">
   <link rel="stylesheet" href="local.css?v=39">
-  <script>
-    // 설정에서 고른 화면 모드(라이트/다크)를 그리기 전에 적용해 깜빡임을 막는다.
-    // 고른 모드만 지원한다고 알려(라이트는 "only light") 브라우저의 강제 다크가 겹치지 않게 한다
-    try {
-      const t = localStorage.getItem("soccer-local-theme");
-      if (t === "light" || t === "dark") {
-        document.documentElement.dataset.theme = t;
-        document.getElementById("colorSchemeMeta").content = t === "light" ? "only light" : "dark";
-      }
-      // 포지션 색상: 단색을 고른 적이 없으면 컬러
-      document.documentElement.dataset.poscolor = localStorage.getItem("soccer-local-poscolor") === "mono" ? "mono" : "color";
-    } catch (e) { document.documentElement.dataset.poscolor = "color"; }
-  </script>
+  <script src="boot.js?v=1"></script>
 </head>
 <body data-view="check">
 <!-- 앱 실행 화면: 처음 열 때 잠깐 보였다가 사라진다 -->
@@ -53,15 +43,6 @@
   @keyframes splashIn { from { transform: scale(.6) rotate(-12deg); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .splash img { animation: none; } .splash { transition: none; } }
 </style>
-<script>
-  (() => {
-    const s = document.getElementById("splash");
-    const hide = () => { if (!s.isConnected || s.classList.contains("hide")) return; s.classList.add("hide"); setTimeout(() => s.remove(), 500); };
-    // 최소 0.9초 보여 주고, 화면 준비가 끝나면 사라진다 (늦어도 3초 뒤에는 닫힘)
-    addEventListener("load", () => setTimeout(hide, Math.max(0, 900 - performance.now())));
-    setTimeout(hide, 3000);
-  })();
-</script>
 <div class="wrap">
   <header class="board" aria-label="모임 날짜" data-en-aria-label="Meeting date">
     <div class="board-top">
@@ -666,12 +647,6 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="local.js?v=44"></script>
-<script>
-  // 오프라인에서도 열리도록 서비스 워커 등록 (local/ 폴더 전용)
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {}));
-  }
-</script>
+<script src="local.js?v=45"></script>
 </body>
 </html>
