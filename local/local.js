@@ -530,6 +530,17 @@
     delete S.teamNames[team];
   }
 
+  // 팀 초기화 (마지막 한 팀일 때): 회원·출석·포지션을 모두 지우고 이름을 "팀1"로. 팀은 그대로 남는다
+  const RESET_TEAM_NAME = "팀1";
+  function dbResetTeam(team) {
+    dbPurgeTeamMembers(team);
+    for (const [date, day] of [...S.days]) {
+      delete day.lineup[team];
+      tidyDay(date);
+    }
+    S.teamNames[team] = RESET_TEAM_NAME;
+  }
+
   // 팀 추가: 쉬고 있는 첫 번째 팀 자리를 새 이름으로 다시 쓴다. 그 팀 구분값을 돌려준다
   function dbAddTeam(name) {
     if (!name) fail("empty_name");
@@ -1334,9 +1345,12 @@
     }
     const n = teamMembers(true).length;
     box.append(teamConfirmButton(L("회원 전체 삭제", "Delete all members"), L(`정말 ${n}명 모두 삭제할까요?`, `Really delete all ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers));
+    // 마지막 한 팀은 지우는 대신 "팀 초기화" (회원·기록을 지우고 이름을 팀1로)
     const last = activeTeams().length <= 1;
-    const del = teamConfirmButton(L("팀 삭제", "Delete team"), L("정말 삭제할까요? 회원·기록 모두 삭제", "Really delete? Members and records too"), "confirmTeamDel", last, deleteTeam);
-    if (last) del.title = L("마지막 남은 팀은 삭제할 수 없습니다", "You can't delete the last remaining team");
+    const del = last
+      ? teamConfirmButton(L("팀 초기화", "Reset team"), L("정말 초기화할까요? 회원·기록 모두 삭제", "Really reset? Members and records too"), "confirmTeamDel", false, resetTeam)
+      : teamConfirmButton(L("팀 삭제", "Delete team"), L("정말 삭제할까요? 회원·기록 모두 삭제", "Really delete? Members and records too"), "confirmTeamDel", false, deleteTeam);
+    if (last) del.title = L(`회원과 기록을 모두 지우고 팀 이름을 "${RESET_TEAM_NAME}"(으)로 되돌립니다`, `Deletes all members and records and renames the team to "${RESET_TEAM_NAME}"`);
     box.append(del);
   }
 
@@ -1347,6 +1361,15 @@
     let team = null;
     const ok = await write(() => { team = dbAddTeam(name); }, L(`${name} 팀을 추가했습니다. 회원을 추가해 주세요.`, `Added team ${name}. Now add members.`));
     if (ok) { S.addingTeam = false; setTeam(team); }
+  }
+
+  function resetTeam(team) {
+    const name = tn(team);
+    write(() => {
+      dbResetTeam(team);
+      S.shownGames.clear();
+    }, L(`${name}을(를) 초기화했습니다. 회원과 기록을 모두 지우고 이름을 "${RESET_TEAM_NAME}"(으)로 바꿨습니다.`,
+         `Reset ${name}: members and records deleted, renamed to "${RESET_TEAM_NAME}".`));
   }
 
   function deleteTeam(team) {
@@ -2938,7 +2961,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 46; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 48; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
