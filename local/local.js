@@ -88,7 +88,12 @@
   function shiftDate(s, n) { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
 
   function attended(date, mid, g) {
-    return S.days.get(date)?.att?.[mid]?.[`g${g}`] === true;
+    const v = S.days.get(date)?.att?.[mid]?.[`g${g}`];
+    return v === true || v === "sub";
+  }
+  // 출석 값이 "sub"이면 교체로 들어온 경기 (출석으로 센다)
+  function isSub(date, mid, g) {
+    return S.days.get(date)?.att?.[mid]?.[`g${g}`] === "sub";
   }
   // 지금 고른 팀의 회원만 (명단에서 뺀 회원 포함 여부 선택)
   function teamMembers(includeInactive) {
@@ -208,7 +213,10 @@
       const day = { att: {}, lineup: {} };
       for (const [mid, gs] of Object.entries(v.att || {})) {
         if (!members.has(mid) || !gs) continue;
-        for (const g of GAMES) if (gs[`g${g}`] === true) (day.att[mid] ||= {})[`g${g}`] = true;
+        for (const g of GAMES) {
+          const v = gs[`g${g}`];
+          if (v === true || v === "sub") (day.att[mid] ||= {})[`g${g}`] = v;
+        }
       }
       for (const [t, games] of Object.entries(v.lineup || {})) {
         if (!teams.has(t) || !games) continue;
@@ -375,7 +383,8 @@
     if (on) healInjury(m, date);
     const day = dayOf(S.days, date);
     for (const g of games) {
-      if (on) { (day.att[mid] ||= {})[`g${g}`] = true; continue; }
+      // 이미 출석(교체 포함)이면 그대로 둔다
+      if (on) { const gs = (day.att[mid] ||= {}); gs[`g${g}`] ||= true; continue; }
       if (day.att[mid]) delete day.att[mid][`g${g}`];
       for (const [t] of TEAMS) {
         const pos = slotsOf(day, t, g);
@@ -393,6 +402,13 @@
   }
 
   // 포지션에 넣으면 그 경기 출석도 체크하고 부상 표시를 푼다. 한 경기에서 한 회원은 한 자리에만
+  // 교체 표시: 출석으로 두고 값만 "sub"(교체) 또는 true(일반)로
+  function dbSetSub(date, mid, g, sub) {
+    const m = S.members.get(mid);
+    if (!m) fail("no_member");
+    healInjury(m, date);
+    (dayOf(S.days, date).att[mid] ||= {})[`g${g}`] = sub ? "sub" : true;
+  }
   function dbPlace(date, team, g, slot, mid, formation) {
     if (mid && S.members.get(mid)?.team !== team) fail("wrong_team");
     const lu = lineupEntry(date, team, g, formation);
@@ -620,8 +636,31 @@
          : L(`${memberName(id)} 님의 부상 표시를 풀었습니다.`, `${memberName(id)} is no longer marked injured.`));
   }
 
+  // 출석 칸 누르기: 한 번 = 출석/해제, 빠르게 두 번 = 교체 표시 켜기/끄기.
+  // 해제는 두 번째 누름을 기다렸다가 실행한다 (두 번 누를 때 포지션에서 빠지지 않게)
+  const DOUBLE_TAP_MS = 350;
+  let lastTap = null; // {key, at, wasSub, timer}
   function toggleCell(mid, g) {
-    return setGames(mid, [g], !attended(S.date, mid, g));
+    const key = `${S.date}|${mid}|${g}`;
+    const now = Date.now();
+    if (lastTap && lastTap.key === key && now - lastTap.at < DOUBLE_TAP_MS) {
+      clearTimeout(lastTap.timer);
+      const wasSub = lastTap.wasSub;
+      lastTap = null;
+      return setSub(mid, g, !wasSub);
+    }
+    const tap = { key, at: now, wasSub: isSub(S.date, mid, g), timer: null };
+    lastTap = tap;
+    if (!attended(S.date, mid, g)) return setGames(mid, [g], true);
+    tap.timer = setTimeout(() => {
+      if (lastTap === tap) lastTap = null;
+      setGames(mid, [g], false);
+    }, DOUBLE_TAP_MS);
+  }
+  function setSub(mid, g, sub) {
+    if (guardPast()) return Promise.resolve(false);
+    const date = S.date;
+    return write(() => dbSetSub(date, mid, g, sub));
   }
 
   // ---------- 포지션 배치 ----------
@@ -950,13 +989,23 @@
       games.forEach((g, i) => {
         const cx = colX(i);
         const on = attended(S.date, id, g);
-        const pos = on ? posLabel(S.date, id, g) : null;
+        const sub = on && isSub(S.date, id, g);
+        const pos = on && !sub ? posLabel(S.date, id, g) : null;
         c.beginPath();
         c.arc(cx, cy, R, 0, Math.PI * 2);
         if (!on) {
           c.strokeStyle = "rgba(255,255,255,.22)";
           c.lineWidth = 3;
           c.stroke();
+          return;
+        }
+        if (sub) {
+          // 교체: 화면과 같은 주황 동그라미에 "교체"
+          c.fillStyle = "#f08a24";
+          c.fill();
+          c.fillStyle = "#ffffff";
+          c.font = `700 ${lang === "ko" ? 17 : 18}px ${BODY}`;
+          c.fillText(L("교체", "Sub"), cx, cy + 1, R * 2 - 4);
           return;
         }
         const role = pos ? posRole(pos) : null;
@@ -1519,7 +1568,7 @@
   function hasAny(date) {
     const att = S.days.get(date)?.att || {};
     return Object.entries(att).some(([mid, gs]) =>
-      S.members.get(mid)?.team === S.team && Object.values(gs).some((v) => v === true));
+      S.members.get(mid)?.team === S.team && Object.values(gs).some((v) => v === true || v === "sub"));
   }
 
   function renderHeader() {
@@ -1907,13 +1956,15 @@
         const td = document.createElement("td");
         const b = document.createElement("button");
         const on = attended(S.date, id, g);
-        // 포지션에 들어간 경기는 포지션 이름, 참석만 체크한 경기는 축구공 그림
-        const pos = on ? posLabel(S.date, id, g) : null;
-        b.className = "cell" + (pos ? ` pos role-${posRole(pos)}` : "");
-        b.textContent = on ? pos || "" : g;
+        // 교체로 들어온 경기는 "교체", 포지션에 들어간 경기는 포지션 이름, 참석만 체크한 경기는 축구공 그림
+        const sub = on && isSub(S.date, id, g);
+        const pos = on && !sub ? posLabel(S.date, id, g) : null;
+        b.className = "cell" + (sub ? " sub" : pos ? ` pos role-${posRole(pos)}` : "");
+        b.textContent = sub ? L("교체", "Sub") : on ? pos || "" : g;
         b.setAttribute("aria-pressed", on);
-        b.setAttribute("aria-label", L(`${m.name} ${g}경기 ${on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`,
-          `${m.name} game ${g} ${on ? "present" + (pos ? ` ${pos}` : "") : "absent"}`));
+        b.setAttribute("aria-label", L(`${m.name} ${g}경기 ${sub ? "교체 참석" : on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`,
+          `${m.name} game ${g} ${sub ? "present as sub" : on ? "present" + (pos ? ` ${pos}` : "") : "absent"}`));
+        b.title = L("두 번 빠르게 누르면 교체 표시", "Double-tap to mark as sub");
         b.addEventListener("click", () => toggleCell(id, g));
         td.append(b);
         tr.append(td);
@@ -2846,7 +2897,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 44; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 45; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
