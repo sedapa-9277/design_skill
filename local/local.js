@@ -71,7 +71,8 @@
     editDraft: null,
     editTeam: null,
     unlockDate: null,         // "수정"을 눌러 잠금을 푼 지난 날짜 (날짜를 바꾸면 다시 잠긴다)
-    absentN: 3,               // 포지션 회원 고르기에서 "최근 N번 모임 불참"으로 나누는 N (설정에서 1~5)
+    recentShown: 5,           // 상단 "최근 모임"에 보이는 날짜 수 (설정에서 1~7)
+    absentN: 3,             // 포지션 회원 고르기에서 "최근 N번 모임 불참"으로 나누는 N (설정에서 1~5)
   };
 
   function ymd(d) {
@@ -1491,7 +1492,7 @@
     $("calDesk").textContent = `${S.date} (${wd(d.getDay())})`;
     $("calBtn").setAttribute("aria-label", L(`달력 열기, 지금 ${label(S.date)}`, `Open calendar, now ${label(S.date)}`));
 
-    const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, 8);
+    const dates = [...S.days.keys()].filter(hasAny).sort().reverse().slice(0, S.recentShown);
     const box = $("recent");
     box.replaceChildren();
     const lab = document.createElement("span");
@@ -1678,7 +1679,9 @@
       }
       const b = document.createElement("button");
       const at = placedAt.get(id);
-      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "")
+      // 이미 넣은 회원은 그 포지션 색(컬러 설정일 때), 지금 자리의 회원은 이 자리 포지션 색
+      const role = id === cur ? posRole(spots[i][0]) : at !== undefined ? posRole(spots[at][0]) : null;
+      b.className = "pick" + (id === cur ? " current" : at !== undefined ? " placed" : "") + (role ? ` role-${role}` : "")
         + (rare.some(([rid]) => rid === id) ? " rare" : "") + (injured.some(([iid]) => iid === id) ? " injured" : "");
       b.textContent = m.name;
       if (at !== undefined && id !== cur) {
@@ -2590,6 +2593,7 @@
     const pc = posColorMode();
     document.querySelectorAll("#posColorSeg [data-poscolor]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.poscolor === pc));
     document.querySelectorAll("#absentSeg [data-absent]").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.absent) === S.absentN));
+    document.querySelectorAll("#recentSeg [data-recent]").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.recent) === S.recentShown));
     $("absentHint").textContent = L(`포지션에서 회원을 고를 때, 최근 ${S.absentN}번 모임에 한 번도 안 나온 회원을 아래쪽에 따로 모읍니다.`,
       `When picking members for a position, those who missed all of the last ${S.absentN} meeting${S.absentN === 1 ? "" : "s"} are grouped at the bottom.`);
     renderSetInfo();
@@ -2603,6 +2607,15 @@
     try { localStorage.setItem(ABSENT_KEY, String(n)); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
     renderSettings();
     renderLineup();
+  }
+
+  // 상단 최근 모임 날짜 수 (1~7)
+  const RECENT_KEY = "soccer-local-recent";
+  function setRecentShown(v) {
+    S.recentShown = Math.min(7, Math.max(1, Math.round(Number(v)) || 5));
+    try { localStorage.setItem(RECENT_KEY, String(S.recentShown)); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+    renderSettings();
+    renderHeader();
   }
 
   // 사용 설명서 창
@@ -2630,6 +2643,107 @@
     $("tacBtn").focus({ preventScroll: true });
   }
 
+  // 포메이션 설명: [한 줄 성격, 장점, 약점, 이럴 때 쓰기] (한국어, 영어)
+  const FORM_INFO = {
+    "4-4-2": {
+      ko: ["균형형: 수비 4 · 미드 4 · 공격 2",
+        "두 줄 수비가 단단하고 자리가 단순해 처음 맞춰 보는 팀도 쉽게 씁니다. 투톱이 함께 압박하고 서로 패스를 주고받습니다.",
+        "중앙 미드가 2명뿐이라 미드필더가 많은 상대에게 중원을 내줄 수 있습니다.",
+        "인원이 고르게 나왔을 때, 기본으로 시작하기 좋습니다. 측면 미드가 수비 때 꼭 내려와야 합니다."],
+      en: ["Balanced: 4 defenders · 4 midfielders · 2 forwards",
+        "Two solid banks of four and simple roles, so even a new group can use it. The two forwards press and combine together.",
+        "Only two central midfielders, so a midfield-heavy opponent can take over the middle.",
+        "A good default when the squad is even. Wide midfielders must track back on defense."],
+    },
+    "4-3-3": {
+      ko: ["공격형: 수비 4 · 미드 3 · 공격 3",
+        "윙어 둘이 측면을 넓게 벌려 공간을 만들고, 앞에서부터 세 명이 압박합니다. 중앙 미드 3명이 공을 오래 지킵니다.",
+        "윙어가 내려오지 않으면 풀백이 측면에서 2대1을 당하기 쉽습니다.",
+        "빠르고 1대1에 강한 측면 공격수가 있을 때, 골이 필요할 때 씁니다."],
+      en: ["Attacking: 4 defenders · 3 midfielders · 3 forwards",
+        "Two wingers stretch the pitch and three forwards press high. Three central midfielders keep the ball well.",
+        "If the wingers don't track back, the full backs get outnumbered on the flanks.",
+        "Use it with quick wide players who beat defenders 1-on-1, or when you need goals."],
+    },
+    "4-2-3-1": {
+      ko: ["안정형: 수비 4 · 수비형 미드 2 · 공격형 미드 3 · 공격 1",
+        "수비형 미드 2명이 수비 앞을 지켜 역습에 강합니다. CAM이 공격을 풀고 양쪽 윙이 지원합니다.",
+        "원톱이 고립되기 쉬워, 2선이 함께 올라가지 않으면 골이 잘 안 납니다.",
+        "강한 상대를 만나 실점을 줄이고 싶을 때, 패스 좋은 중앙 선수가 있을 때 씁니다."],
+      en: ["Steady: 4 defenders · 2 holding mids · 3 attacking mids · 1 striker",
+        "Two holding midfielders shield the back line, so it handles counters well. The CAM unlocks attacks with help from the wingers.",
+        "The lone striker can get isolated; without the second line joining in, goals dry up.",
+        "Use it against stronger teams to concede less, or when you have a good passer in the middle."],
+    },
+    "3-5-2": {
+      ko: ["중원 장악형: 수비 3 · 미드 5 · 공격 2",
+        "미드필더가 5명이라 중원 싸움에서 유리합니다. 윙백이 측면 전체를 오르내리며 공격 숫자를 늘립니다.",
+        "센터백이 3명이라 측면 뒤 공간이 비기 쉽고, 윙백의 체력 부담이 큽니다.",
+        "체력 좋은 측면 선수가 있을 때, 상대가 투톱일 때 씁니다. 공을 잃으면 윙백이 먼저 내려옵니다."],
+      en: ["Midfield control: 3 defenders · 5 midfielders · 2 forwards",
+        "Five midfielders win the battle in the middle, and wing backs run the whole flank to add attackers.",
+        "With three center backs, space behind the flanks opens up and the wing backs have to run a lot.",
+        "Use it with fit wide players or against two strikers. When the ball is lost, wing backs drop first."],
+    },
+  };
+
+  // 작은 구장 그림: 포지션 화면과 같은 자리·같은 색 점
+  function formationMini(f) {
+    const pitch = document.createElement("div");
+    pitch.className = "fm-pitch";
+    pitch.setAttribute("aria-hidden", "true");
+    for (const [pos, x, y] of FORMATIONS[f]) {
+      const d = document.createElement("span");
+      d.className = `fm-dot role-${posRole(pos)}`;
+      d.style.left = x + "%";
+      d.style.top = y + "%";
+      d.textContent = pos;
+      pitch.append(d);
+    }
+    return pitch;
+  }
+
+  function renderFormations() {
+    const body = $("formBody");
+    body.replaceChildren();
+    const heads = L(["장점", "약점", "이럴 때"], ["Strengths", "Weaknesses", "When to use"]);
+    for (const f of Object.keys(FORMATIONS)) {
+      const [kind, ...rest] = FORM_INFO[f][lang === "ko" ? "ko" : "en"];
+      const sec = document.createElement("section");
+      sec.className = "fm-item";
+      const text = document.createElement("div");
+      text.className = "fm-text";
+      const h = document.createElement("h3");
+      h.textContent = f;
+      const k = document.createElement("p");
+      k.className = "tac-role";
+      k.textContent = kind;
+      const dl = document.createElement("dl");
+      rest.forEach((t, n) => {
+        const dt = document.createElement("dt");
+        dt.textContent = heads[n];
+        const dd = document.createElement("dd");
+        dd.textContent = t;
+        dl.append(dt, dd);
+      });
+      text.append(h, k, dl);
+      sec.append(formationMini(f), text);
+      body.append(sec);
+    }
+  }
+  function openForm() {
+    renderFormations();
+    $("formModal").hidden = false;
+    $("formBody").scrollTop = 0;
+    document.body.classList.add("modal-open");
+    $("formClose").focus();
+  }
+  function closeForm() {
+    $("formModal").hidden = true;
+    if ($("setModal").hidden) document.body.classList.remove("modal-open");
+    $("formBtn").focus({ preventScroll: true });
+  }
+
   // 포지션 색상: 컬러(기본) = 공격·미드·수비·골키퍼를 색으로 구분, 단색 = 예전처럼 한 가지 색
   const POSCOLOR_KEY = "soccer-local-poscolor";
   function posColorMode() { return document.documentElement.dataset.poscolor === "mono" ? "mono" : "color"; }
@@ -2641,7 +2755,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 34; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 35; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -2701,24 +2815,30 @@
     if (e.key !== "Escape") return;
     if (!$("helpModal").hidden) closeHelp(); // 설명서가 위에 떠 있으면 그것부터 닫는다
     else if (!$("tacModal").hidden) closeTac();
+    else if (!$("formModal").hidden) closeForm();
     else if (!$("setModal").hidden) closeSettings();
   });
   $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
   $("themeSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-theme-set]"); if (b) setTheme(b.dataset.themeSet); });
   $("posColorSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-poscolor]"); if (b) setPosColor(b.dataset.poscolor); });
   $("absentSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-absent]"); if (b) setAbsentN(b.dataset.absent); });
+  $("recentSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-recent]"); if (b) setRecentShown(b.dataset.recent); });
   $("helpBtn").addEventListener("click", openHelp);
   $("helpClose").addEventListener("click", closeHelp);
   $("helpModal").addEventListener("click", (e) => { if (e.target === $("helpModal")) closeHelp(); });
   $("tacBtn").addEventListener("click", openTac);
   $("tacClose").addEventListener("click", closeTac);
   $("tacModal").addEventListener("click", (e) => { if (e.target === $("tacModal")) closeTac(); });
+  $("formBtn").addEventListener("click", openForm);
+  $("formClose").addEventListener("click", closeForm);
+  $("formModal").addEventListener("click", (e) => { if (e.target === $("formModal")) closeForm(); });
   document.querySelectorAll("[data-edit-lock]").forEach((b) => b.addEventListener("click", toggleEditLock));
 
   // ---------- 시작 ----------
   applyStaticLang();
   // 예전(1~10)에 6 이상을 골랐으면 5로 맞춘다
   try { const n = Number(localStorage.getItem(ABSENT_KEY)); if (n >= 1) S.absentN = Math.min(5, Math.round(n)); } catch (e) { /* 기본 3번 */ }
+  try { const n = Number(localStorage.getItem(RECENT_KEY)); if (n >= 1) S.recentShown = Math.min(7, Math.round(n)); } catch (e) { /* 기본 5개 */ }
   // 팀: 주소의 #faith/#hope/#love → 이 브라우저에서 마지막으로 고른 팀 → 믿음팀
   let savedTeam = null;
   try { savedTeam = localStorage.getItem(TEAM_KEY); } catch (e) { savedTeam = null; }

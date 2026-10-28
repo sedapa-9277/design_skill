@@ -1443,9 +1443,13 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
 .teams button {
   border: 0;
   background: transparent;
-  color: #ffffffbf;
+  color: #ffffffd9;
   border-radius: 10px;
   transition: background .15s, color .15s;
+  /* 팀 이름은 굵은 제목 글꼴 대신 또렷한 본문 글꼴로 (획이 뭉치지 않아 긴 이름도 잘 읽힌다) */
+  font-family: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 .teams button:hover { background: #ffffff14; color: #fff; }
 .teams button[aria-pressed="true"] {
@@ -1531,6 +1535,16 @@ body.locked #memberPanel .row-actions:has(.injury.on) .row-btn:not(.injury) { di
 :root[data-poscolor="color"] .att .cell.pos[aria-pressed="true"].role-def { background: var(--pos-def); border-color: var(--pos-def); color: var(--pos-def-fg); }
 :root[data-poscolor="color"] .att .cell.pos[aria-pressed="true"].role-gk { background: var(--pos-gk); border-color: var(--pos-gk); color: #2b2100; }
 
+/* 포지션 화면: 구장 이름표 아래 선과 회원 고르기 목록도 그 포지션 색으로 */
+:root[data-poscolor="color"] .slot.filled .nm { box-shadow: inset 0 -3px 0 var(--role); }
+:root[data-poscolor="color"] .pick.role-fwd { --role: var(--pos-fwd); --role-fg: #fff; }
+:root[data-poscolor="color"] .pick.role-mid { --role: var(--pos-mid); --role-fg: #fff; }
+:root[data-poscolor="color"] .pick.role-def { --role: var(--pos-def); --role-fg: var(--pos-def-fg); }
+:root[data-poscolor="color"] .pick.role-gk { --role: var(--pos-gk); --role-fg: #2b2100; }
+:root[data-poscolor="color"] .pick.placed { background: color-mix(in srgb, var(--role) 22%, var(--surface)); border-color: var(--role); }
+:root[data-poscolor="color"] .pick.placed small { display: inline-block; padding: 0 5px; border-radius: 999px; background: var(--role); color: var(--role-fg); }
+:root[data-poscolor="color"] .pick.current { background: var(--role); border-color: var(--role); color: var(--role-fg); }
+
 /* 설정 창: 단색/컬러 미리보기 점과 색 설명 */
 .pc-dots { display: inline-flex; gap: 2px; }
 .pc-dots i { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #ffffff99; }
@@ -1583,6 +1597,7 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 
 /* ---- 설정: 최근 모임 불참 기준 1~5 ---- */
 .num-seg { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.num-seg.seven { grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .num-seg button {
   min-width: 0;
   padding: 9px 0;
@@ -1675,6 +1690,42 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 .tac-body h3 .role-gk { background: var(--pos-gk); }
 :root[data-poscolor="mono"] .tac-body h3 i { background: var(--pitch); box-shadow: none; }
 .tac-role { margin: 0 0 2px; font-size: .82rem; font-weight: 700; color: var(--muted); }
+
+/* ---- 포메이션 설명: 왼쪽 작은 구장 그림 + 오른쪽 설명 ---- */
+.fm-item { display: grid; grid-template-columns: 104px 1fr; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.fm-item:first-child { padding-top: 0; }
+.fm-item:last-child { border-bottom: 0; }
+.fm-text h3 { margin: 0 0 2px; }
+.fm-text dl { margin: 6px 0 0; }
+.fm-text dt { font-size: .78rem; font-weight: 700; color: var(--pitch); margin-top: 6px; }
+.fm-text dd { margin: 1px 0 0; font-size: .86rem; line-height: 1.5; }
+.fm-pitch {
+  position: relative;
+  aspect-ratio: 68 / 100;
+  border-radius: 8px;
+  background: repeating-linear-gradient(180deg, #2f8a4a 0 10%, #2a7d43 10% 20%);
+  box-shadow: inset 0 0 0 2px #ffffffa6;
+}
+.fm-pitch::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid #ffffffa6; }
+.fm-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  color: #174f2b;
+  font-size: .5rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  box-shadow: 0 1px 2px #0006;
+}
+.fm-dot.role-gk { background: var(--keeper); color: #2b2100; }
+:root[data-poscolor="color"] .fm-dot.role-fwd { background: var(--pos-fwd); color: #fff; }
+:root[data-poscolor="color"] .fm-dot.role-mid { background: var(--pos-mid); color: #fff; }
+:root[data-poscolor="color"] .fm-dot.role-def { background: var(--pos-def); color: var(--pos-def-fg); }
+:root[data-poscolor="color"] .fm-dot.role-gk { background: var(--pos-gk); color: #2b2100; }
 
 /* ---- 회원 고르기 시트: 끌어내릴 때 손가락을 따라오고, 놓으면 부드럽게 제자리 ---- */
 .picker.sheet { transition: transform .18s ease-out; touch-action: pan-y; }
