@@ -1,4 +1,4 @@
-// 설정 → 축구 상식 퀴즈 문제 (경기 규칙 위주, 한국어).
+// 설정 → 축구 상식 퀴즈 문제 (경기 규칙 위주). 한국어 QUIZ_KO, 영어 QUIZ_EN (같은 순서).
 // 참고: 위키백과 「축구 경기 규칙」(IFAB 경기 규칙 요약). 그 뒤 바뀐 규칙은 현재 규칙으로 쓰고 해설에 적었다.
 // q: 문제, c: 보기 4개, a: 정답 번호(0부터), e: 해설
 window.QUIZ_KO = [
@@ -155,4 +155,161 @@ window.QUIZ_KO = [
     e: "골킥과 코너킥은 상대 골에 바로 들어가면 득점입니다." },
   { q: "코너킥을 찰 때 코너 깃대를 옮겨도 될까요?", c: ["된다", "안 된다", "주심이 허락하면 된다", "왼발잡이만 된다"], a: 1,
     e: "공은 코너 아크 안에 두고, 코너 깃대는 옮길 수 없습니다." },
+];
+
+// 영어 문제: 위 한국어 문제와 같은 순서·같은 정답 번호로 옮겼다 (한쪽을 고치면 다른 쪽도 함께 고친다)
+window.QUIZ_EN = [
+  // ---- General ----
+  { q: "Which international body writes and amends the Laws of the Game?", c: ["International Football Association Board (IFAB)", "Asian Football Confederation (AFC)", "UEFA", "International Olympic Committee (IOC)"], a: 0,
+    e: "The Laws of the Game are made by the IFAB. FIFA is one of its members." },
+  { q: "How many Laws are there in the Laws of the Game?", c: ["11", "15", "17", "21"], a: 2,
+    e: "There are 17 Laws, from The Field of Play (Law 1) to The Corner Kick (Law 17)." },
+  { q: "What does VAR stand for?", c: ["Video Assistant Referee", "Visual Area Review", "Video Action Replay", "Valid Attack Rule"], a: 0,
+    e: "VAR is the Video Assistant Referee." },
+
+  // ---- Law 1: Field of play ----
+  { q: "What is the radius of the centre circle?", c: ["5.5 m", "9.15 m", "11 m", "16.5 m"], a: 1,
+    e: "The centre circle has a radius of 9.15 m (10 yd), the same distance opponents must keep at free kicks and corners." },
+  { q: "How far is the penalty mark from the middle of the goal line?", c: ["9.15 m", "10 m", "11 m", "12 m"], a: 2,
+    e: "The penalty mark is 11 m (12 yd) from the midpoint between the goalposts." },
+  { q: "The penalty area is drawn from a point how far from the inside of each goalpost?", c: ["5.5 m", "9.15 m", "11 m", "16.5 m"], a: 3,
+    e: "Lines are drawn 16.5 m from the inside of each goalpost and 16.5 m into the field." },
+  { q: "What distance defines the goal area (the small box in front of goal)?", c: ["3 m", "5.5 m", "7.32 m", "9.15 m"], a: 1,
+    e: "Lines are drawn 5.5 m from the inside of each goalpost and 5.5 m into the field." },
+  { q: "What is the radius of the corner arc?", c: ["50 cm", "1 m", "2 m", "3 m"], a: 1,
+    e: "The corner arc has a radius of 1 m; the ball is placed inside it for a corner kick." },
+  { q: "In international matches, how long must the touchlines be?", c: ["90–100 m", "100–110 m", "110–120 m", "120–130 m"], a: 1,
+    e: "International touchlines are 100–110 m and goal lines 64–75 m. Other matches allow 90–120 m." },
+  { q: "In international matches, how long must the goal lines be?", c: ["45–60 m", "64–75 m", "75–90 m", "90–100 m"], a: 1,
+    e: "International goal lines are 64–75 m." },
+  { q: "What is the maximum width of the field markings?", c: ["5 cm", "8 cm", "12 cm", "20 cm"], a: 2,
+    e: "All lines are the same width, no more than 12 cm, and belong to the areas they enclose." },
+  { q: "Why is the penalty arc (the semicircle outside the penalty area) drawn?", c: ["It limits how far the goalkeeper can come out", "So players stay 9.15 m from the penalty mark at a penalty kick", "It marks where corner takers stand", "It is the substitutes' waiting zone"], a: 1,
+    e: "At a penalty kick, players other than the kicker must be at least 9.15 m from the penalty mark; the arc shows that distance." },
+
+  // ---- Law 2: The ball ----
+  { q: "What is the circumference of a match ball (size 5)?", c: ["58–60 cm", "63–65 cm", "68–70 cm", "73–75 cm"], a: 2,
+    e: "The ball's circumference is 68–70 cm." },
+  { q: "How much must a match ball weigh at the start of the match?", c: ["310–350 g", "360–400 g", "410–450 g", "460–500 g"], a: 2,
+    e: "The ball weighs 410–450 g at the start of the match." },
+  { q: "What happens if the ball bursts during play?", c: ["Play continues with it", "Play stops and restarts with a dropped ball", "Free kick to the team in possession", "The match is replayed from the start"], a: 1,
+    e: "Play is stopped and restarted with a dropped ball using a new ball. If it happened during a kick-off, penalty and so on, that kick is retaken." },
+
+  // ---- Law 3: Players ----
+  { q: "What is the maximum number of players a team can have on the field (including the goalkeeper)?", c: ["10", "11", "12", "13"], a: 1,
+    e: "A team has at most 11 players, one of whom is the goalkeeper." },
+  { q: "A match may not start or continue if a team has fewer than how many players?", c: ["5", "6", "7", "8"], a: 2,
+    e: "A match cannot start or continue if either team has fewer than 7 players." },
+  { q: "In most professional competitions today, how many substitutes can a team use in a match?", c: ["3", "4", "5", "Unlimited"], a: 2,
+    e: "Up to 5 substitutes became a permanent Law in 2022 (with 3 opportunities plus half-time). The older source said 3." },
+  { q: "When may a substitute enter the field?", c: ["At any time", "During a stoppage, after the referee's signal", "Only after a goal", "Only at half-time"], a: 1,
+    e: "During a stoppage, once the replaced player has left, on the referee's signal, near the halfway line." },
+  { q: "What special authority does the team captain have?", c: ["To challenge decisions", "To decide substitutions", "None", "To take every free kick"], a: 2,
+    e: "The captain has no special status or privileges, only some responsibility for the team's behaviour." },
+
+  // ---- Law 4: Equipment ----
+  { q: "Which of these is NOT compulsory equipment for a player?", c: ["Shinguards", "Socks", "Gloves", "Footwear"], a: 2,
+    e: "Compulsory equipment is a shirt with sleeves, shorts, socks, shinguards and footwear. Gloves are optional." },
+  { q: "Can a player wear a necklace or ring if it is covered with tape?", c: ["Yes", "Yes, if the referee allows it", "Only the goalkeeper", "No"], a: 3,
+    e: "All jewellery is forbidden, and taping it over is not allowed." },
+  { q: "What is the rule for the goalkeeper's kit colour?", c: ["It must match the outfield players", "It must differ from all other players and the match officials", "It must be black", "There is no rule"], a: 1,
+    e: "Each goalkeeper must wear colours that distinguish them from the other players and the officials." },
+
+  // ---- Laws 5–6: Referees ----
+  { q: "Until when can the referee change a decision?", c: ["At any time", "Until play restarts", "Until half-time", "After the match"], a: 1,
+    e: "The referee may change a decision only before play restarts (or before the match ends)." },
+  { q: "The referee plays advantage, but the expected advantage does not happen. What now?", c: ["Play simply continues", "The original offence is penalised", "Restart with a dropped ball", "Both teams are cautioned"], a: 1,
+    e: "If the advantage does not follow quickly, the original offence is penalised." },
+  { q: "How many assistant referees are there normally?", c: ["1", "2", "3", "4"], a: 1,
+    e: "There are 2 assistant referees, who signal the ball out of play, offside and substitutions. The fourth official is separate." },
+
+  // ---- Law 7: Duration ----
+  { q: "How long is a regular match?", c: ["Two halves of 40 min (80)", "Two halves of 45 min (90)", "Two halves of 50 min (100)", "Four quarters of 20 min (80)"], a: 1,
+    e: "Two halves of 45 minutes, 90 minutes in total." },
+  { q: "How long may the half-time interval last at most?", c: ["10 min", "15 min", "20 min", "30 min"], a: 1,
+    e: "Half-time must not exceed 15 minutes." },
+  { q: "A penalty is awarded just as the first half ends. What happens?", c: ["It is taken at the start of the second half", "It is not taken", "Time is extended so it can be taken", "It becomes an indirect free kick"], a: 2,
+    e: "Time is extended for a penalty awarded at the end of either half or of extra time." },
+
+  // ---- Law 8: Start and restart ----
+  { q: "At a kick-off, how far must opponents be from the ball?", c: ["5.5 m", "9.15 m", "11 m", "No limit"], a: 1,
+    e: "Opponents must be at least 9.15 m from the ball (outside the centre circle)." },
+  { q: "A kick-off goes straight into the opponents' goal. What is the decision?", c: ["Goal", "Retake the kick-off", "Goal kick", "Indirect free kick"], a: 0,
+    e: "A goal may be scored directly against the opponents from a kick-off." },
+  { q: "May the ball be kicked backwards at a kick-off?", c: ["No, it must go forward", "Yes", "Only to the goalkeeper", "Only in the second half"], a: 1,
+    e: "Since 2016 the kick-off may go in any direction. The ball is in play once it is kicked and clearly moves." },
+  { q: "The kick-off taker touches the ball again before another player does. What happens?", c: ["Nothing", "Indirect free kick to the opponents", "Penalty to the opponents", "Retake the kick-off"], a: 1,
+    e: "The kicker may not touch the ball twice in a row; the opponents get an indirect free kick." },
+
+  // ---- Laws 9–10: In/out, scoring ----
+  { q: "When is the ball out of play?", c: ["When part of it crosses the line", "When the whole ball has wholly crossed the line", "When it touches the line", "When it stops on the line"], a: 1,
+    e: "The whole ball must completely cross the touchline or goal line. If any part is on the line, it is in play." },
+  { q: "When is a goal scored?", c: ["When half the ball crosses the goal line", "When the ball touches the goal line", "When the whole ball passes over the goal line between the posts and under the bar", "When it reaches the line before the goalkeeper touches it"], a: 2,
+    e: "With no offence, the whole ball must pass over the goal line between the posts and under the crossbar." },
+  { q: "A shot hits the goalpost and rebounds into the field. What happens?", c: ["Ball in play, play continues", "Goal kick", "Dropped ball", "Shot retaken"], a: 0,
+    e: "The ball stays in play if it rebounds off a goalpost, crossbar or corner flagpost and remains on the field." },
+  { q: "How many kicks does each team take in a penalty shoot-out at first?", c: ["3", "5", "7", "11"], a: 1,
+    e: "Each team takes 5 kicks; if still level, they take one kick each until there is a winner." },
+  { q: "Who may take part in a penalty shoot-out?", c: ["Anyone on the team sheet", "Players on the field when the match (incl. extra time) ended", "Anyone, including substituted players", "Only 5 players chosen by the captain"], a: 1,
+    e: "Only players on the field of play at the end of the match may take part." },
+
+  // ---- Law 11: Offside ----
+  { q: "Is being in an offside position an offence by itself?", c: ["Yes", "No", "Only near the goalkeeper", "Only in the second half"], a: 1,
+    e: "It is not an offence to be in an offside position; the player must become involved in play when a teammate plays the ball." },
+  { q: "From which restart can a player NOT be offside when receiving the ball directly?", c: ["Corner kick", "Direct free kick", "Indirect free kick", "A teammate's pass"], a: 0,
+    e: "There is no offside offence when receiving the ball directly from a goal kick, throw-in or corner kick." },
+  { q: "A player receives the ball directly from a throw-in. Can it be offside?", c: ["Always", "No", "Only inside the penalty area", "It's up to the referee"], a: 1,
+    e: "There is no offside from a throw-in received directly." },
+  { q: "Which body parts are ignored when judging offside position?", c: ["Head", "Feet", "Torso", "Hands and arms"], a: 3,
+    e: "Only the head, body and feet count. Hands and arms (up to the bottom of the armpit) are not considered." },
+  { q: "An attacker is level with the second-last opponent. Is the attacker offside?", c: ["Offside", "Not offside", "Indirect free kick", "Assistant's call"], a: 1,
+    e: "Level with the second-last opponent is not an offside position." },
+  { q: "Can a player in their own half (including on the halfway line) be offside?", c: ["Yes", "No", "Only if the goalkeeper is off the line", "Only in the second half"], a: 1,
+    e: "Offside position only exists in the opponents' half; the halfway line counts as your own half." },
+  { q: "What is the sanction for an offside offence?", c: ["Direct free kick", "Indirect free kick", "Penalty kick", "Caution"], a: 1,
+    e: "An indirect free kick to the opponents where the offence occurred." },
+
+  // ---- Law 12: Fouls and misconduct ----
+  { q: "A defender trips an opponent inside their own penalty area. What is awarded?", c: ["Indirect free kick", "Direct free kick", "Penalty kick", "Dropped ball"], a: 2,
+    e: "A direct free kick offence inside the offender's own penalty area gives the opponents a penalty kick." },
+  { q: "The goalkeeper handles a ball a teammate deliberately kicked back. What happens?", c: ["Nothing", "Indirect free kick to the opponents", "Penalty to the opponents", "The goalkeeper is cautioned"], a: 1,
+    e: "Handling a deliberate back-pass gives the opponents an indirect free kick. Passes with the head or chest may be handled." },
+  { q: "Under the 2025/26 Laws, what happens if the goalkeeper holds the ball for more than 8 seconds?", c: ["Caution", "Indirect free kick to the opponents", "Corner kick to the opponents", "Penalty to the opponents"], a: 2,
+    e: "It used to be an indirect free kick after 6 seconds; since the 2025/26 Laws, holding it for more than 8 seconds gives the opponents a corner kick." },
+  { q: "Which of these is a sending-off offence rather than a caution?", c: ["Dissent", "Delaying the restart", "Spitting at an opponent", "Not respecting the free-kick distance"], a: 2,
+    e: "Spitting is a sending-off offence. Dissent, delaying the restart and not respecting the distance are cautions." },
+  { q: "A player receives a second caution in the same match. What happens?", c: ["Only a fine", "Sent off", "Sent off for 10 minutes", "Only suspended for the next match"], a: 1,
+    e: "A second caution in the same match means a sending-off (red card)." },
+  { q: "An outfield player deliberately handles a ball that is going into the goal. What happens?", c: ["Caution and a free kick", "Sent off", "Only an indirect free kick", "Goal awarded"], a: 1,
+    e: "Denying a goal or an obvious goal-scoring opportunity by deliberate handball is a sending-off (except a goalkeeper in their own area)." },
+
+  // ---- Law 13: Free kicks ----
+  { q: "At a free kick, how far must opponents be from the ball?", c: ["5 m", "9.15 m", "11 m", "16.5 m"], a: 1,
+    e: "Opponents must be at least 9.15 m away; if they are closer, the kick is retaken." },
+  { q: "An indirect free kick goes straight into the opponents' goal. What is the decision?", c: ["Goal", "Goal kick", "Retake", "Corner kick"], a: 1,
+    e: "A goal only counts if the ball touches another player first. Straight in means a goal kick." },
+  { q: "A direct free kick goes straight into the kicker's own goal. What is the decision?", c: ["Own goal", "Corner kick to the opponents", "Retake", "Goal kick"], a: 1,
+    e: "A free kick that goes directly into the kicker's own goal is not a goal; the opponents get a corner kick." },
+  { q: "How does the referee signal an indirect free kick?", c: ["Two whistle blasts", "Raising an arm above the head", "Stretching both arms sideways", "Holding up a yellow flag"], a: 1,
+    e: "The referee raises an arm above the head and keeps it there until the ball touches another player or goes out." },
+
+  // ---- Law 14: Penalty kick ----
+  { q: "Where must the defending goalkeeper be at a penalty kick?", c: ["Anywhere in the goal area", "On the goal line between the posts", "1 m in front of the penalty mark", "Behind the goal"], a: 1,
+    e: "The goalkeeper must stay on the goal line between the posts until the ball is kicked (at least part of one foot on or level with the line)." },
+  { q: "Where must the other players be at a penalty kick?", c: ["Anywhere in the penalty area", "Outside the penalty area, behind the penalty mark, at least 9.15 m away", "Inside the centre circle", "Behind the goal line"], a: 1,
+    e: "Players other than the kicker and goalkeeper must be outside the area, behind the penalty mark and at least 9.15 m from it." },
+  { q: "A penalty hits the post and the kicker scores from the rebound. What is the decision?", c: ["Goal", "Indirect free kick to the opponents", "Retake the penalty", "Goal kick"], a: 1,
+    e: "The kicker may not play the ball again until another player has touched it: indirect free kick to the opponents." },
+
+  // ---- Laws 15–17: Throw-in, goal kick, corner kick ----
+  { q: "A throw-in goes straight into the opponents' goal. What is the decision?", c: ["Goal", "Goal kick", "Retake the throw-in", "Corner kick"], a: 1,
+    e: "A goal cannot be scored directly from a throw-in; straight into the opponents' goal means a goal kick." },
+  { q: "What is the correct way to take a throw-in?", c: ["With one hand", "With both hands, from behind and over the head", "By kicking it", "With one foot inside the field"], a: 1,
+    e: "Face the field, keep part of each foot on or behind the touchline, and throw with both hands from behind and over the head." },
+  { q: "Where must the opponents be at a goal kick?", c: ["Outside the goal area", "Outside the penalty area until the ball is in play", "Inside the centre circle", "Anywhere"], a: 1,
+    e: "Opponents must stay outside the penalty area until the ball is in play." },
+  { q: "A goal kick goes straight into the opponents' goal. What is the decision?", c: ["Goal", "Retake the goal kick", "Corner kick", "Indirect free kick"], a: 0,
+    e: "A goal may be scored directly against the opponents from a goal kick or a corner kick." },
+  { q: "May the corner flagpost be moved when taking a corner kick?", c: ["Yes", "No", "If the referee allows it", "Only for left-footed players"], a: 1,
+    e: "The ball is placed in the corner arc, and the corner flagpost must not be moved." },
 ];

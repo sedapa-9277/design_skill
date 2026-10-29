@@ -2965,7 +2965,9 @@
     return a;
   }
   function startQuiz() {
-    const all = Array.isArray(window.QUIZ_KO) ? window.QUIZ_KO : [];
+    // 화면 언어에 맞는 문제 (영어 문제가 없으면 한국어)
+    const set = lang === "ko" ? window.QUIZ_KO : window.QUIZ_EN || window.QUIZ_KO;
+    const all = Array.isArray(set) ? set : [];
     // 보기 순서도 섞어서 같은 문제라도 정답 위치가 바뀌게 한다
     const list = shuffle(all).slice(0, QUIZ_ROUND).map((x) => {
       const order = shuffle(x.c.map((_, k) => k));
@@ -3068,7 +3070,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 54; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 55; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
