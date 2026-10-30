@@ -3047,6 +3047,17 @@
     document.body.classList.add("modal-open");
     $("quizClose").focus();
   }
+  // 오픈소스 라이선스 창 (설명서처럼 설정 창 위에 뜬다)
+  function openOss() {
+    $("ossModal").hidden = false;
+    document.body.classList.add("modal-open");
+    $("ossClose").focus();
+  }
+  function closeOss() {
+    $("ossModal").hidden = true;
+    if ($("setModal").hidden) document.body.classList.remove("modal-open");
+    $("ossBtn").focus({ preventScroll: true });
+  }
   function closeQuiz() {
     $("quizModal").hidden = true;
     if ($("setModal").hidden) document.body.classList.remove("modal-open");
@@ -3070,7 +3081,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 55; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 56; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -3132,6 +3143,7 @@
     else if (!$("tacModal").hidden) closeTac();
     else if (!$("formModal").hidden) closeForm();
     else if (!$("quizModal").hidden) closeQuiz();
+    else if (!$("ossModal").hidden) closeOss();
     else if (!$("setModal").hidden) closeSettings();
   });
   $("langSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-lang]"); if (b) setLang(b.dataset.lang); });
@@ -3151,6 +3163,9 @@
   $("quizBtn").addEventListener("click", openQuiz);
   $("quizClose").addEventListener("click", closeQuiz);
   $("quizModal").addEventListener("click", (e) => { if (e.target === $("quizModal")) closeQuiz(); });
+  $("ossBtn").addEventListener("click", openOss);
+  $("ossClose").addEventListener("click", closeOss);
+  $("ossModal").addEventListener("click", (e) => { if (e.target === $("ossModal")) closeOss(); });
   document.querySelectorAll("[data-edit-lock]").forEach((b) => b.addEventListener("click", toggleEditLock));
 
   // ---------- 휴대폰 뒤로가기: 앱이 바로 닫히지 않게 ----------
@@ -3168,6 +3183,7 @@
     if (!$("tacModal").hidden) { closeTac(); return true; }
     if (!$("formModal").hidden) { closeForm(); return true; }
     if (!$("quizModal").hidden) { closeQuiz(); return true; }
+    if (!$("ossModal").hidden) { closeOss(); return true; }
     if (!$("imgModal").hidden) { closeImageModal(); return true; }
     if (!$("backupModal").hidden) { closeBackup(); return true; }
     if (!$("setModal").hidden) { closeSettings(); return true; }

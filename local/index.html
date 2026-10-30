@@ -19,7 +19,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <!-- 글꼴은 앱 폴더에 넣어 둔 파일을 쓴다 (Google Fonts에 요청하지 않음) -->
   <link rel="stylesheet" href="fonts/fonts.css?v=1">
-  <link rel="stylesheet" href="local.css?v=42">
+  <link rel="stylesheet" href="local.css?v=43">
   <script src="boot.js?v=1"></script>
 </head>
 <body data-view="check">
@@ -372,6 +372,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><circle cx="12" cy="16.9" r=".6"/></svg>
       <span data-en="Football quiz">축구 상식 퀴즈</span>
     </button>
+    <button type="button" class="btn-ghost help-btn" id="ossBtn" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h7l4 4v12H7z"/><path d="M14 4v4h4M9.5 12h6M9.5 15.5h6"/></svg>
+      <span data-en="Open source licenses">오픈소스 라이선스</span>
+    </button>
     <!-- 스토어 등록에 필요한 앱 정보: 개인정보처리방침과 문의처 -->
     <p class="set-links">
       <a href="privacy.html" data-en="Privacy policy">개인정보처리방침</a>
@@ -673,6 +677,40 @@
   </div>
 </div>
 
+<!-- 오픈소스 라이선스: 앱에 함께 들어 있는 남이 만든 코드·글꼴과 그 라이선스 (전문은 licenses/, fonts/ 폴더) -->
+<div class="img-modal help-modal" id="ossModal" hidden role="dialog" aria-modal="true" aria-labelledby="ossTitle">
+  <div class="img-card help-card">
+    <div class="img-head">
+      <b id="ossTitle" data-en="Open source licenses">오픈소스 라이선스</b>
+      <button type="button" class="btn-ghost" id="ossClose" data-en="Close">닫기</button>
+    </div>
+    <div class="help-body oss-body" data-lang-only="ko">
+      <p>Best Line-up에는 아래 오픈소스가 함께 들어 있습니다. 각 라이선스에 따라 사용하며, 초록색 라이선스 이름을 누르면 전문을 볼 수 있습니다.</p>
+      <h3>SheetJS Community Edition 0.18.5</h3>
+      <p class="oss-meta">엑셀(.xlsx) 내보내기 · © SheetJS LLC · <a href="licenses/Apache-2.0.txt">Apache License 2.0</a></p>
+      <h3>Black Han Sans</h3>
+      <p class="oss-meta">앱 이름·숫자 글꼴 · © The Black Han Sans Project Authors · <a href="fonts/OFL-BlackHanSans.txt">SIL Open Font License 1.1</a></p>
+      <h3>IBM Plex Sans KR</h3>
+      <p class="oss-meta">본문 글꼴 · © IBM Corp. ("Plex"는 IBM의 예약 글꼴 이름) · <a href="fonts/OFL-IBMPlexSansKR.txt">SIL Open Font License 1.1</a></p>
+      <h3>Android Browser Helper · AndroidX</h3>
+      <p class="oss-meta">안드로이드 앱 포장(Trusted Web Activity, PWABuilder로 생성) · © Google LLC · <a href="licenses/Apache-2.0.txt">Apache License 2.0</a></p>
+      <p class="oss-note">앱의 나머지 코드와 그림은 Best Line-up 제작자가 만들었습니다.</p>
+    </div>
+    <div class="help-body oss-body" data-lang-only="en">
+      <p>Best Line-up includes the open source software below, used under the listed licenses. Tap a license to read the full text.</p>
+      <h3>SheetJS Community Edition 0.18.5</h3>
+      <p class="oss-meta">Excel (.xlsx) export · © SheetJS LLC · <a href="licenses/Apache-2.0.txt">Apache License 2.0</a></p>
+      <h3>Black Han Sans</h3>
+      <p class="oss-meta">App title and number font · © The Black Han Sans Project Authors · <a href="fonts/OFL-BlackHanSans.txt">SIL Open Font License 1.1</a></p>
+      <h3>IBM Plex Sans KR</h3>
+      <p class="oss-meta">Body text font · © IBM Corp. ("Plex" is a Reserved Font Name) · <a href="fonts/OFL-IBMPlexSansKR.txt">SIL Open Font License 1.1</a></p>
+      <h3>Android Browser Helper · AndroidX</h3>
+      <p class="oss-meta">Android app wrapper (Trusted Web Activity, generated with PWABuilder) · © Google LLC · <a href="licenses/Apache-2.0.txt">Apache License 2.0</a></p>
+      <p class="oss-note">All other code and artwork in the app were made by the Best Line-up developer.</p>
+    </div>
+  </div>
+</div>
+
 <!-- 축구 상식 퀴즈 (경기 규칙 위주): 문제는 quiz.js, 화면은 local.js가 그린다 -->
 <div class="img-modal help-modal" id="quizModal" hidden role="dialog" aria-modal="true" aria-labelledby="quizTitle">
   <div class="img-card help-card">
@@ -717,6 +755,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="quiz.js?v=2"></script>
-<script src="local.js?v=50"></script>
+<script src="local.js?v=51"></script>
 </body>
 </html>
