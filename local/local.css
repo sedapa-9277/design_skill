@@ -1881,3 +1881,11 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 @media (min-width: 861px) {
   .game-reset { font-size: .72rem; margin: 0 auto 6px; }
 }
+
+/* ---- 출석 방식 전환 (경기별 출석체크 / 출석체크) ---- */
+.seg.att-mode { display: flex; width: 100%; margin: -4px 0 12px; }
+.seg.att-mode button { flex: 1; padding: 8px 0; font-size: .88rem; }
+/* 출석체크: 이름과 출석 칸 하나라 칸을 조금 크게, 이름 칸은 넓게 */
+.att[data-games="day"] .cell { width: 48px; height: 48px; }
+.att[data-games="day"] td.name { max-width: none; }
+.att[data-games="day"] th:last-child, .att[data-games="day"] td:last-child { width: 80px; text-align: center; }

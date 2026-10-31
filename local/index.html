@@ -111,13 +111,18 @@
   <div class="main">
     <section class="panel view" data-view="check">
       <div class="panel-head">
-        <h2 data-en="Attendance by game">경기별 출석 체크</h2>
+        <h2 id="attTitle">경기별 출석 체크</h2>
         <button type="button" class="edit-lock" data-edit-lock hidden></button>
         <button class="btn-ghost save-img" type="button" id="saveAttBtn">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
           <span data-en="Save image">그림 저장</span>
         </button>
-        <span class="muted head-note" data-en="Tap a circle to mark that member present for the game">동그라미를 누르면 해당 경기 참석으로 표시됩니다</span>
+        <span class="muted head-note" id="attNote"></span>
+      </div>
+      <!-- 출석 방식: 경기별(경기마다 체크) 또는 출석체크(그날 한 번만 체크) -->
+      <div class="seg att-mode" id="attModeSeg" role="group" aria-label="출석 방식" data-en-aria-label="Attendance mode">
+        <button type="button" data-attmode="game" data-en="By game">경기별 출석체크</button>
+        <button type="button" data-attmode="day" data-en="Attendance">출석체크</button>
       </div>
       <div class="table-scroll">
         <table class="att" id="attTable">
@@ -409,6 +414,7 @@
       </ul>
       <h3>3. 출석 체크</h3>
       <ul>
+        <li>위쪽에서 <b>경기별 출석체크</b>(경기마다 체크)와 <b>출석체크</b>(그날 한 번만 체크)를 고릅니다. 출석체크로 하면 포지션에서 회원을 고를 때 출석한 회원이 먼저 나오고, 미출석자를 넣으면 출석도 함께 체크됩니다.</li>
         <li><b>출석</b> 탭에서 회원 줄의 동그라미를 누르면 그 경기 참석(축구공)이고, 한 번 더 누르면 해제됩니다.</li>
         <li><b>빠르게 두 번</b> 누르면 <b>교체</b>로 표시됩니다. 교체도 참석으로 셉니다. 교체 칸을 다시 두 번 누르면 일반 참석으로 돌아갑니다.</li>
         <li><b>전 경기</b>는 보이는 경기를 한 번에 체크하고, 경기 이름 아래 <b>↺</b>는 그 경기 참석을 모두 지웁니다(한 번 더 눌러 확인).</li>
@@ -473,6 +479,7 @@
       </ul>
       <h3>3. Taking attendance</h3>
       <ul>
+        <li>Choose <b>By game</b> to check each game separately, or <b>Attendance</b> to check each member just once for the day. In Attendance mode, members who checked in are listed first when picking a position; placing someone who has not checked in checks them in too.</li>
         <li>In the <b>Attend</b> tab, tap a circle to mark that member present for the game (a ball); tap again to clear it.</li>
         <li><b>Double-tap</b> to mark them as a <b>Sub</b>. Subs count as present. Double-tap a Sub cell to turn it back into a normal check.</li>
         <li><b>All games</b> checks every shown game; <b>↺</b> under a game clears that game (tap again to confirm).</li>
@@ -755,6 +762,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="quiz.js?v=2"></script>
-<script src="local.js?v=52"></script>
+<script src="local.js?v=53"></script>
 </body>
 </html>

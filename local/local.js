@@ -76,6 +76,7 @@
     editTeam: null,
     unlockDate: null,         // "수정"을 눌러 잠금을 푼 지난 날짜 (날짜를 바꾸면 다시 잠긴다)
     recentShown: 5,           // 상단 "최근 모임"에 보이는 날짜 수 (설정에서 1~7)
+    attMode: "game",          // 출석 방식: game = 경기별 출석체크, day = 출석체크(그날 한 칸)
     absentN: 3,             // 포지션 회원 고르기에서 "최근 N번 모임 불참"으로 나누는 N (설정에서 1~5)
   };
 
@@ -933,8 +934,13 @@
   // 출석판 그림: 회원별 줄에 출석판에 보이는 경기만큼 동그라미 (포지션이 있으면 포지션 이름)
   async function drawAttendanceImage() {
     const list = activeMembers();
-    const games = visibleGames();
-    const present = list.filter(([id]) => GAMES.some((g) => attended(S.date, id, g))).length;
+    // 출석체크 방식이면 "출석" 한 칸만 (경기별이면 보이는 경기만큼)
+    const dayMode = S.attMode === "day";
+    const games = dayMode ? [0] : visibleGames();
+    const isOn = (id, g) => (dayMode ? attendedDay(S.date, id) : attended(S.date, id, g));
+    const subAt = (id, g) => !dayMode && isSub(S.date, id, g);
+    const posAt = (id, g) => (dayMode ? dayPos(S.date, id) : posLabel(S.date, id, g));
+    const present = list.filter(([id]) => attendedDay(S.date, id)).length;
 
     const W = 1080, PAD = 22, HEAD = 190, TH = 70, ROW = 66, FOOT = 70;
     const H = HEAD + TH + ROW * list.length + FOOT;
@@ -977,10 +983,10 @@
     c.fillText(L("이름", "Name"), PAD + 22, y + TH / 2);
     c.textAlign = "center";
     games.forEach((g, i) => {
-      const n = list.filter(([id]) => attended(S.date, id, g)).length;
+      const n = list.filter(([id]) => isOn(id, g)).length;
       c.font = `700 28px ${BODY}`;
       c.fillStyle = "#ffffff";
-      c.fillText(L(`${g}경기`, `G${g}`), colX(i), y + TH / 2 - 11);
+      c.fillText(dayMode ? L("출석", "In") : L(`${g}경기`, `G${g}`), colX(i), y + TH / 2 - 11);
       c.font = `500 22px ${BODY}`;
       c.fillStyle = "#b9d7c2";
       c.fillText(L(`${n}명`, `${n}`), colX(i), y + TH / 2 + 18);
@@ -1010,9 +1016,9 @@
       c.textAlign = "center";
       games.forEach((g, i) => {
         const cx = colX(i);
-        const on = attended(S.date, id, g);
-        const sub = on && isSub(S.date, id, g);
-        const pos = on && !sub ? posLabel(S.date, id, g) : null;
+        const on = isOn(id, g);
+        const sub = on && subAt(id, g);
+        const pos = on && !sub ? posAt(id, g) : null;
         c.beginPath();
         c.arc(cx, cy, R, 0, Math.PI * 2);
         if (!on) {
@@ -1803,15 +1809,20 @@
     const hurt = ([id]) => isInjured(id) && !placedAt.has(id);
     const all = activeMembers().filter((e) => !hurt(e));
     const injured = activeMembers().filter(hurt);
-    const regulars = recentN.length ? all.filter(([id]) => cameRecently(id) || placedAt.has(id)) : all;
-    const rare = recentN.length ? all.filter(([id]) => !cameRecently(id) && !placedAt.has(id)) : [];
+    // 출석체크 방식이면 오늘 출석한 회원을 먼저, 미출석자는 구분선 아래로 (넣으면 출석도 함께 체크된다).
+    // 경기별 방식이면 예전처럼 최근 N번 모임에 안 나온 회원을 아래로
+    const dayMode = S.attMode === "day";
+    const isRegular = dayMode ? (id) => attendedDay(S.date, id) || placedAt.has(id) : (id) => cameRecently(id) || placedAt.has(id);
+    const split = dayMode || recentN.length;
+    const regulars = split ? all.filter(([id]) => isRegular(id)) : all;
+    const rare = split ? all.filter(([id]) => !isRegular(id)) : [];
     const members = [...regulars.sort(order), ...rare.sort(order), ...injured.sort(order)];
     for (const [id, m] of members) {
       if (rare.length && id === rare[0][0]) {
         const hr = document.createElement("div");
         hr.className = "pick-divider";
-        hr.textContent = L(`최근 ${recentN.length}번 모임 불참`,
-          recentN.length === 1 ? "Missed the last meeting" : `Missed the last ${recentN.length} meetings`);
+        hr.textContent = dayMode ? L("미출석", "Not checked in")
+          : L(`최근 ${recentN.length}번 모임 불참`, recentN.length === 1 ? "Missed the last meeting" : `Missed the last ${recentN.length} meetings`);
         list.append(hr);
       }
       if (injured.length && id === injured[0][0]) {
@@ -1876,7 +1887,82 @@
     return GAMES.slice(0, Math.min(n, GAMES.length));
   }
 
+  // ---------- 출석 방식: "game" = 경기별 출석체크(경기마다), "day" = 출석체크(그날 한 칸) ----------
+  const ATTMODE_KEY = "soccer-local-attmode";
+  function attendedDay(date, mid) { return GAMES.some((g) => attended(date, mid, g)); }
+  // 그날 처음 들어간 포지션 (출석체크 칸에 보여 준다)
+  function dayPos(date, mid) { for (const g of GAMES) { const p = posLabel(date, mid, g); if (p) return p; } return null; }
+  function setAttMode(v) {
+    S.attMode = v === "day" ? "day" : "game";
+    try { localStorage.setItem(ATTMODE_KEY, S.attMode); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+    renderAll();
+  }
+  function renderAttMode() {
+    const day = S.attMode === "day";
+    document.querySelectorAll("#attModeSeg [data-attmode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.attmode === S.attMode));
+    $("attTitle").textContent = day ? L("출석 체크", "Attendance") : L("경기별 출석 체크", "Attendance by game");
+    $("attNote").textContent = day
+      ? L("이름 옆 동그라미를 누르면 오늘 출석으로 표시됩니다", "Tap the circle to mark that member present today")
+      : L("동그라미를 누르면 해당 경기 참석으로 표시됩니다", "Tap a circle to mark that member present for the game");
+  }
+  // 출석체크 칸: 켜면 1경기 출석으로 기록하고, 끄면 그날 모든 경기 출석을 지운다 (포지션에서도 빠진다)
+  function toggleDay(mid) {
+    return attendedDay(S.date, mid) ? setGames(mid, GAMES, false) : setGames(mid, [1], true);
+  }
+
+  function renderDayGrid() {
+    const list = activeMembers();
+    $("attTable").dataset.games = "day";
+    const count = list.filter(([id]) => attendedDay(S.date, id)).length;
+    const head = document.createElement("tr");
+    head.innerHTML = `<th class="name">${L("이름", "Name")}</th><th>${L("출석", "In")}<span class="cnt num">${count}</span></th>`;
+    $("attHead").replaceChildren(head);
+    const body = $("attBody");
+    body.replaceChildren();
+    const empty = $("attEmpty");
+    if (!list.length) {
+      empty.hidden = false;
+      $("emptyTitle").textContent = S.mode === "live" ? L(`${tn(S.team)}에 등록된 회원이 없습니다`, `${tn(S.team)} has no members yet`)
+        : S.mode === "loading" ? L("기록을 불러오는 중입니다", "Loading records") : L("기록을 불러오지 못했습니다", "Couldn't load records");
+      $("emptyText").textContent = S.mode === "live" ? L("회원 탭에서 이름을 추가하면 출석판이 생깁니다.", "Add names in the Members tab to create the attendance board.") : "";
+      return;
+    }
+    empty.hidden = true;
+    for (const [id, m] of list) {
+      const tr = document.createElement("tr");
+      const tdName = document.createElement("td");
+      tdName.className = "name";
+      const nm = document.createElement("span");
+      nm.className = "nm-main";
+      nm.textContent = m.name;
+      nm.title = m.name;
+      if (isInjured(id)) {
+        tr.classList.add("injured");
+        const tag = document.createElement("span");
+        tag.className = "inj-tag";
+        tag.textContent = L("부상", "Inj.");
+        nm.append(tag);
+      }
+      tdName.append(nm);
+      const td = document.createElement("td");
+      const b = document.createElement("button");
+      const on = attendedDay(S.date, id);
+      // 포지션에 들어갔으면 그 포지션 이름, 출석만 했으면 축구공
+      const pos = on ? dayPos(S.date, id) : null;
+      b.className = "cell" + (pos ? ` pos role-${posRole(pos)}` : "");
+      b.textContent = pos || "";
+      b.setAttribute("aria-pressed", on);
+      b.setAttribute("aria-label", L(`${m.name} ${on ? "출석" + (pos ? ` ${pos}` : "") : "미출석"}`, `${m.name} ${on ? "present" + (pos ? ` ${pos}` : "") : "absent"}`));
+      b.addEventListener("click", () => toggleDay(id));
+      td.append(b);
+      tr.append(tdName, td);
+      body.append(tr);
+    }
+  }
+
   function renderGrid() {
+    renderAttMode();
+    if (S.attMode === "day") return renderDayGrid();
     const list = activeMembers();
     const games = visibleGames();
     // 보이는 경기 수에 따라 출석 칸 크기를 바꾼다 (4경기면 크게, 6경기면 화면에 맞게)
@@ -3089,7 +3175,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 57; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 58; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -3159,6 +3245,7 @@
   $("posColorSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-poscolor]"); if (b) setPosColor(b.dataset.poscolor); });
   $("absentSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-absent]"); if (b) setAbsentN(b.dataset.absent); });
   $("recentSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-recent]"); if (b) setRecentShown(b.dataset.recent); });
+  $("attModeSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-attmode]"); if (b) setAttMode(b.dataset.attmode); });
   $("helpBtn").addEventListener("click", openHelp);
   $("helpClose").addEventListener("click", closeHelp);
   $("helpModal").addEventListener("click", (e) => { if (e.target === $("helpModal")) closeHelp(); });
@@ -3213,6 +3300,7 @@
   // 예전(1~10)에 6 이상을 골랐으면 5로 맞춘다
   try { const n = Number(localStorage.getItem(ABSENT_KEY)); if (n >= 1) S.absentN = Math.min(5, Math.round(n)); } catch (e) { /* 기본 3번 */ }
   try { const n = Number(localStorage.getItem(RECENT_KEY)); if (n >= 1) S.recentShown = Math.min(7, Math.round(n)); } catch (e) { /* 기본 5개 */ }
+  try { if (localStorage.getItem(ATTMODE_KEY) === "day") S.attMode = "day"; } catch (e) { /* 기본은 경기별 */ }
   // 팀: 주소의 #faith/#hope/#love → 이 브라우저에서 마지막으로 고른 팀 → 믿음팀
   let savedTeam = null;
   try { savedTeam = localStorage.getItem(TEAM_KEY); } catch (e) { savedTeam = null; }
