@@ -1059,17 +1059,25 @@
       `<th>${g}경기<span class="cnt num">${counts[i]}</span></th>`).join("")}`;
     // 경기별 참석 초기화: 체크된 사람이 있을 때만 작게 표시, 한 번 더 눌러야 실행
     games.forEach((g, i) => {
-      if (!counts[i]) return;
+      if (!counts[i]) {
+        // 체크가 없는 경기는 같은 높이의 빈 자리만 둔다 (경기 이름 줄이 어긋나지 않게)
+        const ph = document.createElement("span");
+        ph.className = "game-reset ph";
+        ph.setAttribute("aria-hidden", "true");
+        ph.textContent = "Clear";
+        head.children[i + 1].prepend(ph);
+        return;
+      }
       const key = `${shownKey()}|g${g}`;
       const confirming = S.confirmClearGame === key;
       const b = document.createElement("button");
       b.type = "button";
       b.className = "game-reset" + (confirming ? " confirm" : "");
-      b.textContent = confirming ? "확인" : "↺";
+      b.textContent = confirming ? "확인" : "Clear";
       b.title = `${g}경기 참석 모두 해제`;
       b.setAttribute("aria-label", confirming ? `${g}경기 참석 초기화 확인` : `${g}경기 참석 초기화`);
       b.addEventListener("click", () => clearGame(g, key));
-      head.children[i + 1].append(b);
+      head.children[i + 1].prepend(b);
     });
     if (canAdd || canRemove) {
       const th = document.createElement("th");
