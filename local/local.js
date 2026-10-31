@@ -1890,17 +1890,25 @@
       `<th>${L(`${g}경기`, `G${g}`)}<span class="cnt num">${counts[i]}</span></th>`).join("")}`;
     // 경기별 참석 초기화: 체크된 사람이 있을 때만 작게 표시, 한 번 더 눌러야 실행
     games.forEach((g, i) => {
-      if (!counts[i]) return;
+      if (!counts[i]) {
+        // 체크가 없는 경기는 같은 높이의 빈 자리만 둔다 (경기 이름 줄이 어긋나지 않게)
+        const ph = document.createElement("span");
+        ph.className = "game-reset ph";
+        ph.setAttribute("aria-hidden", "true");
+        ph.textContent = "Clear";
+        head.children[i + 1].prepend(ph);
+        return;
+      }
       const key = `${shownKey()}|g${g}`;
       const confirming = S.confirmClearGame === key;
       const b = document.createElement("button");
       b.type = "button";
       b.className = "game-reset" + (confirming ? " confirm" : "");
-      b.textContent = confirming ? L("확인", "OK") : "↺";
+      b.textContent = confirming ? L("확인", "OK") : "Clear";
       b.title = L(`${g}경기 참석 모두 해제`, `Uncheck everyone in game ${g}`);
       b.setAttribute("aria-label", confirming ? L(`${g}경기 참석 초기화 확인`, `Confirm clearing game ${g}`) : L(`${g}경기 참석 초기화`, `Clear game ${g}`));
       b.addEventListener("click", () => clearGame(g, key));
-      head.children[i + 1].append(b);
+      head.children[i + 1].prepend(b);
     });
     if (canAdd || canRemove) {
       const th = document.createElement("th");
@@ -3081,7 +3089,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 56; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 57; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

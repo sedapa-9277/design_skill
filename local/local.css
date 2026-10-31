@@ -1874,3 +1874,10 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 .oss-meta { margin: 2px 0 0; font-size: .82rem; color: var(--muted); line-height: 1.5; }
 .oss-meta a { color: var(--pitch); font-weight: 700; }
 .oss-note { margin-top: 18px; font-size: .8rem; color: var(--muted); }
+
+/* 경기별 초기화 버튼: 경기 이름 위에 "Clear"로. 체크가 없는 경기는 같은 높이의 빈 자리를 둬 칸이 어긋나지 않게 */
+.game-reset { margin: 0 auto 4px; min-width: 0; font-size: .64rem; letter-spacing: .02em; padding: 0 5px; }
+.game-reset.ph { visibility: hidden; pointer-events: none; }
+@media (min-width: 861px) {
+  .game-reset { font-size: .72rem; margin: 0 auto 6px; }
+}
