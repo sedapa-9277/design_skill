@@ -939,7 +939,7 @@
     const games = dayMode ? [0] : visibleGames();
     const isOn = (id, g) => (dayMode ? attendedDay(S.date, id) : attended(S.date, id, g));
     const subAt = (id, g) => !dayMode && isSub(S.date, id, g);
-    const posAt = (id, g) => (dayMode ? dayPos(S.date, id) : posLabel(S.date, id, g));
+    const posAt = (id, g) => (dayMode ? null : posLabel(S.date, id, g)); // 출석체크 그림은 늘 축구공(체크)
     const present = list.filter(([id]) => attendedDay(S.date, id)).length;
 
     const W = 1080, PAD = 22, HEAD = 190, TH = 70, ROW = 66, FOOT = 70;
@@ -1890,8 +1890,6 @@
   // ---------- 출석 방식: "game" = 경기별 출석체크(경기마다), "day" = 출석체크(그날 한 칸) ----------
   const ATTMODE_KEY = "soccer-local-attmode";
   function attendedDay(date, mid) { return GAMES.some((g) => attended(date, mid, g)); }
-  // 그날 처음 들어간 포지션 (출석체크 칸에 보여 준다)
-  function dayPos(date, mid) { for (const g of GAMES) { const p = posLabel(date, mid, g); if (p) return p; } return null; }
   function setAttMode(v) {
     S.attMode = v === "day" ? "day" : "game";
     try { localStorage.setItem(ATTMODE_KEY, S.attMode); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
@@ -1947,12 +1945,11 @@
       const td = document.createElement("td");
       const b = document.createElement("button");
       const on = attendedDay(S.date, id);
-      // 포지션에 들어갔으면 그 포지션 이름, 출석만 했으면 축구공
-      const pos = on ? dayPos(S.date, id) : null;
-      b.className = "cell" + (pos ? ` pos role-${posRole(pos)}` : "");
-      b.textContent = pos || "";
+      // 출석체크 칸은 포지션에 들어갔어도 늘 축구공으로 (포지션은 포지션 화면에서)
+      b.className = "cell";
+      b.textContent = "";
       b.setAttribute("aria-pressed", on);
-      b.setAttribute("aria-label", L(`${m.name} ${on ? "출석" + (pos ? ` ${pos}` : "") : "미출석"}`, `${m.name} ${on ? "present" + (pos ? ` ${pos}` : "") : "absent"}`));
+      b.setAttribute("aria-label", L(`${m.name} ${on ? "출석" : "미출석"}`, `${m.name} ${on ? "present" : "absent"}`));
       b.addEventListener("click", () => toggleDay(id));
       td.append(b);
       tr.append(tdName, td);
@@ -3175,7 +3172,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 58; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 59; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
