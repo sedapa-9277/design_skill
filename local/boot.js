@@ -13,7 +13,14 @@ try {
   document.documentElement.dataset.poscolor = localStorage.getItem("soccer-local-poscolor") === "mono" ? "mono" : "color";
 } catch (e) { document.documentElement.dataset.poscolor = "color"; }
 
-// 앱 실행 화면: 최소 0.9초 보여 주고, 화면 준비가 끝나면 사라진다 (늦어도 3초 뒤에는 닫힘)
+// 설치한 앱(플레이스토어 앱·홈 화면 앱)으로 열면 안드로이드가 아이콘 화면을 먼저 보여 주므로,
+// 웹 실행 화면을 또 띄우면 아이콘이 사라졌다 다시 나타나 깜빡여 보인다. 이때는 웹 실행 화면을 쓰지 않는다
+try {
+  if (matchMedia("(display-mode: standalone)").matches || document.referrer.startsWith("android-app://"))
+    document.documentElement.dataset.launch = "app";
+} catch (e) {}
+
+// 앱 실행 화면 (브라우저로 열 때만): 최소 0.9초 보여 주고, 화면 준비가 끝나면 사라진다 (늦어도 3초 뒤에는 닫힘)
 (() => {
   const hide = () => {
     const s = document.getElementById("splash");
