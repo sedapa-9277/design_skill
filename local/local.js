@@ -2239,8 +2239,8 @@
   }
 
   // ---------- 통계: 팀별 탭으로 나눈 날짜별 출석자 명단을 엑셀(.xlsx)로 내보내기 ----------
-  const PERIOD_LABEL = { month: "이번달", "3m": "최근3개월", year: "올해", all: "전체" };
-  const PERIOD_LABEL_EN = { month: "this-month", "3m": "last-3-months", year: "this-year", all: "all" };
+  const PERIOD_LABEL = { month: "최근1개월", "3m": "최근3개월", year: "올해", all: "전체" };
+  const PERIOD_LABEL_EN = { month: "last-month", "3m": "last-3-months", year: "this-year", all: "all" };
   let xlsxLoading = null;
   function loadXlsx() {
     if (window.XLSX) return Promise.resolve(window.XLSX);
@@ -2315,7 +2315,7 @@
     const d = parseYmd(date);
     if (S.period === "all") return true;
     if (S.period === "year") return d.getFullYear() === today.getFullYear();
-    if (S.period === "month") return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
+    if (S.period === "month") return d >= new Date(today.getFullYear(), today.getMonth() - 1, today.getDate()); // 최근 1개월 (한 달 전 같은 날부터)
     if (S.period === "3m") return d >= new Date(today.getFullYear(), today.getMonth() - 2, 1);
     if (S.period === "range") return date >= S.rangeFrom && date <= S.rangeTo;
     return true;
@@ -2888,7 +2888,11 @@
     }
   }
 
-  // 화면 모드: 고른 적이 없으면 휴대폰 설정(라이트/다크)을 따른다
+  // 화면 모드: 시스템(고른 적 없음 포함)이면 휴대폰 설정(라이트/다크)을 따른다
+  function themeMode() {
+    const t = document.documentElement.dataset.theme;
+    return t === "light" || t === "dark" ? t : "system";
+  }
   function effectiveTheme() {
     const t = document.documentElement.dataset.theme;
     if (t === "light" || t === "dark") return t;
@@ -2897,7 +2901,7 @@
 
   function renderSettings() {
     document.querySelectorAll("#langSeg [data-lang]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === lang));
-    const th = effectiveTheme();
+    const th = themeMode();
     document.querySelectorAll("#themeSeg [data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.themeSet === th));
     const pc = posColorMode();
     document.querySelectorAll("#posColorSeg [data-poscolor]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.poscolor === pc));
@@ -3172,7 +3176,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 65; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 66; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -3202,6 +3206,14 @@
   }
 
   function setTheme(v) {
+    if (v === "system") {
+      // 시스템: 고른 모드를 지워 휴대폰 설정을 따른다 (boot.js의 첫 화면 규칙과 같음)
+      delete document.documentElement.dataset.theme;
+      $("colorSchemeMeta").content = "light dark";
+      try { localStorage.removeItem(THEME_KEY); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+      renderSettings();
+      return;
+    }
     const t = v === "dark" ? "dark" : "light";
     document.documentElement.dataset.theme = t;
     // 라이트는 "라이트 전용"으로 알려 브라우저의 강제 다크 변환을 막는다 (index.html 머리말과 같은 규칙)
