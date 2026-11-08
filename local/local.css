@@ -1889,3 +1889,21 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 .att[data-games="day"] .cell { width: 48px; height: 48px; }
 .att[data-games="day"] td.name { max-width: none; }
 .att[data-games="day"] th:last-child, .att[data-games="day"] td:last-child { width: 80px; text-align: center; }
+
+/* 팀 추가(+) 버튼: 팀 선택 오른쪽, 팀이 3개보다 적을 때만 보인다 */
+.team-add {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  padding: 0;
+  border: 1.5px dashed #ffffff66;
+  border-radius: 12px;
+  background: #ffffff0f;
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.team-add[hidden] { display: none; }
+.team-add:hover { background: #ffffff24; border-color: #ffffffa6; }
+.team-add svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }

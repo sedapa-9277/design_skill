@@ -1444,6 +1444,17 @@
       b.addEventListener("click", () => setTeam(t));
       box.append(b);
     }
+    $("teamAddBtn").hidden = teams.length >= TEAMS.length;
+  }
+
+  // 상단 + 버튼: 회원 화면으로 가서 새 팀 이름 입력칸을 연다
+  function startAddTeam() {
+    S.addingTeam = true;
+    S.confirmTeamDel = null;
+    S.confirmTeamPurge = null;
+    setView("members");
+    renderTeamTools();
+    $("teamTools").scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
   // ---------- 백업 · 복원 ----------
@@ -3176,7 +3187,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 66; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 67; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -3237,6 +3248,7 @@
     setOpener?.focus({ preventScroll: true });
   }
   $("setBtn").addEventListener("click", openSettings);
+  $("teamAddBtn").addEventListener("click", startAddTeam);
   $("setTabBtn").addEventListener("click", openSettings);
   $("setClose").addEventListener("click", closeSettings);
   $("setModal").addEventListener("click", (e) => { if (e.target === $("setModal")) closeSettings(); });
