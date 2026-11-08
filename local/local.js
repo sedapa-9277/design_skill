@@ -1330,7 +1330,7 @@
       input.setAttribute("aria-label", L("새 팀 이름", "New team name"));
       const add = document.createElement("button");
       add.type = "button";
-      add.className = "row-btn";
+      add.className = "btn"; // 회원 이름 "추가"와 같은 초록 버튼
       add.textContent = L("추가", "Add");
       const cancel = document.createElement("button");
       cancel.type = "button";
@@ -3187,7 +3187,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 67; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 68; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
