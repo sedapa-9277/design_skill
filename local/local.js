@@ -4,11 +4,11 @@
   const TEAM_KEY = "soccer-local-team";
   const DB_NAME = "soccer-attendance-local";
   const BACKUP_APP = "soccer-attendance-local";
-  // 백업 알림 주기 (일). 0 = 알림 끄기. 고른 값은 localStorage에, 기본 2주
+  // 백업 알림 주기 (일). 0 = 알림 끄기. 고른 값은 localStorage에, 기본 1달 (예전 1주·2주 값은 기본으로)
   const REMIND_KEY = "soccer-local-backupremind";
   const SNOOZE_KEY = "soccer-local-backupsnooze";
-  const REMIND_CHOICES = [7, 14, 30, 0];
-  const REMIND_DEFAULT = 14;
+  const REMIND_CHOICES = [30, 90, 0];
+  const REMIND_DEFAULT = 30;
   let remindDays = REMIND_DEFAULT;
   try {
     const v = Number(localStorage.getItem(REMIND_KEY));
@@ -1691,7 +1691,7 @@
     remindDays = n;
     try { localStorage.setItem(REMIND_KEY, String(n)); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
     renderBackup();
-    toast(n ? L(`백업한 지 ${n === 30 ? "한 달이" : n === 7 ? "1주가" : "2주가"} 지나면 알려 드립니다.`, `You'll be reminded ${n === 30 ? "a month" : n === 7 ? "a week" : "two weeks"} after your last backup.`)
+    toast(n ? L(`백업한 지 ${n === 90 ? "3개월이" : "한 달이"} 지나면 알려 드립니다.`, `You'll be reminded ${n === 90 ? "three months" : "a month"} after your last backup.`)
       : L("백업 알림을 껐습니다.", "Backup reminders are off."));
   }
 
@@ -3285,7 +3285,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 71; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 72; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;

@@ -1683,7 +1683,7 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 /* ---- 설정: 최근 모임 불참 기준 1~5 ---- */
 .num-seg { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 /* 백업 알림 주기 (백업 화면) */
-.num-seg.four { grid-template-columns: repeat(4, 1fr); }
+.num-seg.three { grid-template-columns: repeat(3, 1fr); }
 .remind-row { margin: 0 0 14px; }
 .remind-row .set-label { display: block; font-size: .86rem; margin-bottom: 6px; }
 .remind-row .set-hint { margin: 6px 0 0; font-size: .78rem; }
