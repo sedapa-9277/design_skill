@@ -192,6 +192,11 @@ table.att { width: 100%; border-collapse: separate; border-spacing: 0; }
   font-size: .8rem;
   color: var(--muted);
   transition: background .12s, border-color .12s, transform .08s;
+  /* 길게 누르기(교체 표시) 중에 글자 선택·메뉴가 뜨지 않게 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 .cell:hover { border-color: var(--pitch); }
 .cell:active { transform: scale(.92); }
@@ -215,6 +220,8 @@ table.att { width: 100%; border-collapse: separate; border-spacing: 0; }
 
 .empty { text-align: center; padding: 26px 8px; color: var(--muted); }
 .empty strong { display: block; color: var(--fg); margin-bottom: 4px; }
+.empty #emptyAdd { display: block; margin: 14px auto 0; padding: 10px 22px; }
+.empty #emptyAdd[hidden] { display: none; }
 
 /* 당일 요약 */
 .side { display: grid; gap: 18px; }
@@ -1236,6 +1243,11 @@ body.locked #memberPanel > .hint { display: none; }
 /* 회원 관리: 팀 관리 (팀 추가 · 회원 전체 삭제 · 팀 삭제) */
 .team-tools { flex-wrap: wrap; }
 .team-tools > .muted { flex: 1; min-width: 4em; }
+/* 맨 아래 접힌 팀 삭제 · 초기화 칸 */
+.danger-zone { margin-top: 14px; font-size: .85rem; }
+.danger-zone summary { cursor: pointer; color: var(--danger); padding: 6px 0; font-weight: 600; }
+.danger-zone .team-tools { margin: 6px 0 0; }
+body.locked .danger-zone { display: none; }
 .team-tools .row-btn:disabled { opacity: .45; cursor: not-allowed; }
 .team-tools .row-btn.danger.confirm,
 .team-tools .row-btn.danger.confirm:hover,

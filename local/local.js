@@ -30,6 +30,7 @@
   const TEAM_EN = { 믿음: "Faith", 소망: "Hope", 사랑: "Love" };
   // 처음 설치(저장된 기록 없음)는 "팀1" 한 팀만, 회원 없이 시작한다. 팀 초기화도 이 이름으로 되돌린다
   const DEFAULT_TEAM_NAME = "팀1";
+  const DEFAULT_TEAM_NAME_EN = "Team 1";
   const FRESH_TEAM_NAMES = () => ({ 믿음: DEFAULT_TEAM_NAME });
   const FRESH_TEAM_ACTIVE = () => ({ 믿음: true, 소망: false, 사랑: false });
 
@@ -113,7 +114,12 @@
   }
   function memberName(id) { return S.members.get(id)?.name || L("(삭제된 회원)", "(deleted member)"); }
   // 화면에 보이는 팀 이름 (회원 관리에서 바꿀 수 있음). 저장된 이름이 없으면 "믿음팀"/"Faith"처럼 기본값
-  function tn(team) { return S.teamNames[team] || L(`${team}팀`, TEAM_EN[team] || team); }
+  // 첫 팀 기본 이름 "팀1"은 영어 화면에서 "Team 1"로 보인다 (저장값은 그대로 "팀1")
+  function tn(team) {
+    const n = S.teamNames[team];
+    if (n === DEFAULT_TEAM_NAME || n === DEFAULT_TEAM_NAME_EN) return L(DEFAULT_TEAM_NAME, DEFAULT_TEAM_NAME_EN);
+    return n || L(`${team}팀`, TEAM_EN[team] || team);
+  }
   function isActiveTeam(t) { return S.teamActive[t] !== false; }
   function activeTeams() { return TEAMS.filter(([t]) => isActiveTeam(t)); }
 
@@ -654,22 +660,48 @@
          : L(`${memberName(id)} 님의 부상 표시를 풀었습니다.`, `${memberName(id)} is no longer marked injured.`));
   }
 
-  // 출석 칸 누르기: 한 번 = 출석/해제 (바로 반영), 빠르게 두 번 = 교체 표시 켜기/끄기.
-  // 해제한 칸을 곧바로 한 번 더 누르면, 첫 누름으로 빠진 포지션 자리를 되돌리고 교체 표시를 바꾼다
-  const DOUBLE_TAP_MS = 350;
-  let lastTap = null; // {key, at, wasSub, slots: 첫 누름 전 그 회원이 있던 [팀, 자리] 목록}
+  // 출석 칸 누르기: 한 번 = 출석/해제 (바로 반영), 길게 누르기 = 교체 표시 켜기/끄기 (빈 칸이면 교체로 참석)
+  const LONG_PRESS_MS = 500;
+  const SUB_HINT_KEY = "soccer-local-subhint";
   function toggleCell(mid, g) {
-    const key = `${S.date}|${mid}|${g}`;
-    const now = Date.now();
-    if (lastTap && lastTap.key === key && now - lastTap.at < DOUBLE_TAP_MS) {
-      const { wasSub, slots } = lastTap;
-      lastTap = null;
-      return setSub(mid, g, !wasSub, slots);
+    const on = !attended(S.date, mid, g);
+    const done = setGames(mid, [g], on);
+    // 처음 한 번만: 길게 누르면 교체로 표시된다는 안내
+    let seen = true;
+    try { seen = localStorage.getItem(SUB_HINT_KEY) === "1"; } catch (e) { /* 저장 불가 시 안내 생략 */ }
+    if (on && !seen) {
+      try { localStorage.setItem(SUB_HINT_KEY, "1"); } catch (e) { /* 무시 */ }
+      Promise.resolve(done).then((ok) => { if (ok !== false) toast(L("팁: 칸을 길게 누르면 교체로 표시됩니다.", "Tip: press and hold a cell to mark a sub.")); });
     }
-    const day = S.days.get(S.date);
-    const slots = day ? TEAMS.flatMap(([t]) => Object.entries(slotsOf(day, t, g)).filter(([, v]) => v === mid).map(([s]) => [t, s])) : [];
-    lastTap = { key, at: now, wasSub: isSub(S.date, mid, g), slots };
-    return setGames(mid, [g], !attended(S.date, mid, g));
+    return done;
+  }
+  // 출석 칸에 길게 누르기를 붙인다. 길게 눌렀으면 손을 뗄 때 오는 클릭은 무시한다
+  function bindCellPress(b, mid, g) {
+    let timer = null, start = null, held = false;
+    const cancel = () => { clearTimeout(timer); timer = null; };
+    b.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      held = false;
+      start = [e.clientX, e.clientY];
+      cancel();
+      timer = setTimeout(() => {
+        timer = null;
+        held = true;
+        try { navigator.vibrate?.(20); } catch (err) { /* 진동 없음 */ }
+        try { localStorage.setItem(SUB_HINT_KEY, "1"); } catch (err) { /* 무시 */ }
+        setSub(mid, g, !isSub(S.date, mid, g));
+      }, LONG_PRESS_MS);
+    });
+    // 손가락이 움직이면 (화면 스크롤) 길게 누르기 취소
+    b.addEventListener("pointermove", (e) => {
+      if (timer && start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) > 10) cancel();
+    });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, cancel));
+    b.addEventListener("contextmenu", (e) => e.preventDefault());
+    b.addEventListener("click", (e) => {
+      if (held) { held = false; e.preventDefault(); return; }
+      toggleCell(mid, g);
+    });
   }
   function setSub(mid, g, sub, slots = []) {
     if (guardPast()) return Promise.resolve(false);
@@ -1320,6 +1352,7 @@
   function renderTeamTools() {
     const box = $("teamTools");
     box.replaceChildren();
+    box.hidden = false;
     if (S.addingTeam) {
       const input = document.createElement("input");
       input.type = "text";
@@ -1360,15 +1393,23 @@
       add.addEventListener("click", () => { S.addingTeam = true; S.confirmTeamDel = null; S.confirmTeamPurge = null; renderTeamTools(); });
       box.append(add);
     }
+    // 팀 추가를 못 하면 (3팀 모두 사용 중) 이 줄은 숨긴다
+    box.hidden = box.children.length < 2;
+
+    // 되돌릴 수 없는 버튼은 맨 아래 접힌 "팀 삭제 · 초기화" 칸 안에만 둔다
+    const danger = $("teamDanger");
+    danger.replaceChildren();
     const n = teamMembers(true).length;
-    box.append(teamConfirmButton(L("회원 전체 삭제", "Delete all members"), L(`정말 ${n}명 모두 삭제할까요?`, `Really delete all ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers));
-    // 마지막 한 팀은 지우는 대신 "팀 초기화" (회원·기록을 지우고 이름을 팀1로)
     const last = activeTeams().length <= 1;
+    // 회원도 없고 이름도 기본값인 마지막 팀은 지울 것이 없으니 칸 자체를 숨긴다
+    $("dangerBox").hidden = n === 0 && last && S.teamNames[S.team] === DEFAULT_TEAM_NAME;
+    danger.append(teamConfirmButton(L("회원 전체 삭제", "Delete all members"), L(`정말 ${n}명 모두 삭제할까요?`, `Really delete all ${n}?`), "confirmTeamPurge", n === 0, purgeTeamMembers));
+    // 마지막 한 팀은 지우는 대신 "팀 초기화" (회원·기록을 지우고 이름을 팀1로)
     const del = last
       ? teamConfirmButton(L("팀 초기화", "Reset team"), L("정말 초기화할까요? 회원·기록 모두 삭제", "Really reset? Members and records too"), "confirmTeamDel", false, resetTeam)
       : teamConfirmButton(L("팀 삭제", "Delete team"), L("정말 삭제할까요? 회원·기록 모두 삭제", "Really delete? Members and records too"), "confirmTeamDel", false, deleteTeam);
-    if (last) del.title = L(`회원과 기록을 모두 지우고 팀 이름을 "${RESET_TEAM_NAME}"(으)로 되돌립니다`, `Deletes all members and records and renames the team to "${RESET_TEAM_NAME}"`);
-    box.append(del);
+    if (last) del.title = L(`회원과 기록을 모두 지우고 팀 이름을 "${RESET_TEAM_NAME}"(으)로 되돌립니다`, `Deletes all members and records and renames the team to "${DEFAULT_TEAM_NAME_EN}"`);
+    danger.append(del);
   }
 
   async function addTeam(raw) {
@@ -1386,7 +1427,7 @@
       dbResetTeam(team);
       S.shownGames.clear();
     }, L(`${name}을(를) 초기화했습니다. 회원과 기록을 모두 지우고 이름을 "${RESET_TEAM_NAME}"(으)로 바꿨습니다.`,
-         `Reset ${name}: members and records deleted, renamed to "${RESET_TEAM_NAME}".`));
+         `Reset ${name}: members and records deleted, renamed to "${DEFAULT_TEAM_NAME_EN}".`));
   }
 
   function deleteTeam(team) {
@@ -1409,6 +1450,7 @@
     S.addingTeam = false;
     S.confirmTeamDel = null;
     S.confirmTeamPurge = null;
+    $("dangerBox").open = false;
     S.rankOpen = null;
     S.pickSlot = null;
     S.editId = null;
@@ -1934,6 +1976,7 @@
       $("emptyTitle").textContent = S.mode === "live" ? L(`${tn(S.team)}에 등록된 회원이 없습니다`, `${tn(S.team)} has no members yet`)
         : S.mode === "loading" ? L("기록을 불러오는 중입니다", "Loading records") : L("기록을 불러오지 못했습니다", "Couldn't load records");
       $("emptyText").textContent = S.mode === "live" ? L("회원 탭에서 이름을 추가하면 출석판이 생깁니다.", "Add names in the Members tab to create the attendance board.") : "";
+      $("emptyAdd").hidden = S.mode !== "live";
       return;
     }
     empty.hidden = true;
@@ -1989,7 +2032,7 @@
         const ph = document.createElement("span");
         ph.className = "game-reset ph";
         ph.setAttribute("aria-hidden", "true");
-        ph.textContent = "Clear";
+        ph.textContent = L("초기화", "Clear");
         head.children[i + 1].prepend(ph);
         return;
       }
@@ -1998,7 +2041,7 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "game-reset" + (confirming ? " confirm" : "");
-      b.textContent = confirming ? L("확인", "OK") : "Clear";
+      b.textContent = confirming ? L("확인", "OK") : L("초기화", "Clear");
       b.title = L(`${g}경기 참석 모두 해제`, `Uncheck everyone in game ${g}`);
       b.setAttribute("aria-label", confirming ? L(`${g}경기 참석 초기화 확인`, `Confirm clearing game ${g}`) : L(`${g}경기 참석 초기화`, `Clear game ${g}`));
       b.addEventListener("click", () => clearGame(g, key));
@@ -2044,12 +2087,14 @@
       empty.hidden = false;
       $("emptyTitle").textContent = S.mode === "loading" ? L("기록을 불러오는 중입니다", "Loading records") : L("기록을 불러오지 못했습니다", "Couldn't load records");
       $("emptyText").textContent = "";
+      $("emptyAdd").hidden = true;
       return;
     }
     if (!list.length) {
       empty.hidden = false;
       $("emptyTitle").textContent = L(`${tn(S.team)}에 등록된 회원이 없습니다`, `${tn(S.team)} has no members yet`);
       $("emptyText").textContent = L("회원 탭에서 이름을 추가하면 이 팀의 경기별 출석판이 생깁니다.", "Add names in the Members tab to create this team's attendance board.");
+      $("emptyAdd").hidden = false;
       return;
     }
     empty.hidden = true;
@@ -2101,8 +2146,8 @@
         b.setAttribute("aria-pressed", on);
         b.setAttribute("aria-label", L(`${m.name} ${g}경기 ${sub ? "교체 참석" : on ? "참석" + (pos ? ` ${pos}` : "") : "미참석"}`,
           `${m.name} game ${g} ${sub ? "present as sub" : on ? "present" + (pos ? ` ${pos}` : "") : "absent"}`));
-        b.title = L("두 번 빠르게 누르면 교체 표시", "Double-tap to mark as sub");
-        b.addEventListener("click", () => toggleCell(id, g));
+        b.title = L("길게 누르면 교체 표시", "Press and hold to mark as sub");
+        bindCellPress(b, id, g);
         td.append(b);
         tr.append(td);
       }
@@ -2355,7 +2400,7 @@
     if (!rows.length || !dates.length) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 4;
+      td.colSpan = 5;
       td.className = "muted";
       td.style.textAlign = "center";
       td.style.padding = "18px 6px";
@@ -2381,7 +2426,7 @@
       const tr = document.createElement("tr");
       const no = byName ? idx + 1 : r.pos;
       tr.className = (!byName && r.pos <= 3 && r.days > 0 ? "top " : "") + (open ? "open" : "");
-      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.days}/${meetingDays}</td>
+      tr.innerHTML = `<td class="pos num">${no}</td><td class="nm"></td><td class="r num">${r.games}</td><td class="r num">${r.days}/${meetingDays}</td>
         <td><div class="rate"><div class="bar" data-lv="${pct >= 70 ? "hi" : pct >= 40 ? "mid" : "lo"}"><i style="width:${pct}%"></i></div><em>${pct}%</em></div></td>`;
       const btn = document.createElement("button");
       btn.type = "button";
@@ -2454,7 +2499,7 @@
     const tr = document.createElement("tr");
     tr.className = "recent-row";
     const td = document.createElement("td");
-    td.colSpan = 4;
+    td.colSpan = 5;
     const wrap = document.createElement("div");
     wrap.className = "recent10";
     const strip = document.createElement("div");
@@ -2726,6 +2771,13 @@
   $("tabbar").addEventListener("click", (e) => {
     const b = e.target.closest("[data-tab]");
     if (b) setView(b.dataset.tab);
+  });
+  // 빈 출석판의 "회원 추가하기": 회원 탭으로 가서 이름 입력칸에 바로 커서
+  $("emptyAdd").addEventListener("click", () => {
+    setView("members");
+    const input = $("addInput");
+    input.scrollIntoView({ block: "center" });
+    input.focus({ preventScroll: true });
   });
 
   // 날짜를 바꾸면 바로 다시 그린다
@@ -3187,7 +3239,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 68; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 69; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
