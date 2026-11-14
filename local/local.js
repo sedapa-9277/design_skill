@@ -17,11 +17,16 @@
   const MON_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const $ = (id) => document.getElementById(id);
 
-  // ---------- 설정: 언어(기본 영어)와 화면 모드 ----------
+  // ---------- 설정: 언어(고른 적 없으면 폰 언어: 한국어 폰은 한국어, 나머지는 영어)와 화면 모드 ----------
   const LANG_KEY = "soccer-local-lang";
   const THEME_KEY = "soccer-local-theme";
   let lang = "en";
-  try { if (localStorage.getItem(LANG_KEY) === "ko") lang = "ko"; } catch (e) { /* 저장 불가 시 기본값 */ }
+  {
+    let saved = null;
+    try { saved = localStorage.getItem(LANG_KEY); } catch (e) { /* 저장 불가 시 폰 언어로 */ }
+    const phone = String((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
+    lang = saved === "ko" || saved === "en" ? saved : phone.startsWith("ko") ? "ko" : "en";
+  }
   // 한국어/영어 문구 고르기: 소스에는 한국어를 먼저 쓰고 영어를 옆에 둔다
   const L = (ko, en) => (lang === "ko" ? ko : en);
   const wd = (i) => (lang === "ko" ? WD_KO : WD_EN)[i];
@@ -3239,7 +3244,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 69; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 70; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
