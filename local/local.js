@@ -4,7 +4,16 @@
   const TEAM_KEY = "soccer-local-team";
   const DB_NAME = "soccer-attendance-local";
   const BACKUP_APP = "soccer-attendance-local";
-  const BACKUP_REMIND_DAYS = 14;
+  // 백업 알림 주기 (일). 0 = 알림 끄기. 고른 값은 localStorage에, 기본 2주
+  const REMIND_KEY = "soccer-local-backupremind";
+  const SNOOZE_KEY = "soccer-local-backupsnooze";
+  const REMIND_CHOICES = [7, 14, 30, 0];
+  const REMIND_DEFAULT = 14;
+  let remindDays = REMIND_DEFAULT;
+  try {
+    const v = Number(localStorage.getItem(REMIND_KEY));
+    if (localStorage.getItem(REMIND_KEY) !== null && REMIND_CHOICES.includes(v)) remindDays = v;
+  } catch (e) { /* 저장 불가 시 기본값 */ }
 
   // [팀 이름, 주소 뒤 # 링크]
   const TEAMS = [["믿음", "faith"], ["소망", "hope"], ["사랑", "love"]];
@@ -1656,9 +1665,34 @@
     $("persistState").textContent = S.persisted === true ? L("보호됨 (브라우저가 임의로 지우지 않음)", "Protected (the browser won't clear it on its own)")
       : S.persisted === false ? L("보호 안 됨 (공간이 부족하면 지워질 수 있음)", "Not protected (may be cleared when space runs low)") : L("확인할 수 없음", "Unknown");
     $("persistState").classList.toggle("warn", S.persisted === false);
-    // 기록이 있는데 14일 넘게 백업하지 않았으면 백업 화면의 마지막 백업 날짜만 경고색 (첫 화면 알림줄은 없음)
-    const due = S.mode === "live" && c.members > 0 && (!lb || ago >= BACKUP_REMIND_DAYS);
+    // 알림 주기가 지나도록 백업하지 않았으면: 마지막 백업 날짜를 경고색으로, 위에 알림줄
+    // 한 번도 안 했으면 가장 먼저 등록한 회원 날짜부터 센다 (처음 쓰자마자 알림이 뜨지 않게)
+    let since = ago;
+    if (!lb) {
+      const first = [...S.members.values()].map((m) => m.created_at).filter(Boolean).sort()[0];
+      since = first ? daysSince(first) : Infinity;
+    }
+    const due = S.mode === "live" && c.members > 0 && remindDays > 0 && since >= remindDays;
     $("lastBackup").classList.toggle("warn", due);
+    let snoozed = false;
+    try { snoozed = localStorage.getItem(SNOOZE_KEY) === ymd(new Date()); } catch (e) { /* 무시 */ }
+    $("backupBar").hidden = !due || snoozed;
+    if (due) {
+      $("backupBarText").textContent = lb
+        ? L(`마지막 백업 ${ago}일 전`, `Last backup ${ago} day${ago === 1 ? "" : "s"} ago`)
+        : L("아직 백업한 적 없음", "Never backed up");
+    }
+    document.querySelectorAll("#remindSeg [data-remind]").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.remind) === remindDays));
+  }
+
+  function setRemindDays(v) {
+    const n = Number(v);
+    if (!REMIND_CHOICES.includes(n)) return;
+    remindDays = n;
+    try { localStorage.setItem(REMIND_KEY, String(n)); } catch (e) { /* 저장 불가 시 이번만 적용 */ }
+    renderBackup();
+    toast(n ? L(`백업한 지 ${n === 30 ? "한 달이" : n === 7 ? "1주가" : "2주가"} 지나면 알려 드립니다.`, `You'll be reminded ${n === 30 ? "a month" : n === 7 ? "a week" : "two weeks"} after your last backup.`)
+      : L("백업 알림을 껐습니다.", "Backup reminders are off."));
   }
 
   // ---------- 렌더 ----------
@@ -2924,6 +2958,13 @@
   });
 
   $("backupBtn").addEventListener("click", openBackup);
+  // 백업 알림줄: 지금 백업 = 바로 백업 창, 나중에 = 오늘은 다시 안 띄움
+  $("backupBarBtn").addEventListener("click", openBackup);
+  $("backupBarLater").addEventListener("click", () => {
+    try { localStorage.setItem(SNOOZE_KEY, ymd(new Date())); } catch (e) { /* 무시 */ }
+    $("backupBar").hidden = true;
+  });
+  $("remindSeg").addEventListener("click", (e) => { const b = e.target.closest("[data-remind]"); if (b) setRemindDays(b.dataset.remind); });
   $("backupCloseBtn").addEventListener("click", closeBackup);
   $("backupDownloadBtn").addEventListener("click", downloadBackup);
   $("backupShareBtn").addEventListener("click", shareBackup);
@@ -3244,7 +3285,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 70; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 71; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
