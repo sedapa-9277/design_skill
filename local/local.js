@@ -1299,9 +1299,9 @@
     const btn = $("bulkBtn");
     // 옮길 팀이 없거나 회원이 없으면 선택 모드를 쓸 수 없다
     if (!others.length || (!active.length && !S.bulk)) S.bulk = false;
-    btn.hidden = !others.length || !active.length;
-    btn.textContent = S.bulk ? L("닫기", "Close") : L("팀 이동", "Move team");
-    btn.setAttribute("aria-pressed", S.bulk);
+    // 선택 모드 중에는 숨긴다 (막대의 "취소"로 닫는다)
+    btn.hidden = !others.length || !active.length || S.bulk;
+    btn.textContent = L("팀 이동", "Move team");
     $("memberPanel").classList.toggle("bulk-mode", S.bulk);
     const bar = $("bulkBar");
     bar.hidden = !S.bulk;
@@ -3397,7 +3397,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 75; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 76; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
