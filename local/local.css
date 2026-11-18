@@ -1933,9 +1933,9 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 .team-add svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 
 /* 회원 관리 "여러 명 선택": 줄을 눌러 고르고, 목록 위 막대에서 옮길 팀을 고른다 */
-.panel-head .bulk-btn { margin-left: auto; padding: 6px 12px; }
-.panel-head .bulk-btn[hidden] { display: none; }
-.panel-head .bulk-btn[aria-pressed="true"] { background: var(--pitch); border-color: var(--pitch); color: var(--chalk); font-weight: 700; }
+.bulk-btn { display: block; margin: 10px 0 8px auto; padding: 6px 12px; }
+.bulk-btn[hidden] { display: none; }
+.bulk-btn[aria-pressed="true"] { background: var(--pitch); border-color: var(--pitch); color: var(--chalk); font-weight: 700; }
 .bulk-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--pitch); border-radius: 10px; background: var(--pitch-soft); }
 .bulk-bar[hidden] { display: none; }
 .bulk-left, .bulk-right { display: flex; align-items: center; gap: 6px; }
