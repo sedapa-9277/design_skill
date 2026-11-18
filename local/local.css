@@ -1931,3 +1931,24 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 .team-add[hidden] { display: none; }
 .team-add:hover { background: #ffffff24; border-color: #ffffffa6; }
 .team-add svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+/* 회원 관리 "여러 명 선택": 줄을 눌러 고르고, 목록 위 막대에서 옮길 팀을 고른다 */
+.panel-head .bulk-btn { margin-left: auto; padding: 6px 12px; }
+.panel-head .bulk-btn[hidden] { display: none; }
+.panel-head .bulk-btn[aria-pressed="true"] { background: var(--pitch); border-color: var(--pitch); color: var(--chalk); font-weight: 700; }
+.bulk-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border: 1px solid var(--pitch); border-radius: 10px; background: var(--pitch-soft); }
+.bulk-bar[hidden] { display: none; }
+.bulk-left, .bulk-right { display: flex; align-items: center; gap: 6px; }
+.bulk-right { margin-left: auto; }
+.bulk-count { font-weight: 700; font-size: .9rem; min-width: 4.5em; }
+.bulk-bar .team-sel { font: inherit; font-size: .85rem; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 6px; }
+.bulk-bar .bulk-go { padding: 7px 16px; }
+.bulk-bar .bulk-go:disabled { opacity: .45; filter: none; cursor: not-allowed; }
+.mlist li.bulk-li { padding: 0; }
+.bulk-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 6px 6px; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: .9rem; text-align: left; cursor: pointer; border-radius: 6px; -webkit-tap-highlight-color: transparent; }
+.bulk-row:hover { background: var(--surface-2); }
+.bulk-row.on { background: var(--pitch-soft); font-weight: 700; }
+.bulk-check { flex: none; width: 20px; height: 20px; border: 2px solid var(--line); border-radius: 5px; display: grid; place-items: center; background: var(--surface); }
+.bulk-row.on .bulk-check { background: var(--pitch); border-color: var(--pitch); }
+.bulk-row.on .bulk-check::after { content: ""; width: 5px; height: 10px; border: solid var(--chalk); border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
+#memberPanel.bulk-mode .mlist { max-height: 420px; }

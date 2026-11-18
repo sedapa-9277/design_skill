@@ -89,7 +89,10 @@
     editId: null,
     editDraft: null,
     editTeam: null,
-    unlockDate: null,         // "수정"을 눌러 잠금을 푼 지난 날짜 (날짜를 바꾸면 다시 잠긴다)
+    bulk: false,              // 회원 관리 "여러 명 선택" 모드
+    bulkSel: new Set(),       // 선택 모드에서 고른 회원 id
+    bulkTeam: null,           // 선택 모드에서 옮길 팀
+    unlockDate: null,        // "수정"을 눌러 잠금을 푼 지난 날짜 (날짜를 바꾸면 다시 잠긴다)
     recentShown: 5,           // 상단 "최근 모임"에 보이는 날짜 수 (설정에서 1~7)
     attMode: "game",          // 출석 방식: game = 경기별 출석체크, day = 출석체크(그날 한 칸)
     absentN: 3,             // 포지션 회원 고르기에서 "최근 N번 모임 불참"으로 나누는 N (설정에서 1~5)
@@ -1261,6 +1264,92 @@
       L(`${name} 님의 회원 정보와 모든 출석·포지션 기록을 완전히 삭제했습니다.`, `Permanently deleted ${name} and all attendance and lineup records.`));
   }
 
+  // ---------- 여러 명 팀 이동 (선택 모드) ----------
+  function enterBulk() {
+    S.bulk = true;
+    S.bulkSel = new Set();
+    S.editId = null; S.editDraft = null; S.editTeam = null;
+    S.confirmDel = null;
+    renderMembers();
+  }
+  function exitBulk() {
+    S.bulk = false;
+    S.bulkSel = new Set();
+    renderMembers();
+  }
+  function toggleBulkPick(id) {
+    if (S.bulkSel.has(id)) S.bulkSel.delete(id);
+    else S.bulkSel.add(id);
+    renderMembers();
+  }
+  // 고른 회원을 한 번에 옮긴다: 저장도 한 번, 실패하면 모두 되돌아간다
+  async function bulkMove() {
+    const team = S.bulkTeam;
+    const ids = [...S.bulkSel].filter((id) => { const m = S.members.get(id); return m && m.active !== false && m.team !== team; });
+    if (!ids.length || !activeTeams().some(([t]) => t === team)) return;
+    const ok = await write(() => ids.forEach((id) => dbSetTeam(id, team)),
+      ids.length === 1
+        ? L(`${memberName(ids[0])} 님을 ${tn(team)}으로 옮겼습니다.`, `Moved ${memberName(ids[0])} to ${tn(team)}.`)
+        : L(`${ids.length}명을 ${tn(team)}으로 옮겼습니다.`, `Moved ${ids.length} members to ${tn(team)}.`));
+    if (ok) exitBulk();
+  }
+
+  function renderBulk(active) {
+    const others = activeTeams().filter(([t]) => t !== S.team);
+    const btn = $("bulkBtn");
+    // 옮길 팀이 없거나 회원이 없으면 선택 모드를 쓸 수 없다
+    if (!others.length || (!active.length && !S.bulk)) S.bulk = false;
+    btn.hidden = !others.length || !active.length;
+    btn.textContent = S.bulk ? L("선택 끝", "Done") : L("여러 명 선택", "Select");
+    btn.setAttribute("aria-pressed", S.bulk);
+    $("memberPanel").classList.toggle("bulk-mode", S.bulk);
+    const bar = $("bulkBar");
+    bar.hidden = !S.bulk;
+    if (!S.bulk) { bar.replaceChildren(); return; }
+    // 지금 팀 명단에 없는 회원은 선택에서 뺀다
+    const ids = new Set(active.map(([id]) => id));
+    for (const id of [...S.bulkSel]) if (!ids.has(id)) S.bulkSel.delete(id);
+    if (!others.some(([t]) => t === S.bulkTeam)) S.bulkTeam = others[0][0];
+    const n = S.bulkSel.size;
+
+    const count = document.createElement("span");
+    count.className = "bulk-count num";
+    count.textContent = L(`${n}명 선택`, `${n} selected`);
+    const all = document.createElement("button");
+    all.type = "button";
+    all.className = "row-btn";
+    const allOn = n === active.length && n > 0;
+    all.textContent = allOn ? L("선택 해제", "Clear") : L("전체 선택", "Select all");
+    all.addEventListener("click", () => {
+      S.bulkSel = allOn ? new Set() : new Set(ids);
+      renderMembers();
+    });
+    const sel = document.createElement("select");
+    sel.className = "team-sel";
+    sel.setAttribute("aria-label", L("옮길 팀", "Move to team"));
+    others.forEach(([t]) => sel.add(new Option(tn(t), t)));
+    sel.value = S.bulkTeam;
+    sel.addEventListener("change", () => { S.bulkTeam = sel.value; });
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn bulk-go";
+    go.textContent = L("이동", "Move");
+    go.disabled = !n;
+    go.addEventListener("click", bulkMove);
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "row-btn";
+    cancel.textContent = L("취소", "Cancel");
+    cancel.addEventListener("click", exitBulk);
+    const left = document.createElement("div");
+    left.className = "bulk-left";
+    left.append(count, all);
+    const right = document.createElement("div");
+    right.className = "bulk-right";
+    right.append(sel, go, cancel);
+    bar.replaceChildren(left, right);
+  }
+
   // 이름 수정과 팀 이동을 함께 저장
   async function saveMember(id, raw, team) {
     const m = S.members.get(id);
@@ -1470,6 +1559,8 @@
     S.editId = null;
     S.confirmDel = null;
     S.confirmPurge = null;
+    S.bulk = false;
+    S.bulkSel = new Set();
     try { localStorage.setItem(TEAM_KEY, team); } catch (e) { /* 저장 불가 시 무시 */ }
     const hash = "#" + TEAMS.find(([t]) => t === team)[1];
     // 뒤로가기 막이 기록(history.state)은 그대로 두고 주소만 바꾼다
@@ -2616,6 +2707,7 @@
       .filter(([, m]) => m.active === false)
       .sort((a, b) => a[1].name.localeCompare(b[1].name, "ko"));
     $("memberCount").textContent = L(`${active.length}명`, `${active.length}`);
+    renderBulk(active);
 
     const list = $("memberList");
     // 목록은 따로 스크롤되는 상자라, 다시 그려도 보던 위치를 유지한다 (아래쪽 회원의 부상·삭제를 눌러도 위로 튀지 않게)
@@ -2629,6 +2721,26 @@
     }
     for (const [id, m] of active) {
       const li = document.createElement("li");
+
+      // 선택 모드: 줄 전체가 하나의 선택 버튼
+      if (S.bulk) {
+        const on = S.bulkSel.has(id);
+        li.className = "bulk-li";
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "bulk-row" + (on ? " on" : "");
+        b.setAttribute("aria-pressed", on);
+        const box = document.createElement("i");
+        box.className = "bulk-check";
+        box.setAttribute("aria-hidden", "true");
+        const name = document.createElement("span");
+        name.textContent = m.name;
+        b.append(box, name);
+        b.addEventListener("click", () => toggleBulkPick(id));
+        li.append(b);
+        list.append(li);
+        continue;
+      }
 
       if (S.editId === id) {
         li.className = "editing";
@@ -3285,7 +3397,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 72; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 73; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
@@ -3381,6 +3493,13 @@
   $("ossClose").addEventListener("click", closeOss);
   $("ossModal").addEventListener("click", (e) => { if (e.target === $("ossModal")) closeOss(); });
   document.querySelectorAll("[data-edit-lock]").forEach((b) => b.addEventListener("click", toggleEditLock));
+  $("bulkBtn").addEventListener("click", () => { if (S.bulk) exitBulk(); else enterBulk(); });
+  // Esc: 열린 창이 없을 때만 선택 모드를 닫는다
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !S.bulk) return;
+    if (document.querySelector(".help-modal:not([hidden]), [id$='Modal']:not([hidden])")) return;
+    exitBulk();
+  });
 
   // ---------- 휴대폰 뒤로가기: 앱이 바로 닫히지 않게 ----------
   // 기록에 "막이" 한 칸을 쌓아 두고, 뒤로가기가 오면 열린 창 → 회원 고르기 → 출석 화면 순서로 하나씩 되돌린다.
@@ -3403,6 +3522,7 @@
     if (!$("setModal").hidden) { closeSettings(); return true; }
     if (!$("calModal").hidden) { closeCalendar(); return true; }
     if (S.pickSlot !== null) { S.pickSlot = null; renderLineup(); return true; }
+    if (S.bulk && document.body.dataset.view === "members") { exitBulk(); return true; }
     if (document.body.dataset.view !== "check" && window.matchMedia("(max-width: 860px)").matches) { setView("check"); return true; }
     return false;
   }
