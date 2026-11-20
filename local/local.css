@@ -1911,8 +1911,11 @@ body.past-locked .att .cell, body.past-locked .att .all-link, body.past-locked .
 .seg.att-mode button { flex: 1; padding: 8px 0; font-size: .88rem; }
 /* 출석체크: 이름과 출석 칸 하나라 칸을 조금 크게, 이름 칸은 넓게 */
 .att[data-games="day"] .cell { width: 48px; height: 48px; }
-.att[data-games="day"] td.name { max-width: none; }
-.att[data-games="day"] th:last-child, .att[data-games="day"] td:last-child { width: 80px; text-align: center; }
+/* 출석 칸(동그라미)이 줄 한가운데 오게: 두 칸을 반씩 나누고, 동그라미·제목은 오른쪽 칸 왼쪽 끝(=가운데)에 중심을 맞춘다 */
+.att[data-games="day"] th.name, .att[data-games="day"] td.name { width: 50%; max-width: 0; }
+.att[data-games="day"] th:last-child, .att[data-games="day"] td:last-child { width: 50%; text-align: left; padding-left: 0; padding-right: 0; }
+.att[data-games="day"] td:last-child .cell { margin-left: -24px; }
+.att[data-games="day"] .day-head { display: inline-block; transform: translateX(-50%); text-align: center; }
 
 /* 팀 추가(+) 버튼: 팀 선택 오른쪽, 팀이 3개보다 적을 때만 보인다 */
 .team-add {

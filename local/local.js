@@ -2096,7 +2096,7 @@
     $("attTable").dataset.games = "day";
     const count = list.filter(([id]) => attendedDay(S.date, id)).length;
     const head = document.createElement("tr");
-    head.innerHTML = `<th class="name">${L("이름", "Name")}</th><th>${L("출석", "In")}<span class="cnt num">${count}</span></th>`;
+    head.innerHTML = `<th class="name">${L("이름", "Name")}</th><th><span class="day-head">${L("출석", "In")}<span class="cnt num">${count}</span></span></th>`;
     $("attHead").replaceChildren(head);
     const body = $("attBody");
     body.replaceChildren();
@@ -3397,7 +3397,7 @@
   }
 
   // 문제 확인용 한 줄: 앱 버전 · 화면을 그리는 브라우저 · 폰의 라이트/다크 설정
-  const APP_VERSION = 76; // sw.js의 VERSION과 같게 올린다
+  const APP_VERSION = 77; // sw.js의 VERSION과 같게 올린다
   function browserName() {
     const ua = navigator.userAgent;
     let m;
